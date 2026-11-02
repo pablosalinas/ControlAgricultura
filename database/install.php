@@ -14,7 +14,7 @@ $defDb   = env('DB_NAME', 'agrodietario_db');
 $defUser = env('DB_USER', 'root');
 $defPass = env('DB_PASS', '');
 
-// Si estamos en el dominio de producción y aún tiene los valores de local
+// Valores sugeridos si estamos en producción y aún están los de local
 if (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'moratalla-murcia.com') !== false && ($defHost === '127.0.0.1' || $defHost === 'localhost')) {
     $defHost = 'db5021806071.hosting-data.io';
     $defDb   = 'db5021806071';
@@ -37,19 +37,9 @@ if (strpos($dbName, '.hosting-data.io') !== false) {
 $instalado = false;
 $error = '';
 $mensajes = array();
-$intentos = array();
+$basesDetectadas = array();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
-    // Generar nombres candidatos de base de datos
-    // En IONOS es muy frecuente que el nombre empiece por "dbs" en lugar de "db"
-    $candidatos = array($dbName);
-    if (strpos($dbName, 'db50') === 0) {
-        $candidatos[] = 'dbs' . substr($dbName, 2); // dbs5021806071
-    } elseif (strpos($dbName, 'dbs50') === 0) {
-        $candidatos[] = 'db' . substr($dbName, 3);  // db5021806071
-    }
-    $candidatos = array_unique($candidatos);
-
     $pdo = null;
     $bdConectada = null;
 
@@ -60,39 +50,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
         PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
     );
 
-    foreach ($candidatos as $cand) {
-        try {
-            $dsn = "mysql:host={$host};port={$port};dbname={$cand};charset=utf8mb4";
-            $p = new PDO($dsn, $user, $pass, $options);
-            $pdo = $p;
-            $bdConectada = $cand;
-            $mensajes[] = "✅ Conexión establecida con éxito a la base de datos <strong>{$cand}</strong> en <code>{$host}</code>.";
-            break;
-        } catch (PDOException $e) {
-            $intentos[$cand] = $e->getMessage();
+    // ESTRATEGIA 1: Probar conexión sin forzar base de datos para auto-descubrir las BD asignadas
+    try {
+        $dsnSinBd = "mysql:host={$host};port={$port};charset=utf8mb4";
+        $pTest = new PDO($dsnSinBd, $user, $pass, $options);
+        $mensajes[] = "✅ ¡Usuario <code>{$user}</code> autenticado correctamente en el servidor!";
+        
+        // Consultar bases de datos disponibles
+        $stmt = $pTest->query("SHOW DATABASES");
+        $dbs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        $filtradas = array();
+        foreach ($dbs as $d) {
+            if ($d !== 'information_schema' && $d !== 'performance_schema' && $d !== 'mysql' && $d !== 'sys') {
+                $filtradas[] = $d;
+            }
+        }
+        $basesDetectadas = $filtradas;
+
+        if (!empty($filtradas)) {
+            $mensajes[] = "🔍 Bases de datos encontradas en tu cuenta: <strong>" . implode(', ', $filtradas) . "</strong>";
+            // Si la introducida está en la lista la usamos, si no, usamos la primera válida
+            if (in_array($dbName, $filtradas)) {
+                $bdConectada = $dbName;
+            } else {
+                $bdConectada = $filtradas[0];
+                $mensajes[] = "👉 Conectando a la base de datos detectada: <strong>{$bdConectada}</strong>";
+            }
+            
+            $dsnConBd = "mysql:host={$host};port={$port};dbname={$bdConectada};charset=utf8mb4";
+            $pdo = new PDO($dsnConBd, $user, $pass, $options);
+        }
+    } catch (Exception $e) {
+        // Si no permite conectar sin BD, pasamos a la Estrategia 2
+    }
+
+    // ESTRATEGIA 2: Si no se conectó en Estrategia 1, probar nombres candidatos directamente
+    if (!$pdo) {
+        $candidatos = array($dbName);
+        if (strpos($dbName, 'db50') === 0) {
+            $candidatos[] = 'dbs' . substr($dbName, 2);
+        } elseif (strpos($dbName, 'dbs50') === 0) {
+            $candidatos[] = 'db' . substr($dbName, 3);
+        }
+        $candidatos = array_unique($candidatos);
+
+        $intentos = array();
+        foreach ($candidatos as $cand) {
+            try {
+                $dsn = "mysql:host={$host};port={$port};dbname={$cand};charset=utf8mb4";
+                $pdo = new PDO($dsn, $user, $pass, $options);
+                $bdConectada = $cand;
+                $mensajes[] = "✅ Conexión establecida con la base de datos <strong>{$cand}</strong>.";
+                break;
+            } catch (PDOException $e) {
+                $intentos[$cand] = $e->getMessage();
+            }
+        }
+
+        if (!$pdo) {
+            $detalles = array();
+            foreach ($intentos as $c => $err) {
+                $detalles[] = "<li>Base de datos <code>{$c}</code>: " . htmlspecialchars($err) . "</li>";
+            }
+            $error = "El servidor rechazó el acceso a la base de datos.<br><ul class='mt-2 mb-0'>" . implode('', $detalles) . "</ul>";
         }
     }
 
-    if (!$pdo) {
-        $detalles = array();
-        foreach ($intentos as $c => $err) {
-            $detalles[] = "<li>Base de datos <code>{$c}</code>: " . htmlspecialchars($err) . "</li>";
-        }
-        $error = "No fue posible conectar con los datos indicados.<br><ul class='mt-2 mb-0'>" . implode('', $detalles) . "</ul>";
-    } else {
+    // Si tenemos conexión exitosa, instalar las tablas
+    if ($pdo && $bdConectada) {
         try {
-            // Ejecutar schema.sql
             $sqlFile = __DIR__ . '/schema.sql';
             if (!file_exists($sqlFile)) {
                 throw new Exception("No se encontró el archivo schema.sql en: " . $sqlFile);
             }
 
-            $mensajes[] = "📖 Leyendo <em>schema.sql</em> e inicializando todas las tablas...";
+            $mensajes[] = "📖 Leyendo <em>schema.sql</em> y creando tablas...";
             $sql = file_get_contents($sqlFile);
-            
-            // En MySQL con PDO, algunas configuraciones requieren ejecutar sentencia por sentencia si hay múltiples statements
             $pdo->exec($sql);
-            $mensajes[] = "✅ Todas las tablas, parajes, cultivos y usuarios superadministradores han sido creados correctamente.";
+            $mensajes[] = "✅ Tablas creadas y superadministrador <strong>pablosalinasmarin@gmail.com</strong> activado.";
 
             // Guardar configuración funcional en .env
             $envPath = dirname(__DIR__) . '/.env';
@@ -109,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
             $envContent .= "UPLOAD_MAX_MB=15\n";
 
             file_put_contents($envPath, $envContent);
-            $mensajes[] = "💾 Configuración guardada en <code>.env</code> vinculada a <strong>{$bdConectada}</strong>.";
+            $mensajes[] = "💾 Archivo <code>.env</code> actualizado con la base de datos <strong>{$bdConectada}</strong>.";
 
             $instalado = true;
 
@@ -129,9 +165,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
         body { background: #091e3a; font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; padding: 30px 15px; }
-        .card-install { background: #ffffff; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); max-width: 680px; margin: auto; border-top: 5px solid #1d4ed8; }
+        .card-install { background: #ffffff; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); max-width: 720px; margin: auto; border-top: 5px solid #1d4ed8; }
         .btn-install { background: #1d4ed8; color: #fff; font-weight: bold; border: none; padding: 12px; }
         .btn-install:hover { background: #1e40af; color: #fff; }
+        .ionos-hint { background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 16px; }
     </style>
 </head>
 <body>
@@ -169,14 +206,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
             <div class="alert alert-danger p-3 mb-4">
                 <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Fallo en la conexión</div>
                 <div class="small mt-2"><?= $error ?></div>
-                <div class="small text-muted mt-2">
-                    Si el error persiste, verifica en tu panel de IONOS &gt; Bases de datos el nombre exacto asignado (suele ser <code>dbs5021806071</code> o <code>db5021806071</code>).
-                </div>
+            </div>
+
+            <div class="ionos-hint mb-4 small">
+                <div class="fw-bold text-primary mb-1"><i class="fa-solid fa-circle-info me-1"></i> ¿Cómo comprobar el Nombre exacto de tu Base de Datos en IONOS?</div>
+                <p class="mb-1 text-muted">
+                    En el panel de IONOS, el <strong>Servidor</strong> suele ser <code>db5021806071.hosting-data.io</code>, pero el <strong>Nombre de la base de datos</strong> tiene su propio código asignado por IONOS (frecuentemente empieza por <code>dbs...</code>, por ejemplo <code>dbs12345678</code>).
+                </p>
+                <ol class="mb-0 ps-3 text-muted">
+                    <li>Entra en tu panel de IONOS &gt; <strong>Hosting</strong> &gt; <strong>Bases de datos</strong>.</li>
+                    <li>Fíjate en la columna <strong>"Nombre de la base de datos"</strong>.</li>
+                    <li>Copia ese nombre exacto y pégalo abajo en la casilla <em>"Nombre de la Base de Datos"</em>.</li>
+                </ol>
             </div>
         <?php else: ?>
             <p class="text-muted small mb-4">
-                Verifica los datos de conexión de tu base de datos MySQL. El sistema probará automáticamente las variantes de nombre de IONOS (ej. <code>db...</code> y <code>dbs...</code>) y creará las tablas al instante.
+                Verifica los datos de conexión de tu base de datos MySQL. El instalador intentará detectar automáticamente tu base de datos y crear todas las tablas en un solo clic.
             </p>
+        <?php endif; ?>
+
+        <?php if (!empty($mensajes)): ?>
+            <div class="alert alert-info p-3 mb-4 small">
+                <?php foreach ($mensajes as $m): ?>
+                    <p class="mb-1"><?= $m ?></p>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
 
         <form action="" method="POST">
@@ -196,7 +250,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
                 <div class="col-md-6">
                     <label class="form-label fw-semibold small">Nombre de la Base de Datos</label>
                     <input type="text" name="db_name" class="form-control font-monospace" value="<?= htmlspecialchars($dbName) ?>" required>
-                    <div class="form-text small">Prueba con <code>db5021806071</code> o <code>dbs5021806071</code>.</div>
+                    <div class="form-text small">El nombre que figura en tu panel de IONOS &gt; Bases de datos.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-semibold small">Usuario de MySQL</label>
