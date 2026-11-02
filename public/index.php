@@ -12,7 +12,7 @@ require_once SRC_PATH . '/Services/Captcha.php';
 $route = $_GET['route'] ?? '';
 $route = trim($route, '/');
 
-// Enrutamiento simple y limpio
+// Enrutamiento
 switch ($route) {
     case '':
         require_once VIEWS_PATH . '/home.php';
@@ -80,6 +80,7 @@ switch ($route) {
         require_once VIEWS_PATH . '/dashboard.php';
         break;
 
+    // Rutas de Administración
     case 'admin/usuarios':
         if (!Auth::isAdmin()) {
             header("Location: " . APP_URL . "/dashboard");
@@ -88,7 +89,15 @@ switch ($route) {
         require_once VIEWS_PATH . '/admin/usuarios.php';
         break;
 
-    // Rutas para Fincas
+    case 'admin/configuracion':
+        if (!Auth::isAdmin()) {
+            header("Location: " . APP_URL . "/dashboard");
+            exit;
+        }
+        require_once VIEWS_PATH . '/admin/configuracion.php';
+        break;
+
+    // Rutas para Fincas y Parajes
     case 'fincas':
     case 'fincas/nueva':
     case 'fincas/detalle':
@@ -97,12 +106,16 @@ switch ($route) {
             exit;
         }
         $sub = explode('/', $route)[1] ?? 'index';
-        $viewFile = VIEWS_PATH . '/fincas/' . ($sub === 'nueva' ? 'form.php' : ($sub === 'detalle' ? 'detalle.php' : 'index.php'));
-        if (file_exists($viewFile)) {
-            require_once $viewFile;
-        } else {
-            require_once VIEWS_PATH . '/fincas/index.php';
+        $viewFile = VIEWS_PATH . '/fincas/' . ($sub === 'nueva' ? 'form.php' : 'index.php');
+        require_once $viewFile;
+        break;
+
+    case 'parajes':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
         }
+        require_once VIEWS_PATH . '/fincas/parajes.php';
         break;
 
     // Rutas para Cultivos
@@ -114,50 +127,74 @@ switch ($route) {
         }
         $sub = explode('/', $route)[1] ?? 'index';
         $viewFile = VIEWS_PATH . '/cultivos/' . ($sub === 'nuevo' ? 'form.php' : 'index.php');
-        if (file_exists($viewFile)) {
-            require_once $viewFile;
-        } else {
-            require_once VIEWS_PATH . '/cultivos/index.php';
-        }
+        require_once $viewFile;
         break;
 
-    // Rutas para Labores y Cuaderno de campo
-    case 'tratamientos':
-    case 'tratamientos/nuevo':
-    case 'labores':
-    case 'labores/nueva':
-    case 'podas':
-    case 'podas/nueva':
-    case 'riegos':
-    case 'riegos/nuevo':
-    case 'recolecciones':
-    case 'recolecciones/nueva':
-    case 'diario':
-    case 'diario/nuevo':
+    // Rutas para Plantaciones
     case 'plantaciones':
-    case 'parajes':
+    case 'plantaciones/nueva':
         if (!Auth::check()) {
             header("Location: " . APP_URL . "/login");
             exit;
         }
-        $parts = explode('/', $route);
-        $modulo = $parts[0];
-        $accion = $parts[1] ?? 'index';
+        $sub = explode('/', $route)[1] ?? 'index';
+        $viewFile = VIEWS_PATH . '/plantaciones/' . ($sub === 'nueva' ? 'form.php' : 'index.php');
+        require_once $viewFile;
+        break;
 
-        $directView = VIEWS_PATH . "/labores/{$modulo}.php";
-        if (file_exists($directView)) {
-            require_once $directView;
-        } else {
-            // Fallback genérico si aún no existe la vista específica
-            $pageTitle = ucfirst($modulo) . " - " . APP_NAME;
-            require_once VIEWS_PATH . '/layouts/header.php';
-            echo "<div class='container py-5'><div class='card card-custom p-5 text-center'>";
-            echo "<h3 class='fw-bold text-success mb-2'>Módulo: " . htmlspecialchars(ucfirst($modulo)) . "</h3>";
-            echo "<p class='text-muted'>Página en preparación.</p>";
-            echo "<a href='" . APP_URL . "/dashboard' class='btn btn-ag mt-3'>Volver al Panel</a>";
-            echo "</div></div>";
-            require_once VIEWS_PATH . '/layouts/footer.php';
+    // Rutas para Labores de Campo y Cuaderno de Explotación
+    case 'tratamientos':
+    case 'tratamientos/nuevo':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
         }
+        require_once VIEWS_PATH . '/labores/tratamientos.php';
+        break;
+
+    case 'labores':
+    case 'labores/nueva':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/suelo.php';
+        break;
+
+    case 'podas':
+    case 'podas/nueva':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/podas.php';
+        break;
+
+    case 'riegos':
+    case 'riegos/nuevo':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/riegos.php';
+        break;
+
+    case 'recolecciones':
+    case 'recolecciones/nueva':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/recolecciones.php';
+        break;
+
+    case 'diario':
+    case 'diario/nuevo':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/diario.php';
         break;
 
     default:
