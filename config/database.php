@@ -20,6 +20,20 @@ class Database {
             $user = env('DB_USER', 'root');
             $pass = env('DB_PASS', '');
 
+            // Fallback para producción si .env no existe todavía
+            if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'moratalla-murcia.com') !== false) {
+                if ($host === '127.0.0.1' || $host === 'localhost') {
+                    $host = 'db5021806071.hosting-data.io';
+                }
+                if ($dbName === 'agrodietario_db' || $dbName === 'db5021806071' || $dbName === 'dbs5021806071') {
+                    $dbName = 'dbs16298625';
+                }
+                if ($user === 'root') {
+                    $user = 'dbu1550776';
+                    $pass = 'Tortas01.56196798-Salinas_2026_Fincas';
+                }
+            }
+
             // Corrección inteligente para IONOS si se colocó el host como nombre de BD
             if (strpos($dbName, '.hosting-data.io') !== false) {
                 $host = $dbName;

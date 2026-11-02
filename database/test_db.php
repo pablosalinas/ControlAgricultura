@@ -50,6 +50,7 @@ try {
 // TEST 2: Probar bases de datos directas
 echo "<h4>Prueba 2: Probar conexión directa con nombres candidatos</h4>";
 $candidatos = array(
+    'dbs16298625',
     $dbName,
     'dbs5021806071',
     'db5021806071',
@@ -57,6 +58,7 @@ $candidatos = array(
 );
 $candidatos = array_unique($candidatos);
 
+$targetDb = null;
 foreach ($candidatos as $cand) {
     try {
         $dsn = "mysql:host={$host};port={$port};dbname={$cand};charset=utf8mb4";
@@ -65,9 +67,35 @@ foreach ($candidatos as $cand) {
             PDO::ATTR_TIMEOUT => 5
         ));
         echo "<p style='color:green;'>✅ ¡ÉXITO! Base de datos válida encontrada: <code>{$cand}</code></p>";
+        $targetDb = $cand;
+        break;
     } catch (Exception $e) {
         echo "<p style='color:#b91c1c;'>❌ Base <code>{$cand}</code>: " . htmlspecialchars($e->getMessage()) . "</p>";
     }
+}
+
+if ($targetDb && isset($_GET['install']) && $_GET['install'] === '1') {
+    echo "<h4>Instalando esquema SQL en <code>{$targetDb}</code>...</h4>";
+    try {
+        $sql = file_get_contents(__DIR__ . '/schema.sql');
+        $dsn = "mysql:host={$host};port={$port};dbname={$targetDb};charset=utf8mb4";
+        $p = new PDO($dsn, $user, $pass, array(
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ));
+        $p->exec($sql);
+        echo "<p style='color:green; font-weight:bold; font-size:18px;'>🎉 ¡TABLAS INSTALADAS CON ÉXITO EN {$targetDb}!</p>";
+
+        // Escribir archivo .env en el servidor
+        $envFile = dirname(__DIR__) . '/.env';
+        $envData = "APP_NAME=\"AgroDietario\"\nAPP_ENV=production\nAPP_DEBUG=true\nAPP_URL=https://www.moratalla-murcia.com/agricultura\n\nDB_HOST={$host}\nDB_PORT={$port}\nDB_NAME={$targetDb}\nDB_USER={$user}\nDB_PASS={$pass}\n\nCAPTCHA_DRIVER=local_gd\nUPLOAD_MAX_MB=15\n";
+        file_put_contents($envFile, $envData);
+        echo "<p style='color:green;'>✅ Archivo .env configurado y guardado correctamente.</p>";
+        echo "<p><a href='../public/login' style='display:inline-block; background:#10b981; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-weight:bold;'>Ir a Iniciar Sesión</a></p>";
+    } catch (Exception $e) {
+        echo "<p style='color:red;'>❌ Error en la instalación: " . htmlspecialchars($e->getMessage()) . "</p>";
+    }
+} else if ($targetDb) {
+    echo "<p><a href='test_db.php?install=1' style='display:inline-block; background:#10b981; color:#fff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:16px;'>⚡ Pulsa aquí para Instalar Tablas en {$targetDb} Ahora</a></p>";
 }
 
 echo "<hr><p style='text-align:center;'><a href='install.php' style='display:inline-block; background:#1d4ed8; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-weight:bold;'>Ir al Instalador de Tablas</a></p>";

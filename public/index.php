@@ -7,6 +7,11 @@ require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once SRC_PATH . '/Services/Auth.php';
 require_once SRC_PATH . '/Services/Captcha.php';
+require_once SRC_PATH . '/Services/Mailer.php';
+require_once SRC_PATH . '/Services/DatabaseMigrator.php';
+
+// Auto-migración y verificación de esquema
+DatabaseMigrator::run();
 
 // Obtener la ruta solicitada
 $route = isset($_GET['route']) ? $_GET['route'] : '';

@@ -15,10 +15,11 @@ $defUser = env('DB_USER', 'root');
 $defPass = env('DB_PASS', '');
 
 // Valores sugeridos si estamos en producción y aún están los de local
-if (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'moratalla-murcia.com') !== false && ($defHost === '127.0.0.1' || $defHost === 'localhost')) {
+if (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'moratalla-murcia.com') !== false && ($defHost === '127.0.0.1' || $defHost === 'localhost' || $defDb === 'db5021806071')) {
     $defHost = 'db5021806071.hosting-data.io';
-    $defDb   = 'db5021806071';
+    $defDb   = 'dbs16298625';
     $defUser = 'dbu1550776';
+    $defPass = 'Tortas01.56196798-Salinas_2026_Fincas';
 }
 
 $host = isset($_POST['db_host']) ? trim($_POST['db_host']) : $defHost;
