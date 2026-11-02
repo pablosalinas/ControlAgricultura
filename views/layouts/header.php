@@ -123,6 +123,66 @@
             font-size: 0.88rem;
             border-top: 1px solid rgba(56, 189, 248, 0.15);
         }
+
+        /* Optimizaciones Responsive para Móviles y Tablets */
+        @media (max-width: 991.98px) {
+            .navbar-ag .navbar-collapse {
+                background: rgba(9, 30, 58, 0.98);
+                backdrop-filter: blur(12px);
+                padding: 1rem;
+                border-radius: 12px;
+                margin-top: 0.6rem;
+                border: 1px solid rgba(56, 189, 248, 0.25);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            }
+            .navbar-ag .dropdown-menu {
+                background: rgba(14, 52, 90, 0.95);
+                border: 1px solid rgba(56, 189, 248, 0.2);
+            }
+            .navbar-ag .dropdown-item {
+                color: #f1f5f9;
+            }
+            .navbar-ag .dropdown-item:hover {
+                background: rgba(56, 189, 248, 0.2);
+                color: #38bdf8;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            body {
+                font-size: 0.92rem;
+            }
+            .container, .container-fluid {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            .card-custom {
+                border-radius: 10px;
+                padding: 0.9rem !important;
+            }
+            h1, .h1 { font-size: 1.45rem; }
+            h2, .h2 { font-size: 1.25rem; }
+            h3, .h3 { font-size: 1.15rem; }
+            .btn {
+                padding: 0.45rem 0.8rem;
+                font-size: 0.88rem;
+            }
+            /* Tablas responsivas en smartphone */
+            .table-responsive {
+                -webkit-overflow-scrolling: touch;
+                margin-bottom: 0.75rem;
+                border-radius: 8px;
+            }
+            .table td, .table th {
+                padding: 0.45rem 0.55rem;
+                font-size: 0.85rem;
+            }
+            /* Form inputs cómodos al tacto sin zoom automático en iOS */
+            .form-control, .form-select {
+                min-height: 40px;
+                font-size: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -189,7 +249,8 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/labores"><i class="fa-solid fa-mountain-sun me-2 text-secondary"></i>Laboreo y Desbroce</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/podas"><i class="fa-solid fa-arrows-spin me-2 text-success"></i>Podas y Reciclaje</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/riegos"><i class="fa-solid fa-gauge-high me-2 text-primary"></i>Riegos y Tandas</a></li>
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/solicitud-riego"><i class="fa-solid fa-file-invoice me-2 text-info"></i>Papeleta Riego (Río Alhárabe)</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/solicitud-riego"><i class="fa-solid fa-file-circle-plus me-2 text-info"></i>Nueva Solicitud Riego (A4)</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/partes-riego"><i class="fa-solid fa-list-check me-2 text-primary"></i>Partes y Consultas de Riego</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/recolecciones"><i class="fa-solid fa-scale-balanced me-2 text-info"></i>Cosechas y Ventas</a></li>
                         </ul>
                     </li>
@@ -223,6 +284,14 @@
             <ul class="navbar-nav ms-auto align-items-center">
                 <?php if (Auth::check()): ?>
                     <?php $u = Auth::user(); ?>
+                    <!-- Vista Móvil: Datos de Usuario y Explotación -->
+                    <li class="nav-item d-lg-none my-2 p-2 rounded bg-white bg-opacity-10 text-light w-100">
+                        <div class="fw-bold small mb-1"><i class="fa-solid fa-user-circle me-1 text-info"></i> <?= htmlspecialchars($u['nombre_completo']) ?></div>
+                        <a href="<?= APP_URL ?>/explotaciones" class="badge badge-tenant text-decoration-none d-inline-block">
+                            <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
+                            <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                        </a>
+                    </li>
                     <li class="nav-item me-3 text-light text-end d-none d-lg-block">
                         <div class="fw-bold" style="font-size:0.9rem;"><?= htmlspecialchars($u['nombre_completo']) ?></div>
                         <a href="<?= APP_URL ?>/explotaciones" class="badge badge-tenant px-2 py-1 text-decoration-none" title="Administrar o conmutar explotación" style="cursor: pointer;">
@@ -230,8 +299,8 @@
                             <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="btn btn-sm btn-outline-info text-white" href="<?= APP_URL ?>/logout">
+                    <li class="nav-item w-100 w-lg-auto text-end mt-2 mt-lg-0">
+                        <a class="btn btn-sm btn-outline-info text-white w-100 w-lg-auto" href="<?= APP_URL ?>/logout">
                             <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> Salir
                         </a>
                     </li>

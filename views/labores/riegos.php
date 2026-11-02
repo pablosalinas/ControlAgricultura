@@ -17,12 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_riego'])) {
         ':hfin'     => !empty($_POST['hora_fin']) ? $_POST['hora_fin'] : null,
         ':dur'      => (float)$_POST['duracion_horas'],
         ':vol'      => !empty($_POST['volumen_m3']) ? (float)$_POST['volumen_m3'] : null,
-        ':parada'   => trim($_POST['parada_utilizada'] ?? ''),
-        ':tablon'   => trim($_POST['tablon_utilizado'] ?? ''),
-        ':tipo'     => $_POST['tipo_riego'] ?? 'goteo',
+        ':parada'   => isset($_POST['parada_utilizada']) ? trim($_POST['parada_utilizada']) : '',
+        ':tablon'   => isset($_POST['tablon_utilizado']) ? trim($_POST['tablon_utilizado']) : '',
+        ':tipo'     => isset($_POST['tipo_riego']) ? $_POST['tipo_riego'] : 'goteo',
         ':ferti'    => isset($_POST['con_fertirrigacion']) ? 1 : 0,
-        ':abonos'   => trim($_POST['productos_abono'] ?? ''),
-        ':obs'      => trim($_POST['observaciones'] ?? ''),
+        ':abonos'   => isset($_POST['productos_abono']) ? trim($_POST['productos_abono']) : '',
+        ':obs'      => isset($_POST['observaciones']) ? trim($_POST['observaciones']) : '',
         ':user'     => Auth::user()['id']
     ]);
     $mensaje = "Riego registrado correctamente en el cuaderno de campo.";
@@ -51,9 +51,12 @@ $riegos = $db->query("
             <h2 class="fw-bold mb-1"><i class="fa-solid fa-faucet-drip text-primary me-2"></i>Control de Riegos y Turnos de Agua</h2>
             <p class="text-muted mb-0">Gestión de tiempos, metros cúbicos, tandas (parada/tablón) y fertirrigación</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
             <a href="<?= APP_URL ?>/solicitud-riego" class="btn btn-outline-primary fw-semibold shadow-sm">
-                <i class="fa-solid fa-file-invoice me-1"></i> Papeleta Oficial Río Alhárabe
+                <i class="fa-solid fa-file-circle-plus me-1"></i> Nueva Solicitud (A4)
+            </a>
+            <a href="<?= APP_URL ?>/partes-riego" class="btn btn-outline-info fw-semibold shadow-sm">
+                <i class="fa-solid fa-list-check me-1"></i> Partes y Consultas
             </a>
             <button class="btn btn-ag shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formRiego">
                 <i class="fa-solid fa-plus me-1"></i> Registrar Riego
@@ -76,7 +79,7 @@ $riegos = $db->query("
                         <select name="id_plantacion" class="form-select" required>
                             <option value="">-- Seleccionar --</option>
                             <?php foreach ($plantaciones as $pl): ?>
-                                <option value="<?= $pl['id_plantacion'] ?>"><?= htmlspecialchars($pl['nombre_finca'] . ' - ' . $pl['nombre_comun']) ?> (Parada: <?= htmlspecialchars($pl['parada'] ?? '-') ?>)</option>
+                                <option value="<?= $pl['id_plantacion'] ?>"><?= htmlspecialchars($pl['nombre_finca'] . ' - ' . $pl['nombre_comun']) ?> (Parada: <?= htmlspecialchars(!empty($pl['parada']) ? $pl['parada'] : '-') ?>)</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -156,12 +159,12 @@ $riegos = $db->query("
                                 <td>
                                     <?php if ($r['con_fertirrigacion']): ?>
                                         <span class="badge bg-success"><i class="fa-solid fa-vial me-1"></i>Sí</span>
-                                        <div class="small text-muted"><?= htmlspecialchars($r['productos_abono'] ?? '') ?></div>
+                                        <div class="small text-muted"><?= htmlspecialchars(!empty($r['productos_abono']) ? $r['productos_abono'] : '') ?></div>
                                     <?php else: ?>
                                         <span class="badge bg-light text-muted border">Agua sola</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="small text-muted"><?= htmlspecialchars($r['observaciones'] ?? '') ?></td>
+                                <td class="small text-muted"><?= htmlspecialchars(!empty($r['observaciones']) ? $r['observaciones'] : '') ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

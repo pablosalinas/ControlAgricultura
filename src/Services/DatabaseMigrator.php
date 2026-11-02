@@ -164,6 +164,46 @@ class DatabaseMigrator {
                 $pdo->exec("UPDATE comunidades_regantes SET es_predeterminada = 1 WHERE activo = 1");
             }
 
+            // 6. Tabla SOLICITUDES_RIEGO (Historial, Partes, Asignación de Turnos y Estados)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS solicitudes_riego (
+                    id_solicitud INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NULL,
+                    id_finca INT NULL,
+                    id_comunidad INT NULL,
+                    id_regante INT NULL,
+                    num_regante VARCHAR(50) NOT NULL,
+                    titular VARCHAR(150) NOT NULL,
+                    cif_nif VARCHAR(30) NULL,
+                    telefono VARCHAR(50) NULL,
+                    domicilio VARCHAR(255) NULL,
+                    banco VARCHAR(100) NULL,
+                    tipo_riego VARCHAR(50) NOT NULL,
+                    horas_solicitadas DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+                    coste_estimado DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    parada VARCHAR(100) NULL,
+                    paraje VARCHAR(150) NULL,
+                    tablon VARCHAR(50) NULL,
+                    observaciones TEXT NULL,
+                    cesiones_json TEXT NULL,
+                    fecha_solicitud DATE NOT NULL,
+                    nombre_archivo_pdf VARCHAR(255) NULL,
+                    estado VARCHAR(30) NOT NULL DEFAULT 'pendiente',
+                    fecha_riego_asignado DATE NULL,
+                    hora_riego_asignado TIME NULL,
+                    enviado_email TINYINT(1) NOT NULL DEFAULT 0,
+                    fecha_envio_email DATETIME NULL,
+                    email_destino VARCHAR(150) NULL,
+                    notas_admin TEXT NULL,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    actualizado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_sol_regante (num_regante),
+                    INDEX idx_sol_fecha (fecha_solicitud),
+                    INDEX idx_sol_estado (estado),
+                    INDEX idx_sol_tipo (tipo_riego)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }

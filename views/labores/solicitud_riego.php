@@ -7,55 +7,155 @@ $tenantId = Auth::tenantId();
 $currentUser = Auth::user();
 $isSuperAdmin = Auth::isSuperAdmin();
 
-// Procesar envío directo por correo electrónico mediante AJAX
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'enviar_por_correo') {
+// Procesar peticiones AJAX (Guardar Solicitud y Enviar por Correo)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
-    $pdfBase64 = isset($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
-    $filename = isset($_POST['filename']) ? $_POST['filename'] : 'solicitud_riego.pdf';
-    $destinatario = isset($_POST['destinatario']) ? trim($_POST['destinatario']) : '';
-    // El asunto del correo DEBE ser exactamente el nombre del archivo a enviar
-    $asunto = $filename;
-    $cuerpoHtml = isset($_POST['cuerpo_html']) ? $_POST['cuerpo_html'] : ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
+    $action = $_POST['action'];
 
-    if (empty($destinatario)) {
-        $cfgMail = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE es_predeterminada = 1 LIMIT 1")->fetch();
-        $destinatario = !empty($cfgMail['email_solicitudes']) ? $cfgMail['email_solicitudes'] : 'alharabemoratalla@gmail.com';
-    }
+    if ($action === 'enviar_por_correo' || $action === 'guardar_solicitud') {
+        $pdfBase64 = isset($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
+        $filename = isset($_POST['filename']) ? $_POST['filename'] : 'solicitud_riego.pdf';
+        $destinatario = isset($_POST['destinatario']) ? trim($_POST['destinatario']) : '';
+        // El asunto del correo DEBE ser exactamente el nombre del archivo a enviar
+        $asunto = $filename;
+        $cuerpoHtml = isset($_POST['cuerpo_html']) ? $_POST['cuerpo_html'] : ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
 
-    if (empty($pdfBase64)) {
-        echo json_encode(['success' => false, 'message' => 'No se recibió el documento PDF generado.']);
+        // Datos del parte para guardar en base de datos
+        $idSolicitud = (int)(isset($_POST['id_solicitud']) ? $_POST['id_solicitud'] : 0);
+        $idFinca = !empty($_POST['id_finca']) ? (int)$_POST['id_finca'] : null;
+        $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
+        $idRegante = !empty($_POST['id_regante']) ? (int)$_POST['id_regante'] : null;
+        $numRegante = isset($_POST['num_regante']) ? trim($_POST['num_regante']) : 'A1188';
+        $titular = isset($_POST['titular']) ? trim($_POST['titular']) : '';
+        $cifNif = isset($_POST['cif_nif']) ? trim($_POST['cif_nif']) : '';
+        $telefono = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
+        $domicilio = isset($_POST['domicilio']) ? trim($_POST['domicilio']) : '';
+        $banco = isset($_POST['banco']) ? trim($_POST['banco']) : '';
+        $tipoRiego = isset($_POST['tipo_riego']) ? trim($_POST['tipo_riego']) : 'comunitaria';
+        $horas = floatval(isset($_POST['horas']) ? $_POST['horas'] : 0);
+        $coste = floatval(isset($_POST['coste_estimado']) ? $_POST['coste_estimado'] : 0);
+        $parada = isset($_POST['parada']) ? trim($_POST['parada']) : '';
+        $paraje = isset($_POST['paraje']) ? trim($_POST['paraje']) : '';
+        $tablon = isset($_POST['tablon']) ? trim($_POST['tablon']) : '';
+        $observaciones = isset($_POST['observaciones']) ? trim($_POST['observaciones']) : '';
+        $cesionesJson = isset($_POST['cesiones_json']) ? $_POST['cesiones_json'] : null;
+        $fechaSolicitud = isset($_POST['fecha_solicitud']) ? $_POST['fecha_solicitud'] : date('Y-m-d');
+        $estado = isset($_POST['estado']) ? trim($_POST['estado']) : 'pendiente';
+        $fechaAsig = !empty($_POST['fecha_riego_asignado']) ? $_POST['fecha_riego_asignado'] : null;
+        $horaAsig = !empty($_POST['hora_riego_asignado']) ? $_POST['hora_riego_asignado'] : null;
+        $notasAdmin = isset($_POST['notas_admin']) ? trim($_POST['notas_admin']) : '';
+
+        $enviadoEmail = ($action === 'enviar_por_correo') ? 1 : 0;
+        $fechaEnvioEmail = ($action === 'enviar_por_correo') ? date('Y-m-d H:i:s') : null;
+
+        // Guardar o actualizar registro en base de datos
+        if ($idSolicitud > 0) {
+            $sqlSave = "
+                UPDATE solicitudes_riego SET
+                    id_finca = :id_finca, id_comunidad = :id_comunidad, id_regante = :id_regante,
+                    num_regante = :num_regante, titular = :titular, cif_nif = :cif_nif, telefono = :telefono,
+                    domicilio = :domicilio, banco = :banco, tipo_riego = :tipo_riego,
+                    horas_solicitadas = :horas, coste_estimado = :coste, parada = :parada, paraje = :paraje,
+                    tablon = :tablon, observaciones = :observaciones, cesiones_json = :cesiones,
+                    fecha_solicitud = :fecha, nombre_archivo_pdf = :filename, estado = :estado,
+                    fecha_riego_asignado = :fecha_asig, hora_riego_asignado = :hora_asig, notas_admin = :notas,
+                    enviado_email = IF(:enviado = 1, 1, enviado_email),
+                    fecha_envio_email = IF(:enviado = 1, NOW(), fecha_envio_email),
+                    email_destino = IF(:enviado = 1, :email_dest, email_destino)
+                WHERE id_solicitud = :id
+            ";
+            $stmtSave = $db->prepare($sqlSave);
+            $stmtSave->execute([
+                ':id_finca' => $idFinca, ':id_comunidad' => $idComunidad, ':id_regante' => $idRegante,
+                ':num_regante' => $numRegante, ':titular' => $titular, ':cif_nif' => $cifNif, ':telefono' => $telefono,
+                ':domicilio' => $domicilio, ':banco' => $banco, ':tipo_riego' => $tipoRiego,
+                ':horas' => $horas, ':coste' => $coste, ':parada' => $parada, ':paraje' => $paraje,
+                ':tablon' => $tablon, ':observaciones' => $observaciones, ':cesiones' => $cesionesJson,
+                ':fecha' => $fechaSolicitud, ':filename' => $filename, ':estado' => $estado,
+                ':fecha_asig' => $fechaAsig, ':hora_asig' => $horaAsig, ':notas' => $notasAdmin,
+                ':enviado' => $enviadoEmail, ':email_dest' => $destinatario, ':id' => $idSolicitud
+            ]);
+        } else {
+            $sqlSave = "
+                INSERT INTO solicitudes_riego (
+                    id_propietario, id_finca, id_comunidad, id_regante, num_regante, titular, cif_nif,
+                    telefono, domicilio, banco, tipo_riego, horas_solicitadas, coste_estimado,
+                    parada, paraje, tablon, observaciones, cesiones_json, fecha_solicitud,
+                    nombre_archivo_pdf, estado, fecha_riego_asignado, hora_riego_asignado, notas_admin,
+                    enviado_email, fecha_envio_email, email_destino
+                ) VALUES (
+                    :id_prop, :id_finca, :id_comunidad, :id_regante, :num_regante, :titular, :cif_nif,
+                    :telefono, :domicilio, :banco, :tipo_riego, :horas, :coste,
+                    :parada, :paraje, :tablon, :observaciones, :cesiones, :fecha,
+                    :filename, :estado, :fecha_asig, :hora_asig, :notas,
+                    :enviado, :fecha_envio, :email_dest
+                )
+            ";
+            $stmtSave = $db->prepare($sqlSave);
+            $stmtSave->execute([
+                ':id_prop' => $tenantId, ':id_finca' => $idFinca, ':id_comunidad' => $idComunidad, ':id_regante' => $idRegante,
+                ':num_regante' => $numRegante, ':titular' => $titular, ':cif_nif' => $cifNif,
+                ':telefono' => $telefono, ':domicilio' => $domicilio, ':banco' => $banco, ':tipo_riego' => $tipoRiego,
+                ':horas' => $horas, ':coste' => $coste, ':parada' => $parada, ':paraje' => $paraje,
+                ':tablon' => $tablon, ':observaciones' => $observaciones, ':cesiones' => $cesionesJson,
+                ':fecha' => $fechaSolicitud, ':filename' => $filename, ':estado' => $estado,
+                ':fecha_asig' => $fechaAsig, ':hora_asig' => $horaAsig, ':notas' => $notasAdmin,
+                ':enviado' => $enviadoEmail, ':fecha_envio' => $fechaEnvioEmail, ':email_dest' => $destinatario
+            ]);
+            $idSolicitud = (int)$db->lastInsertId();
+        }
+
+        if ($action === 'guardar_solicitud') {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Parte de solicitud guardado correctamente para su consulta.',
+                'id_solicitud' => $idSolicitud
+            ]);
+            exit;
+        }
+
+        // Si es envío por correo:
+        if (empty($destinatario)) {
+            $cfgMail = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE es_predeterminada = 1 LIMIT 1")->fetch();
+            $destinatario = !empty($cfgMail['email_solicitudes']) ? $cfgMail['email_solicitudes'] : 'alharabemoratalla@gmail.com';
+        }
+
+        if (empty($pdfBase64)) {
+            echo json_encode(['success' => false, 'message' => 'No se recibió el documento PDF generado.']);
+            exit;
+        }
+
+        // Extraer y limpiar rigurosamente cualquier cabecera data URI (p. ej. data:application/pdf;filename=...;base64,)
+        if (strpos($pdfBase64, 'base64,') !== false) {
+            $parts = explode('base64,', $pdfBase64);
+            $pdfBase64 = end($parts);
+        }
+        // Reemplazar espacios por + en caso de codificación url
+        $pdfBase64 = str_replace(' ', '+', trim($pdfBase64));
+        $pdfBytes = base64_decode($pdfBase64);
+
+        if (!$pdfBytes || strlen($pdfBytes) < 50 || substr($pdfBytes, 0, 4) !== '%PDF') {
+            echo json_encode(['success' => false, 'message' => 'Error: El archivo PDF generado no es válido o está corrupto.']);
+            exit;
+        }
+
+        $tempFile = sys_get_temp_dir() . '/' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
+        file_put_contents($tempFile, $pdfBytes);
+
+        $res = Mailer::send($destinatario, $asunto, $cuerpoHtml, [
+            [
+                'name' => $filename,
+                'path' => $tempFile,
+                'data' => $pdfBytes,
+                'mime' => 'application/pdf'
+            ]
+        ]);
+        @unlink($tempFile);
+
+        $res['id_solicitud'] = $idSolicitud;
+        echo json_encode($res);
         exit;
     }
-
-    // Extraer y limpiar rigurosamente cualquier cabecera data URI (p. ej. data:application/pdf;filename=...;base64,)
-    if (strpos($pdfBase64, 'base64,') !== false) {
-        $parts = explode('base64,', $pdfBase64);
-        $pdfBase64 = end($parts);
-    }
-    // Reemplazar espacios por + en caso de codificación url
-    $pdfBase64 = str_replace(' ', '+', trim($pdfBase64));
-    $pdfBytes = base64_decode($pdfBase64);
-
-    if (!$pdfBytes || strlen($pdfBytes) < 50 || substr($pdfBytes, 0, 4) !== '%PDF') {
-        echo json_encode(['success' => false, 'message' => 'Error: El archivo PDF generado no es válido o está corrupto.']);
-        exit;
-    }
-
-    $tempFile = sys_get_temp_dir() . '/' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
-    file_put_contents($tempFile, $pdfBytes);
-
-    $res = Mailer::send($destinatario, $asunto, $cuerpoHtml, [
-        [
-            'name' => $filename,
-            'path' => $tempFile,
-            'data' => $pdfBytes,
-            'mime' => 'application/pdf'
-        ]
-    ]);
-    @unlink($tempFile);
-
-    echo json_encode($res);
-    exit;
 }
 
 require_once VIEWS_PATH . '/layouts/header.php';
@@ -110,60 +210,130 @@ if (!$comSeleccionada && !empty($comunidades)) {
     $comSeleccionada = $comunidades[0];
 }
 
-// Datos predeterminados del socio inicial
-$reganteInicial = !empty($regantes) ? $regantes[0] : null;
-$preReganteId = (int)(isset($_GET['regante_id']) ? $_GET['regante_id'] : 0);
-if ($preReganteId > 0) {
-    foreach ($regantes as $r) {
-        if ((int)$r['id_regante'] === $preReganteId) {
-            $reganteInicial = $r;
-            break;
-        }
-    }
+// Comprobar si se carga una solicitud existente (?id=)
+$idSolCargada = (int)(isset($_GET['id']) ? $_GET['id'] : 0);
+$solicitudCargada = null;
+if ($idSolCargada > 0) {
+    $stmtCarg = $db->prepare("SELECT * FROM solicitudes_riego WHERE id_solicitud = :id" . (($tenantId && !$isSuperAdmin) ? " AND id_propietario = " . (int)$tenantId : ""));
+    $stmtCarg->execute([':id' => $idSolCargada]);
+    $solicitudCargada = $stmtCarg->fetch();
 }
 
-$defNumRegante = $reganteInicial ? $reganteInicial['num_regante'] : 'A1188';
-$defTablon = $reganteInicial ? ($reganteInicial['tablon_habitual'] ?: '6') : '6';
-$defParada = $reganteInicial ? ($reganteInicial['parada_habitual'] ?: 'Balsa Perales (67)') : 'Balsa Perales (67)';
-$defParaje = $reganteInicial ? ($reganteInicial['paraje_habitual'] ?: 'Hornillos') : 'Hornillos';
-$defNombre = $reganteInicial ? $reganteInicial['nombre_completo'] : $currentUser['nombre_completo'];
-$defDni = $reganteInicial ? ($reganteInicial['cif_nif'] ?: '52810184E') : '52810184E';
-$defDomicilio = $reganteInicial ? ($reganteInicial['direccion'] . ($reganteInicial['municipio'] ? ' - ' . $reganteInicial['municipio'] : '')) : 'C/ Virgen de Montserrat, 31 1ºB - Totana';
-$defTelefono = $reganteInicial ? ($reganteInicial['telefono'] ?: '679873616') : '679873616';
-$defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR') : ($reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') : 'CAJAMAR');
+if ($solicitudCargada) {
+    $defNumRegante = $solicitudCargada['num_regante'];
+    $defTablon = $solicitudCargada['tablon'];
+    $defParada = $solicitudCargada['parada'];
+    $defParaje = $solicitudCargada['paraje'];
+    $defNombre = $solicitudCargada['titular'];
+    $defDni = $solicitudCargada['cif_nif'];
+    $defTelefono = $solicitudCargada['telefono'];
+    $defDomicilio = $solicitudCargada['domicilio'];
+    $defBanco = $solicitudCargada['banco'];
+    $defTipoRiego = $solicitudCargada['tipo_riego'];
+    $defHoras = $solicitudCargada['horas_solicitadas'];
+    $defObservaciones = $solicitudCargada['observaciones'];
+    $defFecha = $solicitudCargada['fecha_solicitud'];
+    $defEstado = $solicitudCargada['estado'];
+    $defFechaAsig = $solicitudCargada['fecha_riego_asignado'];
+    $defHoraAsig = $solicitudCargada['hora_riego_asignado'] ? substr($solicitudCargada['hora_riego_asignado'], 0, 5) : '';
+    $defEnviadoEmail = (int)$solicitudCargada['enviado_email'];
+    $defFechaEnvioEmail = $solicitudCargada['fecha_envio_email'];
+    $defEmailDestino = $solicitudCargada['email_destino'];
+    $defNotasAdmin = $solicitudCargada['notas_admin'];
+} else {
+    // Datos predeterminados del socio inicial
+    $reganteInicial = !empty($regantes) ? $regantes[0] : null;
+    $preReganteId = (int)(isset($_GET['regante_id']) ? $_GET['regante_id'] : 0);
+    if ($preReganteId > 0) {
+        foreach ($regantes as $r) {
+            if ((int)$r['id_regante'] === $preReganteId) {
+                $reganteInicial = $r;
+                break;
+            }
+        }
+    }
+
+    $defNumRegante = $reganteInicial ? $reganteInicial['num_regante'] : 'A1188';
+    $defTablon = $reganteInicial ? ($reganteInicial['tablon_habitual'] ?: '6') : '6';
+    $defParada = $reganteInicial ? ($reganteInicial['parada_habitual'] ?: 'Balsa Perales (67)') : 'Balsa Perales (67)';
+    $defParaje = $reganteInicial ? ($reganteInicial['paraje_habitual'] ?: 'Hornillos') : 'Hornillos';
+    $defNombre = $reganteInicial ? $reganteInicial['nombre_completo'] : $currentUser['nombre_completo'];
+    $defDni = $reganteInicial ? ($reganteInicial['cif_nif'] ?: '52810184E') : '52810184E';
+    $defDomicilio = $reganteInicial ? ($reganteInicial['direccion'] . ($reganteInicial['municipio'] ? ' - ' . $reganteInicial['municipio'] : '')) : 'C/ Virgen de Montserrat, 31 1ºB - Totana';
+    $defTelefono = $reganteInicial ? ($reganteInicial['telefono'] ?: '679873616') : '679873616';
+    $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR') : ($reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') : 'CAJAMAR');
+    $defTipoRiego = 'comunitaria';
+    $defHoras = '2.00';
+    $defObservaciones = '';
+    $defFecha = date('Y-m-d');
+    $defEstado = 'pendiente';
+    $defFechaAsig = '';
+    $defHoraAsig = '';
+    $defEnviadoEmail = 0;
+    $defFechaEnvioEmail = '';
+    $defEmailDestino = '';
+    $defNotasAdmin = '';
+}
 ?>
 
-<div class="container py-4 no-print">
+<div class="container-fluid px-3 px-md-4 py-4 no-print">
 
-    <!-- Cabecera Corporativa -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom gap-3">
+    <!-- Cabecera Corporativa y Acciones Principales -->
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center pb-3 mb-4 border-bottom gap-3">
         <div class="d-flex align-items-center gap-3">
             <div class="rounded-3 p-3 text-white" style="background: linear-gradient(135deg, #091e3a, #1d4ed8);">
                 <i class="fa-solid fa-file-invoice fs-3 text-info"></i>
             </div>
             <div>
-                <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Papeleta Oficial de Solicitud de Riego</h2>
-                <span class="text-muted small">Formatos Oficiales de Riego • 3 Variedades: Tanda, Comunitaria y Comunitaria HORTALIZAS</span>
+                <div class="d-flex align-items-center gap-2">
+                    <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Papeleta Oficial de Solicitud de Riego</h2>
+                    <?php if ($idSolCargada > 0): ?>
+                        <span class="badge bg-primary font-monospace">Parte #<?= str_pad($idSolCargada, 4, '0', STR_PAD_LEFT) ?></span>
+                    <?php endif; ?>
+                </div>
+                <span class="text-muted small">Formatos Oficiales de Riego • 3 Variedades: Tanda, Comunitaria y Comunitaria HORTALIZAS (A4 en 1 sola página)</span>
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="<?= APP_URL ?>/comunidades-regantes" class="btn btn-outline-secondary">
-                <i class="fa-solid fa-water me-1"></i> Comunidades de Riego
+            <a href="<?= APP_URL ?>/partes-riego" class="btn btn-outline-primary fw-bold shadow-sm">
+                <i class="fa-solid fa-list-check me-1"></i> Consultar Partes Guardados
             </a>
-            <a href="<?= APP_URL ?>/regantes" class="btn btn-outline-secondary">
-                <i class="fa-solid fa-address-book me-1"></i> Censo de Socios
-            </a>
-            <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="descargarPDF()">
-                <i class="fa-solid fa-file-pdf me-1"></i> Descargar PDF
+            <button type="button" class="btn btn-outline-success fw-bold shadow-sm" onclick="guardarSolicitud(false)">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Guardar Solicitud
             </button>
-            <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="enviarPorCorreo()">
+            <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="descargarPDF()">
+                <i class="fa-solid fa-file-pdf me-1"></i> Descargar PDF (1 Página A4)
+            </button>
+            <button type="button" class="btn btn-success fw-bold shadow-sm" id="btnEnviarEmail" onclick="enviarPorCorreo()">
                 <i class="fa-solid fa-paper-plane me-1"></i> Enviar por Email a la Comunidad
             </button>
-            <button type="button" class="btn btn-ag fw-bold shadow-sm" onclick="window.print()">
+            <button type="button" class="btn btn-outline-secondary fw-semibold shadow-sm" onclick="window.print()">
                 <i class="fa-solid fa-print me-1"></i> Imprimir
             </button>
         </div>
     </div>
+
+    <!-- Indicador Permanente de Envío por Email (Requerimiento de Confirmación) -->
+    <div id="boxEstadoEnvio" class="alert alert-success d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-3 mb-4 border-0 shadow-sm" style="<?= $defEnviadoEmail ? '' : 'display: none;' ?>">
+        <div class="d-flex align-items-center gap-3 mb-2 mb-sm-0">
+            <i class="fa-solid fa-circle-check fs-2 text-success"></i>
+            <div>
+                <h6 class="fw-bold mb-0 text-success">
+                    <i class="fa-solid fa-paper-plane me-1"></i>Papeleta Oficial Remitida por Correo Electrónico
+                </h6>
+                <div class="small text-muted" id="txtEstadoEnvioDetalle">
+                    <?php if ($defEnviadoEmail): ?>
+                        Enviada con éxito a <strong><?= htmlspecialchars($defEmailDestino ?: 'la comunidad') ?></strong> el <?= !empty($defFechaEnvioEmail) ? date('d/m/Y a las H:i', strtotime($defFechaEnvioEmail)) : '' ?> h.
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <a href="<?= APP_URL ?>/partes-riego" class="btn btn-sm btn-outline-success fw-bold text-nowrap">
+            <i class="fa-solid fa-list-check me-1"></i> Ver en Partes de Riego
+        </a>
+    </div>
+
+    <input type="hidden" id="in_id_solicitud" value="<?= $idSolCargada ?>">
 
     <!-- Panel de Cumplimentación Simplificado -->
     <div class="card card-custom p-4 mb-4 border-top border-4 border-primary shadow-sm">
@@ -431,6 +601,39 @@ $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR')
                 </div>
             </div>
         </div>
+
+        <!-- Fila de Estado del Parte y Turno Asignado por la Comunidad de Regantes -->
+        <div class="mt-3 pt-3 border-top bg-light p-3 rounded-3 border">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="fw-bold text-dark mb-0">
+                    <i class="fa-solid fa-calendar-check me-2 text-primary"></i>Gestión de Turno y Estado del Parte
+                </h6>
+                <span class="badge bg-secondary">Actualizable por el usuario o administrador</span>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">Estado de la Solicitud</label>
+                    <select id="in_estado" class="form-select fw-bold">
+                        <option value="pendiente" <?= $defEstado === 'pendiente' ? 'selected' : '' ?>>⏳ Pendiente de Turno</option>
+                        <option value="asignado" <?= $defEstado === 'asignado' ? 'selected' : '' ?>>📅 Turno Asignado por Comunidad</option>
+                        <option value="regado" <?= $defEstado === 'regado' ? 'selected' : '' ?>>💧 Regado / Realizado</option>
+                        <option value="descartado" <?= $defEstado === 'descartado' ? 'selected' : '' ?>>❌ Descartado / Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold small">Día Asignado por Comunidad</label>
+                    <input type="date" id="in_fecha_asig" class="form-control font-monospace" value="<?= htmlspecialchars($defFechaAsig ?: '') ?>">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold small">Hora Asignada</label>
+                    <input type="time" id="in_hora_asig" class="form-control font-monospace" value="<?= htmlspecialchars($defHoraAsig ?: '') ?>" step="900">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Notas / Instrucciones del Guarda</label>
+                    <input type="text" id="in_notas_admin" class="form-control" value="<?= htmlspecialchars($defNotasAdmin ?: '') ?>" placeholder="Ej: Confirmado con el guarda, brazal 3...">
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Valoración Económica y Nombre Normalizado de las 3 Variedades -->
@@ -476,11 +679,11 @@ $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR')
 <!-- ============================================================================== -->
 <!-- DOCUMENTO OFICIAL A4 PARA VISTA PREVIA, IMPRESIÓN Y GENERACIÓN DE PDF           -->
 <!-- ============================================================================== -->
-<div class="d-flex justify-content-center bg-secondary bg-opacity-10 py-4 py-print-0">
-    <div id="documentoOficial" class="hoja-oficial bg-white shadow-lg p-5">
+<div class="hoja-preview-container d-flex justify-content-center bg-secondary bg-opacity-10 py-3 py-print-0" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+    <div id="documentoOficial" class="hoja-oficial bg-white shadow-lg">
 
         <!-- Recuadro Principal del Formulario -->
-        <div class="marco-principal mb-4">
+        <div class="marco-principal mb-2">
             <!-- Fila Superior: Logo + Nº papeleta + Tabla Socio/Tablón/Teléfono -->
             <div class="d-flex justify-content-between align-items-start mb-2 pb-1">
                 <!-- Logo Oficial de la Comunidad -->
@@ -660,50 +863,61 @@ $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR')
 <!-- ESTILOS CSS PARA DOCUMENTO A4 Y SALIDA POR IMPRESORA                           -->
 <!-- ============================================================================== -->
 <style>
+.hoja-preview-container {
+    padding: 12px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .hoja-oficial {
-    width: 210mm;
-    min-height: 297mm;
-    margin: auto;
+    width: 195mm;
+    max-width: 100%;
+    margin: 0 auto;
     font-family: 'Times New Roman', Times, serif;
     color: #000;
+    background: #fff;
     box-sizing: border-box;
+    padding: 8px 12px;
 }
 
 .marco-principal {
     border: 1.5px solid #000;
-    padding: 14px 18px;
+    padding: 6px 10px;
     background: #fff;
+    margin-bottom: 5px;
 }
 
 .logo-badge {
     background: linear-gradient(135deg, #0d5c3a 0%, #177a4f 100%);
     color: #fff;
     border-radius: 6px;
-    min-width: 230px;
+    min-width: 200px;
+    padding: 3px 8px;
 }
 .logo-sub {
-    font-size: 0.72rem;
+    font-size: 0.65rem;
     font-family: 'Arial', sans-serif;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     opacity: 0.9;
 }
 .logo-main {
-    font-size: 1.55rem;
+    font-size: 1.25rem;
     font-weight: 800;
     font-family: 'Segoe UI', system-ui, sans-serif;
     color: #5eead4;
     letter-spacing: -0.02em;
+    line-height: 1.1;
 }
 
 .tabla-regante {
     border-collapse: collapse;
-    width: 260px;
+    width: 215px;
     border: 1.2px solid #000;
 }
 .tabla-regante td {
     border: 1px solid #000;
-    padding: 3px 8px;
-    font-size: 0.95rem;
+    padding: 1.5px 5px;
+    font-size: 0.84rem;
 }
 .tabla-regante .lbl-celda {
     background: #e2e8f0;
@@ -717,18 +931,20 @@ $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR')
 }
 
 .titulo-tipo-agua {
-    font-size: 1.45rem;
+    font-size: 1.20rem;
     letter-spacing: 0.04em;
     font-weight: 900;
+    margin: 3px 0 !important;
 }
 
 .tabla-cuerpo, .tabla-inferior {
     border-collapse: collapse;
-    font-size: 1.05rem;
+    font-size: 0.88rem;
 }
 .tabla-cuerpo td, .tabla-inferior td {
     border: 1px solid #000;
-    padding: 5px 10px;
+    padding: 2.5px 6px;
+    line-height: 1.22;
 }
 .tabla-cuerpo .etiqueta, .tabla-inferior .etiqueta {
     font-weight: bold;
@@ -739,40 +955,62 @@ $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR')
 /* Rejilla de Cesiones en Tanda (6 filas oficiales) */
 .tabla-cesiones-tanda {
     border-collapse: collapse;
-    font-size: 1.02rem;
+    font-size: 0.84rem;
 }
 .tabla-cesiones-tanda td {
     border: 1px solid #000;
-    padding: 4px 6px;
-    height: 32px;
+    padding: 1.5px 4px;
+    height: 21px;
 }
 .tabla-cesiones-tanda .celda-horas {
-    width: 90px;
+    width: 80px;
 }
 .tabla-cesiones-tanda .celda-unidad {
-    width: 70px;
+    width: 60px;
     background: #f8fafc;
 }
 .tabla-cesiones-tanda .celda-num {
-    width: 140px;
+    width: 120px;
 }
 
+.seccion-instrucciones {
+    margin-top: 5px !important;
+}
+.seccion-instrucciones h6 {
+    font-size: 0.78rem !important;
+    margin-bottom: 2px !important;
+}
+.lista-instrucciones {
+    margin-bottom: 4px !important;
+    padding-left: 1.1rem !important;
+}
 .lista-instrucciones li {
-    font-size: 0.92rem;
-    line-height: 1.4;
-    margin-bottom: 5px;
+    font-size: 0.72rem;
+    line-height: 1.22;
+    margin-bottom: 2px;
     text-align: justify;
 }
 .caja-atencion {
     border: 1.2px solid #000;
+    padding: 3px 6px !important;
+    margin-top: 3px;
+}
+.caja-atencion .fw-bold {
+    font-size: 0.80rem !important;
+    margin-bottom: 1px !important;
+}
+.caja-atencion .small {
+    font-size: 0.68rem !important;
+    line-height: 1.18;
 }
 
 @media print {
     body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
     .no-print, .navbar, footer, .btn, .alert { display: none !important; }
-    .hoja-oficial { width: 100% !important; min-height: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
-    .marco-principal { border: 1.5px solid #000 !important; margin-bottom: 15px !important; }
-    @page { size: A4 portrait; margin: 12mm 12mm 12mm 12mm; }
+    .hoja-preview-container { padding: 0 !important; background: transparent !important; }
+    .hoja-oficial { width: 100% !important; max-width: 100% !important; min-height: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; page-break-inside: avoid !important; page-break-after: avoid !important; }
+    .marco-principal { border: 1.5px solid #000 !important; margin-bottom: 8px !important; }
+    @page { size: A4 portrait; margin: 4mm 4mm 4mm 4mm; }
 }
 </style>
 
@@ -1136,18 +1374,19 @@ function actualizarVistaPrevia() {
     document.getElementById('preview_filename').innerText = fname;
 }
 
-// Generación de PDF con html2pdf
+// Generación de PDF con html2pdf (A4 en 1 sola página exacta)
 function obtenerConfigPdf(filename) {
     return {
-        margin:       [8, 8, 8, 8],
+        margin:       [4, 4, 4, 4],
         filename:     filename,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all'] }
     };
 }
 
-// Descargar PDF en navegador
+// Descargar PDF en navegador (Garantizado en 1 página A4)
 function descargarPDF() {
     const el = document.getElementById('documentoOficial');
     const filename = calcularNombreArchivo();
@@ -1155,20 +1394,109 @@ function descargarPDF() {
     html2pdf().set(opt).from(el).save();
 }
 
-// Enviar solicitud directamente por correo electrónico a la comunidad seleccionada
+// Recopilar datos completos del formulario para persistencia en base de datos
+function recopilarFormData(action, filename = '', pdfBase64 = '') {
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('id_solicitud', document.getElementById('in_id_solicitud').value || 0);
+    formData.append('filename', filename || calcularNombreArchivo());
+    if (pdfBase64) formData.append('pdf_base64', pdfBase64);
+
+    formData.append('id_comunidad', document.getElementById('sel_comunidad').value || 0);
+    formData.append('id_finca', document.getElementById('sel_finca').value || 0);
+    formData.append('num_regante', document.getElementById('in_regante').value || 'A1188');
+    formData.append('titular', document.getElementById('in_titular').value || '');
+    formData.append('cif_nif', document.getElementById('in_dni').value || '');
+    formData.append('telefono', document.getElementById('in_telefono').value || '');
+    formData.append('domicilio', document.getElementById('in_domicilio').value || '');
+    formData.append('banco', document.getElementById('in_banco').value || '');
+    formData.append('tipo_riego', document.getElementById('in_tipo_riego').value || 'comunitaria');
+    formData.append('horas', document.getElementById('in_horas').value || '0');
+    formData.append('coste_estimado', parseFloat(document.getElementById('box_coste_total').innerText) || 0);
+    formData.append('parada', document.getElementById('in_parada').value || '');
+    formData.append('paraje', document.getElementById('in_paraje').value || '');
+    formData.append('tablon', document.getElementById('in_tablon').value || '');
+    formData.append('observaciones', document.getElementById('in_observaciones').value || '');
+    formData.append('fecha_solicitud', document.getElementById('in_fecha').value || '<?= date("Y-m-d") ?>');
+
+    formData.append('estado', document.getElementById('in_estado').value || 'pendiente');
+    formData.append('fecha_riego_asignado', document.getElementById('in_fecha_asig').value || '');
+    formData.append('hora_riego_asignado', document.getElementById('in_hora_asig').value || '');
+    formData.append('notas_admin', document.getElementById('in_notas_admin').value || '');
+
+    // Rejilla de Cesiones en Tanda
+    const cesiones = [];
+    for (let i = 1; i <= 6; i++) {
+        cesiones.push({
+            fila: i,
+            horas: document.getElementById('ces_h_' + i) ? document.getElementById('ces_h_' + i).value : '',
+            nombre: document.getElementById('ces_nom_' + i) ? document.getElementById('ces_nom_' + i).value : '',
+            num_regante: document.getElementById('ces_num_' + i) ? document.getElementById('ces_num_' + i).value : ''
+        });
+    }
+    formData.append('cesiones_json', JSON.stringify(cesiones));
+
+    return formData;
+}
+
+// Guardar Solicitud / Parte en la Base de Datos para posterior consulta
+async function guardarSolicitud(silent = false) {
+    const statusBox = document.getElementById('alertEmailStatus');
+    const msgBox = document.getElementById('alertEmailMsg');
+    if (!silent) {
+        statusBox.className = 'alert alert-info border-0 shadow-sm mb-4';
+        statusBox.style.display = 'block';
+        msgBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Guardando solicitud de riego en el sistema...';
+    }
+
+    try {
+        const formData = recopilarFormData('guardar_solicitud');
+        const resp = await fetch('<?= APP_URL ?>/solicitud-riego', {
+            method: 'POST',
+            body: formData
+        });
+        const json = await resp.json();
+
+        if (json.success) {
+            if (json.id_solicitud) {
+                document.getElementById('in_id_solicitud').value = json.id_solicitud;
+            }
+            if (!silent) {
+                statusBox.className = 'alert alert-success border-0 shadow-sm mb-4';
+                msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Parte guardado con éxito!</strong> La solicitud ha quedado registrada en el sistema (#${json.id_solicitud || ''}). <a href="<?= APP_URL ?>/partes-riego" class="alert-link ms-2">Ver lista de partes</a>.`;
+            }
+            return json;
+        } else {
+            if (!silent) {
+                statusBox.className = 'alert alert-danger border-0 shadow-sm mb-4';
+                msgBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation me-2"></i>Error:</strong> ${json.message}`;
+            }
+        }
+    } catch (err) {
+        if (!silent) {
+            statusBox.className = 'alert alert-danger border-0 shadow-sm mb-4';
+            msgBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation me-2"></i>Fallo de conexión:</strong> ${err.message}`;
+        }
+    }
+}
+
+// Enviar solicitud directamente por correo electrónico a la comunidad seleccionada y confirmar
 async function enviarPorCorreo() {
     const statusBox = document.getElementById('alertEmailStatus');
     const msgBox = document.getElementById('alertEmailMsg');
+    const btn = document.getElementById('btnEnviarEmail');
+    if (btn) btn.disabled = true;
+
     statusBox.className = 'alert alert-info border-0 shadow-sm mb-4';
     statusBox.style.display = 'block';
-    msgBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Generando documento oficial y enviando por correo a ${comunidadActiva.email}...`;
+    msgBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Generando documento oficial (A4) y conectando con el servidor de correo (${comunidadActiva.email})...`;
 
     try {
         const el = document.getElementById('documentoOficial');
         const filename = calcularNombreArchivo();
         const opt = obtenerConfigPdf(filename);
 
-        // Generar base64 oficial del documento PDF
+        // Generar base64 oficial del documento PDF (1 página)
         const pdfBase64 = await html2pdf().set(opt).from(el).outputPdf('datauristring');
 
         const tipo = document.getElementById('in_tipo_riego').value.toUpperCase();
@@ -1176,10 +1504,7 @@ async function enviarPorCorreo() {
         const socio = document.getElementById('in_regante').value;
         const horas = document.getElementById('in_horas').value;
 
-        const formData = new FormData();
-        formData.append('action', 'enviar_por_correo');
-        formData.append('filename', filename);
-        formData.append('pdf_base64', pdfBase64);
+        const formData = recopilarFormData('enviar_por_correo', filename, pdfBase64);
         formData.append('destinatario', comunidadActiva.email);
         // El asunto del correo es estrictamente el nombre del archivo a enviar
         formData.append('asunto', filename);
@@ -1203,8 +1528,23 @@ async function enviarPorCorreo() {
         const json = await resp.json();
 
         if (json.success) {
+            if (json.id_solicitud) {
+                document.getElementById('in_id_solicitud').value = json.id_solicitud;
+            }
+
             statusBox.className = 'alert alert-success border-0 shadow-sm mb-4';
-            msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Papeleta enviada con éxito!</strong> El documento <code>${filename}</code> fue remitido correctamente a <strong>${comunidadActiva.email}</strong> con asunto idéntico al nombre del archivo.`;
+            msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Papeleta enviada con éxito!</strong> El documento <code>${filename}</code> fue remitido correctamente a <strong>${comunidadActiva.email}</strong> y guardado en los partes de riego.`;
+
+            // Actualizar indicador permanente de confirmación de envío
+            const boxEnv = document.getElementById('boxEstadoEnvio');
+            if (boxEnv) {
+                boxEnv.style.display = 'flex';
+                const detalleEnv = document.getElementById('txtEstadoEnvioDetalle');
+                if (detalleEnv) {
+                    const ahora = new Date().toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+                    detalleEnv.innerHTML = `Enviada con éxito a <strong>${comunidadActiva.email}</strong> el ${ahora} h.`;
+                }
+            }
         } else {
             statusBox.className = 'alert alert-danger border-0 shadow-sm mb-4';
             msgBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation me-2"></i>Error al enviar:</strong> ${json.message}`;
@@ -1212,6 +1552,8 @@ async function enviarPorCorreo() {
     } catch (err) {
         statusBox.className = 'alert alert-danger border-0 shadow-sm mb-4';
         msgBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation me-2"></i>Fallo en el proceso:</strong> ${err.message}`;
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
