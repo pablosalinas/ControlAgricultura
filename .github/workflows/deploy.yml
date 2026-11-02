@@ -44,18 +44,18 @@ jobs:
 
       - name: ⚙️ Generar archivo .env para Producción
         run: |
-          cat << 'EOF' > .env
+          cat << EOF > .env
           APP_NAME="AgroDietario"
           APP_ENV=production
-          APP_DEBUG=false
+          APP_DEBUG=true
           APP_URL=https://www.moratalla-murcia.com/agricultura
 
           # Base de Datos Producción (IONOS)
-          DB_HOST=${{ secrets.PROD_DB_HOST || vars.PROD_DB_HOST }}
+          DB_HOST=${{ secrets.PROD_DB_HOST || vars.PROD_DB_HOST || 'db5021806071.hosting-data.io' }}
           DB_PORT=${{ secrets.PROD_DB_PORT || vars.PROD_DB_PORT || '3306' }}
-          DB_NAME=${{ secrets.PROD_DB_NAME || vars.PROD_DB_NAME }}
-          DB_USER=${{ secrets.PROD_DB_USER || vars.PROD_DB_USER }}
-          DB_PASS=${{ secrets.PROD_DB_PASS || vars.PROD_DB_PASS }}
+          DB_NAME=${{ secrets.PROD_DB_NAME || vars.PROD_DB_NAME || 'db5021806071' }}
+          DB_USER=${{ secrets.PROD_DB_USER || vars.PROD_DB_USER || 'dbu1550776' }}
+          DB_PASS=${{ secrets.PROD_DB_PASS || vars.PROD_DB_PASS || 'Tortas01.56196798-Salinas_2026_Fincas' }}
 
           CAPTCHA_DRIVER=local_gd
           UPLOAD_MAX_MB=15
@@ -79,7 +79,6 @@ jobs:
           mirror --reverse --delete --verbose \
             --exclude-glob .git* \
             --exclude-glob .git*/** \
-            --exclude-glob database/schema.sql \
             --exclude-glob .env.example \
             --exclude-glob README.md \
             ./ ./

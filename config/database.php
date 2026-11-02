@@ -20,6 +20,18 @@ class Database {
             $user = env('DB_USER', 'root');
             $pass = env('DB_PASS', '');
 
+            // Corrección inteligente para configuraciones de IONOS
+            if (strpos($dbName, '.hosting-data.io') !== false) {
+                $host = $dbName;
+                $parts = explode('.', $dbName);
+                $dbName = $parts[0];
+            }
+            if (empty($host) || $host === 'localhost') {
+                if (strpos($dbName, 'db50') === 0) {
+                    $host = $dbName . '.hosting-data.io';
+                }
+            }
+
             $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
 
             $options = array(
