@@ -90,6 +90,14 @@ switch ($route) {
         break;
 
     // Rutas de Administración y Equipo
+    case 'explotaciones':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/explotaciones/index.php';
+        break;
+
     case 'admin/gestion-usuarios':
         if (!Auth::canManageUsers()) {
             header("Location: " . APP_URL . "/dashboard");

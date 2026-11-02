@@ -201,6 +201,7 @@
                             <i class="fa-solid fa-people-roof me-1 text-info"></i> Configuración
                         </a>
                         <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/explotaciones"><i class="fa-solid fa-building-wheat me-2 text-warning"></i>Explotaciones Agrarias</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/gestion-usuarios"><i class="fa-solid fa-id-card-clip me-2 text-primary"></i>Equipo y Usuarios</a></li>
                             <?php if (Auth::isSuperAdmin()): ?>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
@@ -217,9 +218,10 @@
                     <?php $u = Auth::user(); ?>
                     <li class="nav-item me-3 text-light text-end d-none d-lg-block">
                         <div class="fw-bold" style="font-size:0.9rem;"><?= htmlspecialchars($u['nombre_completo']) ?></div>
-                        <div class="badge badge-tenant px-2 py-1" style="font-size:0.75rem;">
+                        <a href="<?= APP_URL ?>/explotaciones" class="badge badge-tenant px-2 py-1 text-decoration-none" title="Administrar o conmutar explotación" style="cursor: pointer;">
                             <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
-                        </div>
+                            <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="btn btn-sm btn-outline-info text-white" href="<?= APP_URL ?>/logout">

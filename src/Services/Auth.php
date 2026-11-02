@@ -158,6 +158,42 @@ class Auth {
         return isset($_SESSION['id_propietario']) ? $_SESSION['id_propietario'] : null;
     }
 
+    /**
+     * Permite al Superadministrador conmutar de explotación activa para ver o gestionar sus datos
+     */
+    public static function switchTenant($idPropietario) {
+        if (!self::isSuperAdmin()) {
+            return false;
+        }
+        $db = Database::getConnection();
+        if (empty($idPropietario)) {
+            $_SESSION['id_propietario'] = null;
+            $_SESSION['nombre_propietario'] = 'Vista Global (Todas)';
+            return true;
+        }
+        $stmt = $db->prepare("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE id_propietario = :id LIMIT 1");
+        $stmt->execute(array(':id' => (int)$idPropietario));
+        if ($prop = $stmt->fetch()) {
+            $_SESSION['id_propietario'] = (int)$prop['id_propietario'];
+            $_SESSION['nombre_propietario'] = $prop['nombre_razon_social'];
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Actualiza en la sesión el nombre del propietario actual si fue editado
+     */
+    public static function refreshTenantName() {
+        if (empty($_SESSION['id_propietario'])) return;
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT nombre_razon_social FROM propietarios WHERE id_propietario = :id LIMIT 1");
+        $stmt->execute(array(':id' => (int)$_SESSION['id_propietario']));
+        if ($prop = $stmt->fetch()) {
+            $_SESSION['nombre_propietario'] = $prop['nombre_razon_social'];
+        }
+    }
+
     public static function logout() {
         $_SESSION = array();
         if (ini_get("session.use_cookies")) {

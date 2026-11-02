@@ -45,6 +45,9 @@ try {
             <p class="text-muted mb-0">
                 <i class="fa-solid fa-building-wheat text-primary me-1"></i>
                 Explotación: <strong><?= htmlspecialchars($user['nombre_propietario']) ?></strong>
+                <a href="<?= APP_URL ?>/explotaciones" class="btn btn-sm btn-outline-secondary py-0 px-2 ms-2 rounded-pill" style="font-size: 0.78rem;" title="Gestionar explotaciones agrícolas">
+                    <i class="fa-solid fa-sliders me-1"></i> Gestionar / Cambiar
+                </a>
                 <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-2 text-capitalize"><?= htmlspecialchars($user['rol']) ?></span>
             </p>
         </div>
