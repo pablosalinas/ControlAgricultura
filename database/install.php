@@ -16,7 +16,7 @@ $defUser = env('DB_USER', 'root');
 $defPass = env('DB_PASS', '');
 
 // Si estamos en producción y los datos están vacíos o por defecto de local
-if (strpos($_SERVER['HTTP_HOST'] ?? '', 'moratalla-murcia.com') !== false && ($defHost === '127.0.0.1' || $defHost === 'localhost')) {
+if (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'moratalla-murcia.com') !== false && ($defHost === '127.0.0.1' || $defHost === 'localhost')) {
     $defHost = 'db5021806071.hosting-data.io';
     $defDb   = 'db5021806071';
     $defUser = 'dbu1550776';
@@ -38,10 +38,14 @@ if (strpos($dbName, '.hosting-data.io') !== false) {
 $instalado = false;
 $error = '';
 $mensajes = array();
+$debugAuth = '';
 
 // Si se envía el formulario o si estamos en CLI
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
+    $debugAuth = "Intentando conectar con Usuario: '{$user}' | Longitud contraseña: " . strlen($pass) . " caracteres.";
+
     try {
+        // En IONOS probamos primero PDO estándar
         $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
         $options = array(
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -65,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
         // Guardar configuración correcta en el archivo .env
         $envPath = dirname(__DIR__) . '/.env';
         $envContent = "APP_NAME=\"AgroDietario\"\n";
-        $envContent .= "APP_ENV=" . (strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false ? "local" : "production") . "\n";
+        $envContent .= "APP_ENV=" . (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'localhost') !== false ? "local" : "production") . "\n";
         $envContent .= "APP_DEBUG=true\n";
         $envContent .= "APP_URL=" . APP_URL . "\n\n";
         $envContent .= "DB_HOST={$host}\n";
@@ -137,7 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
         <?php if ($error): ?>
             <div class="alert alert-danger p-3 mb-4">
                 <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> <?= htmlspecialchars($error) ?></div>
-                <div class="small">Revisa los datos de conexión a continuación. Puedes corregir la contraseña o el usuario y pulsar "Probar y Conectar".</div>
+                <div class="small text-muted mb-2"><?= htmlspecialchars($debugAuth) ?></div>
+                <div class="small">Revisa si la contraseña introducida es exactamente la que figura en tu panel de IONOS para este usuario.</div>
             </div>
         <?php else: ?>
             <p class="text-muted small mb-4">
@@ -177,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
                         <i class="fa-solid fa-eye" id="eyeIcon"></i>
                     </button>
                 </div>
-                <div class="form-text small">Contraseña configurada en tu panel de IONOS para esta base de datos.</div>
+                <div class="form-text small">Pulsa en el ojo para verificar que no haya espacios ni caracteres cambiados.</div>
             </div>
 
             <button type="submit" class="btn btn-install w-100 rounded-3 shadow">
