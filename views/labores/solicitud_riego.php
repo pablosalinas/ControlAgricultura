@@ -13,148 +13,201 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
 
     if ($action === 'enviar_por_correo' || $action === 'guardar_solicitud') {
-        $pdfBase64 = isset($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
-        $filename = isset($_POST['filename']) ? $_POST['filename'] : 'solicitud_riego.pdf';
-        $destinatario = isset($_POST['destinatario']) ? trim($_POST['destinatario']) : '';
-        // El asunto del correo DEBE ser exactamente el nombre del archivo a enviar
-        $asunto = $filename;
-        $cuerpoHtml = isset($_POST['cuerpo_html']) ? $_POST['cuerpo_html'] : ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
+        try {
+            $pdfBase64 = isset($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
+            $filename = isset($_POST['filename']) ? $_POST['filename'] : 'solicitud_riego.pdf';
+            $destinatario = isset($_POST['destinatario']) ? trim($_POST['destinatario']) : '';
+            // El asunto del correo DEBE ser exactamente el nombre del archivo a enviar
+            $asunto = $filename;
+            $cuerpoHtml = isset($_POST['cuerpo_html']) ? $_POST['cuerpo_html'] : ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
 
-        // Datos del parte para guardar en base de datos
-        $idSolicitud = (int)(isset($_POST['id_solicitud']) ? $_POST['id_solicitud'] : 0);
-        $idFinca = !empty($_POST['id_finca']) ? (int)$_POST['id_finca'] : null;
-        $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
-        $idRegante = !empty($_POST['id_regante']) ? (int)$_POST['id_regante'] : null;
-        $numRegante = isset($_POST['num_regante']) ? trim($_POST['num_regante']) : 'A1188';
-        $titular = isset($_POST['titular']) ? trim($_POST['titular']) : '';
-        $cifNif = isset($_POST['cif_nif']) ? trim($_POST['cif_nif']) : '';
-        $telefono = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
-        $domicilio = isset($_POST['domicilio']) ? trim($_POST['domicilio']) : '';
-        $banco = isset($_POST['banco']) ? trim($_POST['banco']) : '';
-        $tipoRiego = isset($_POST['tipo_riego']) ? trim($_POST['tipo_riego']) : 'comunitaria';
-        $horas = floatval(isset($_POST['horas']) ? $_POST['horas'] : 0);
-        $coste = floatval(isset($_POST['coste_estimado']) ? $_POST['coste_estimado'] : 0);
-        $parada = isset($_POST['parada']) ? trim($_POST['parada']) : '';
-        $paraje = isset($_POST['paraje']) ? trim($_POST['paraje']) : '';
-        $tablon = isset($_POST['tablon']) ? trim($_POST['tablon']) : '';
-        $observaciones = isset($_POST['observaciones']) ? trim($_POST['observaciones']) : '';
-        $cesionesJson = isset($_POST['cesiones_json']) ? $_POST['cesiones_json'] : null;
-        $fechaSolicitud = isset($_POST['fecha_solicitud']) ? $_POST['fecha_solicitud'] : date('Y-m-d');
-        $estado = isset($_POST['estado']) ? trim($_POST['estado']) : 'pendiente';
-        $fechaAsig = !empty($_POST['fecha_riego_asignado']) ? $_POST['fecha_riego_asignado'] : null;
-        $horaAsig = !empty($_POST['hora_riego_asignado']) ? $_POST['hora_riego_asignado'] : null;
-        $notasAdmin = isset($_POST['notas_admin']) ? trim($_POST['notas_admin']) : '';
+            // Asegurar que la tabla solicitudes_riego exista sin conflicto de tipos
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS solicitudes_riego (
+                    id_solicitud INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NULL,
+                    id_finca INT NULL,
+                    id_comunidad INT NULL,
+                    id_regante INT NULL,
+                    num_regante VARCHAR(50) NOT NULL,
+                    titular VARCHAR(150) NOT NULL,
+                    cif_nif VARCHAR(30) NULL,
+                    telefono VARCHAR(50) NULL,
+                    domicilio VARCHAR(255) NULL,
+                    banco VARCHAR(100) NULL,
+                    tipo_riego VARCHAR(50) NOT NULL,
+                    horas_solicitadas DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+                    coste_estimado DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    parada VARCHAR(100) NULL,
+                    paraje VARCHAR(150) NULL,
+                    tablon VARCHAR(50) NULL,
+                    observaciones TEXT NULL,
+                    cesiones_json TEXT NULL,
+                    fecha_solicitud DATE NOT NULL,
+                    nombre_archivo_pdf VARCHAR(255) NULL,
+                    estado VARCHAR(30) NOT NULL DEFAULT 'pendiente',
+                    fecha_riego_asignado DATE NULL,
+                    hora_riego_asignado TIME NULL,
+                    enviado_email TINYINT(1) NOT NULL DEFAULT 0,
+                    fecha_envio_email DATETIME NULL,
+                    email_destino VARCHAR(150) NULL,
+                    notas_admin TEXT NULL,
+                    creado_el DATETIME NULL,
+                    actualizado_el DATETIME NULL,
+                    INDEX idx_sol_regante (num_regante),
+                    INDEX idx_sol_fecha (fecha_solicitud),
+                    INDEX idx_sol_estado (estado),
+                    INDEX idx_sol_tipo (tipo_riego)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
 
-        $enviadoEmail = ($action === 'enviar_por_correo') ? 1 : 0;
-        $fechaEnvioEmail = ($action === 'enviar_por_correo') ? date('Y-m-d H:i:s') : null;
+            // Datos del parte para guardar en base de datos
+            $idSolicitud = (int)(isset($_POST['id_solicitud']) ? $_POST['id_solicitud'] : 0);
+            $idFinca = !empty($_POST['id_finca']) ? (int)$_POST['id_finca'] : null;
+            $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
+            $idRegante = !empty($_POST['id_regante']) ? (int)$_POST['id_regante'] : null;
+            $numRegante = isset($_POST['num_regante']) ? trim($_POST['num_regante']) : 'A1188';
+            $titular = isset($_POST['titular']) ? trim($_POST['titular']) : '';
+            $cifNif = isset($_POST['cif_nif']) ? trim($_POST['cif_nif']) : '';
+            $telefono = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
+            $domicilio = isset($_POST['domicilio']) ? trim($_POST['domicilio']) : '';
+            $banco = isset($_POST['banco']) ? trim($_POST['banco']) : '';
+            $tipoRiego = isset($_POST['tipo_riego']) ? trim($_POST['tipo_riego']) : 'comunitaria';
+            $horas = floatval(isset($_POST['horas']) ? $_POST['horas'] : 0);
+            $coste = floatval(isset($_POST['coste_estimado']) ? $_POST['coste_estimado'] : 0);
+            $parada = isset($_POST['parada']) ? trim($_POST['parada']) : '';
+            $paraje = isset($_POST['paraje']) ? trim($_POST['paraje']) : '';
+            $tablon = isset($_POST['tablon']) ? trim($_POST['tablon']) : '';
+            $observaciones = isset($_POST['observaciones']) ? trim($_POST['observaciones']) : '';
+            $cesionesJson = isset($_POST['cesiones_json']) ? $_POST['cesiones_json'] : null;
+            $fechaSolicitud = isset($_POST['fecha_solicitud']) ? $_POST['fecha_solicitud'] : date('Y-m-d');
+            $estado = isset($_POST['estado']) ? trim($_POST['estado']) : 'pendiente';
+            $fechaAsig = !empty($_POST['fecha_riego_asignado']) ? $_POST['fecha_riego_asignado'] : null;
+            $horaAsig = !empty($_POST['hora_riego_asignado']) ? $_POST['hora_riego_asignado'] : null;
+            $notasAdmin = isset($_POST['notas_admin']) ? trim($_POST['notas_admin']) : '';
 
-        // Guardar o actualizar registro en base de datos
-        if ($idSolicitud > 0) {
-            $sqlSave = "
-                UPDATE solicitudes_riego SET
-                    id_finca = :id_finca, id_comunidad = :id_comunidad, id_regante = :id_regante,
-                    num_regante = :num_regante, titular = :titular, cif_nif = :cif_nif, telefono = :telefono,
-                    domicilio = :domicilio, banco = :banco, tipo_riego = :tipo_riego,
-                    horas_solicitadas = :horas, coste_estimado = :coste, parada = :parada, paraje = :paraje,
-                    tablon = :tablon, observaciones = :observaciones, cesiones_json = :cesiones,
-                    fecha_solicitud = :fecha, nombre_archivo_pdf = :filename, estado = :estado,
-                    fecha_riego_asignado = :fecha_asig, hora_riego_asignado = :hora_asig, notas_admin = :notas,
-                    enviado_email = IF(:enviado = 1, 1, enviado_email),
-                    fecha_envio_email = IF(:enviado = 1, NOW(), fecha_envio_email),
-                    email_destino = IF(:enviado = 1, :email_dest, email_destino)
-                WHERE id_solicitud = :id
-            ";
-            $stmtSave = $db->prepare($sqlSave);
-            $stmtSave->execute([
-                ':id_finca' => $idFinca, ':id_comunidad' => $idComunidad, ':id_regante' => $idRegante,
-                ':num_regante' => $numRegante, ':titular' => $titular, ':cif_nif' => $cifNif, ':telefono' => $telefono,
-                ':domicilio' => $domicilio, ':banco' => $banco, ':tipo_riego' => $tipoRiego,
-                ':horas' => $horas, ':coste' => $coste, ':parada' => $parada, ':paraje' => $paraje,
-                ':tablon' => $tablon, ':observaciones' => $observaciones, ':cesiones' => $cesionesJson,
-                ':fecha' => $fechaSolicitud, ':filename' => $filename, ':estado' => $estado,
-                ':fecha_asig' => $fechaAsig, ':hora_asig' => $horaAsig, ':notas' => $notasAdmin,
-                ':enviado' => $enviadoEmail, ':email_dest' => $destinatario, ':id' => $idSolicitud
+            $enviadoEmail = ($action === 'enviar_por_correo') ? 1 : 0;
+            $fechaEnvioEmail = ($action === 'enviar_por_correo') ? date('Y-m-d H:i:s') : null;
+
+            // Guardar o actualizar registro en base de datos
+            if ($idSolicitud > 0) {
+                $sqlSave = "
+                    UPDATE solicitudes_riego SET
+                        id_finca = :id_finca, id_comunidad = :id_comunidad, id_regante = :id_regante,
+                        num_regante = :num_regante, titular = :titular, cif_nif = :cif_nif, telefono = :telefono,
+                        domicilio = :domicilio, banco = :banco, tipo_riego = :tipo_riego,
+                        horas_solicitadas = :horas, coste_estimado = :coste, parada = :parada, paraje = :paraje,
+                        tablon = :tablon, observaciones = :observaciones, cesiones_json = :cesiones,
+                        fecha_solicitud = :fecha, nombre_archivo_pdf = :filename, estado = :estado,
+                        fecha_riego_asignado = :fecha_asig, hora_riego_asignado = :hora_asig, notas_admin = :notas,
+                        actualizado_el = NOW()
+                ";
+                $saveParams = [
+                    ':id_finca' => $idFinca, ':id_comunidad' => $idComunidad, ':id_regante' => $idRegante,
+                    ':num_regante' => $numRegante, ':titular' => $titular, ':cif_nif' => $cifNif, ':telefono' => $telefono,
+                    ':domicilio' => $domicilio, ':banco' => $banco, ':tipo_riego' => $tipoRiego,
+                    ':horas' => $horas, ':coste' => $coste, ':parada' => $parada, ':paraje' => $paraje,
+                    ':tablon' => $tablon, ':observaciones' => $observaciones, ':cesiones' => $cesionesJson,
+                    ':fecha' => $fechaSolicitud, ':filename' => $filename, ':estado' => $estado,
+                    ':fecha_asig' => $fechaAsig, ':hora_asig' => $horaAsig, ':notas' => $notasAdmin,
+                    ':id' => $idSolicitud
+                ];
+                if ($enviadoEmail) {
+                    $sqlSave .= ", enviado_email = 1, fecha_envio_email = NOW(), email_destino = :email_dest ";
+                    $saveParams[':email_dest'] = $destinatario;
+                }
+                $sqlSave .= " WHERE id_solicitud = :id";
+                $stmtSave = $db->prepare($sqlSave);
+                $stmtSave->execute($saveParams);
+            } else {
+                $sqlSave = "
+                    INSERT INTO solicitudes_riego (
+                        id_propietario, id_finca, id_comunidad, id_regante, num_regante, titular, cif_nif,
+                        telefono, domicilio, banco, tipo_riego, horas_solicitadas, coste_estimado,
+                        parada, paraje, tablon, observaciones, cesiones_json, fecha_solicitud,
+                        nombre_archivo_pdf, estado, fecha_riego_asignado, hora_riego_asignado, notas_admin,
+                        enviado_email, fecha_envio_email, email_destino, creado_el
+                    ) VALUES (
+                        :id_prop, :id_finca, :id_comunidad, :id_regante, :num_regante, :titular, :cif_nif,
+                        :telefono, :domicilio, :banco, :tipo_riego, :horas, :coste,
+                        :parada, :paraje, :tablon, :observaciones, :cesiones, :fecha,
+                        :filename, :estado, :fecha_asig, :hora_asig, :notas,
+                        :enviado, :fecha_envio, :email_dest, NOW()
+                    )
+                ";
+                $stmtSave = $db->prepare($sqlSave);
+                $stmtSave->execute([
+                    ':id_prop' => $tenantId ? (int)$tenantId : null,
+                    ':id_finca' => $idFinca, ':id_comunidad' => $idComunidad, ':id_regante' => $idRegante,
+                    ':num_regante' => $numRegante, ':titular' => $titular, ':cif_nif' => $cifNif,
+                    ':telefono' => $telefono, ':domicilio' => $domicilio, ':banco' => $banco, ':tipo_riego' => $tipoRiego,
+                    ':horas' => $horas, ':coste' => $coste, ':parada' => $parada, ':paraje' => $paraje,
+                    ':tablon' => $tablon, ':observaciones' => $observaciones, ':cesiones' => $cesionesJson,
+                    ':fecha' => $fechaSolicitud, ':filename' => $filename, ':estado' => $estado,
+                    ':fecha_asig' => $fechaAsig, ':hora_asig' => $horaAsig, ':notas' => $notasAdmin,
+                    ':enviado' => $enviadoEmail, ':fecha_envio' => $fechaEnvioEmail, ':email_dest' => $destinatario
+                ]);
+                $idSolicitud = (int)$db->lastInsertId();
+            }
+
+            if ($action === 'guardar_solicitud') {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Parte de solicitud guardado correctamente para su consulta.',
+                    'id_solicitud' => $idSolicitud
+                ]);
+                exit;
+            }
+
+            // Si es envío por correo:
+            if (empty($destinatario)) {
+                $cfgMail = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE es_predeterminada = 1 LIMIT 1")->fetch();
+                $destinatario = !empty($cfgMail['email_solicitudes']) ? $cfgMail['email_solicitudes'] : 'alharabemoratalla@gmail.com';
+            }
+
+            if (empty($pdfBase64)) {
+                echo json_encode(['success' => false, 'message' => 'No se recibió el documento PDF generado.']);
+                exit;
+            }
+
+            // Extraer y limpiar rigurosamente cualquier cabecera data URI (p. ej. data:application/pdf;filename=...;base64,)
+            if (strpos($pdfBase64, 'base64,') !== false) {
+                $parts = explode('base64,', $pdfBase64);
+                $pdfBase64 = end($parts);
+            }
+            // Reemplazar espacios por + en caso de codificación url
+            $pdfBase64 = str_replace(' ', '+', trim($pdfBase64));
+            $pdfBytes = base64_decode($pdfBase64);
+
+            if (!$pdfBytes || strlen($pdfBytes) < 50 || substr($pdfBytes, 0, 4) !== '%PDF') {
+                echo json_encode(['success' => false, 'message' => 'Error: El archivo PDF generado no es válido o está corrupto.']);
+                exit;
+            }
+
+            $tempFile = sys_get_temp_dir() . '/' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
+            file_put_contents($tempFile, $pdfBytes);
+
+            $res = Mailer::send($destinatario, $asunto, $cuerpoHtml, [
+                [
+                    'name' => $filename,
+                    'path' => $tempFile,
+                    'data' => $pdfBytes,
+                    'mime' => 'application/pdf'
+                ]
             ]);
-        } else {
-            $sqlSave = "
-                INSERT INTO solicitudes_riego (
-                    id_propietario, id_finca, id_comunidad, id_regante, num_regante, titular, cif_nif,
-                    telefono, domicilio, banco, tipo_riego, horas_solicitadas, coste_estimado,
-                    parada, paraje, tablon, observaciones, cesiones_json, fecha_solicitud,
-                    nombre_archivo_pdf, estado, fecha_riego_asignado, hora_riego_asignado, notas_admin,
-                    enviado_email, fecha_envio_email, email_destino
-                ) VALUES (
-                    :id_prop, :id_finca, :id_comunidad, :id_regante, :num_regante, :titular, :cif_nif,
-                    :telefono, :domicilio, :banco, :tipo_riego, :horas, :coste,
-                    :parada, :paraje, :tablon, :observaciones, :cesiones, :fecha,
-                    :filename, :estado, :fecha_asig, :hora_asig, :notas,
-                    :enviado, :fecha_envio, :email_dest
-                )
-            ";
-            $stmtSave = $db->prepare($sqlSave);
-            $stmtSave->execute([
-                ':id_prop' => $tenantId, ':id_finca' => $idFinca, ':id_comunidad' => $idComunidad, ':id_regante' => $idRegante,
-                ':num_regante' => $numRegante, ':titular' => $titular, ':cif_nif' => $cifNif,
-                ':telefono' => $telefono, ':domicilio' => $domicilio, ':banco' => $banco, ':tipo_riego' => $tipoRiego,
-                ':horas' => $horas, ':coste' => $coste, ':parada' => $parada, ':paraje' => $paraje,
-                ':tablon' => $tablon, ':observaciones' => $observaciones, ':cesiones' => $cesionesJson,
-                ':fecha' => $fechaSolicitud, ':filename' => $filename, ':estado' => $estado,
-                ':fecha_asig' => $fechaAsig, ':hora_asig' => $horaAsig, ':notas' => $notasAdmin,
-                ':enviado' => $enviadoEmail, ':fecha_envio' => $fechaEnvioEmail, ':email_dest' => $destinatario
-            ]);
-            $idSolicitud = (int)$db->lastInsertId();
-        }
+            @unlink($tempFile);
 
-        if ($action === 'guardar_solicitud') {
+            $res['id_solicitud'] = $idSolicitud;
+            echo json_encode($res);
+            exit;
+
+        } catch (Exception $e) {
             echo json_encode([
-                'success' => true,
-                'message' => 'Parte de solicitud guardado correctamente para su consulta.',
-                'id_solicitud' => $idSolicitud
+                'success' => false,
+                'message' => 'Excepción del servidor: ' . $e->getMessage()
             ]);
             exit;
         }
-
-        // Si es envío por correo:
-        if (empty($destinatario)) {
-            $cfgMail = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE es_predeterminada = 1 LIMIT 1")->fetch();
-            $destinatario = !empty($cfgMail['email_solicitudes']) ? $cfgMail['email_solicitudes'] : 'alharabemoratalla@gmail.com';
-        }
-
-        if (empty($pdfBase64)) {
-            echo json_encode(['success' => false, 'message' => 'No se recibió el documento PDF generado.']);
-            exit;
-        }
-
-        // Extraer y limpiar rigurosamente cualquier cabecera data URI (p. ej. data:application/pdf;filename=...;base64,)
-        if (strpos($pdfBase64, 'base64,') !== false) {
-            $parts = explode('base64,', $pdfBase64);
-            $pdfBase64 = end($parts);
-        }
-        // Reemplazar espacios por + en caso de codificación url
-        $pdfBase64 = str_replace(' ', '+', trim($pdfBase64));
-        $pdfBytes = base64_decode($pdfBase64);
-
-        if (!$pdfBytes || strlen($pdfBytes) < 50 || substr($pdfBytes, 0, 4) !== '%PDF') {
-            echo json_encode(['success' => false, 'message' => 'Error: El archivo PDF generado no es válido o está corrupto.']);
-            exit;
-        }
-
-        $tempFile = sys_get_temp_dir() . '/' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
-        file_put_contents($tempFile, $pdfBytes);
-
-        $res = Mailer::send($destinatario, $asunto, $cuerpoHtml, [
-            [
-                'name' => $filename,
-                'path' => $tempFile,
-                'data' => $pdfBytes,
-                'mime' => 'application/pdf'
-            ]
-        ]);
-        @unlink($tempFile);
-
-        $res['id_solicitud'] = $idSolicitud;
-        echo json_encode($res);
-        exit;
     }
 }
 
@@ -1455,7 +1508,13 @@ async function guardarSolicitud(silent = false) {
             method: 'POST',
             body: formData
         });
-        const json = await resp.json();
+        const text = await resp.text();
+        let json;
+        try {
+            json = JSON.parse(text);
+        } catch (e) {
+            throw new Error(text.replace(/<[^>]+>/g, ' ').trim().substring(0, 250) || 'Error inesperado del servidor');
+        }
 
         if (json.success) {
             if (json.id_solicitud) {
@@ -1525,7 +1584,13 @@ async function enviarPorCorreo() {
             method: 'POST',
             body: formData
         });
-        const json = await resp.json();
+        const text = await resp.text();
+        let json;
+        try {
+            json = JSON.parse(text);
+        } catch (e) {
+            throw new Error(text.replace(/<[^>]+>/g, ' ').trim().substring(0, 250) || 'Error inesperado del servidor');
+        }
 
         if (json.success) {
             if (json.id_solicitud) {
