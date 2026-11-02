@@ -14,12 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $filename = $_POST['filename'] ?? 'solicitud_riego.pdf';
     $destinatario = trim($_POST['destinatario'] ?? '');
     $asunto = $_POST['asunto'] ?? ("Solicitud Oficial de Riego - " . $filename);
-    $cuerpoHtml = $_POST['cuerpo_html'] ?? ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes del Río Alhárabe.</p>");
+    $cuerpoHtml = $_POST['cuerpo_html'] ?? ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
 
     if (empty($destinatario)) {
-        // Cargar email de la comunidad de regantes configurado
-        $cfgMail = $db->query("SELECT email_comunidad FROM configuracion_web LIMIT 1")->fetch();
-        $destinatario = $cfgMail['email_comunidad'] ?? 'alharabemoratalla@gmail.com';
+        $cfgMail = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE es_predeterminada = 1 LIMIT 1")->fetch();
+        $destinatario = $cfgMail['email_solicitudes'] ?? 'alharabemoratalla@gmail.com';
     }
 
     if (empty($pdfBase64)) {
@@ -63,22 +62,37 @@ $fincas = $db->query($sqlFincas)->fetchAll();
 // Consultar censo de regantes (Socios)
 $regantes = $db->query("SELECT * FROM regantes WHERE activo = 1 ORDER BY num_regante ASC")->fetchAll();
 
-// Cargar precios y tarifas activas
-$cfgWeb = $db->query("SELECT * FROM configuracion_web LIMIT 1")->fetch();
-$precioHoraComunitaria = (float)($cfgWeb['precio_hora_comunitaria'] ?? 12.00);
-$precioHoraHortalizas  = (float)($cfgWeb['precio_hora_hortalizas'] ?? 15.00);
-$derramaAnualComunidad = (float)($cfgWeb['derrama_anual_comunidad'] ?? 150.00);
-$emailComunidadOficial = $cfgWeb['email_comunidad'] ?? 'alharabemoratalla@gmail.com';
+// Consultar Comunidades de Regantes
+$comunidades = $db->query("SELECT * FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
 
-// Si la explotación actual tiene tarifas personalizadas, sobreescribir
-if ($tenantId) {
-    $stmtProp = $db->prepare("SELECT * FROM propietarios WHERE id_propietario = :id");
-    $stmtProp->execute([':id' => (int)$tenantId]);
-    if ($pRow = $stmtProp->fetch()) {
-        if (!empty($pRow['precio_hora_comunitaria'])) $precioHoraComunitaria = (float)$pRow['precio_hora_comunitaria'];
-        if (!empty($pRow['precio_hora_hortalizas']))  $precioHoraHortalizas  = (float)$pRow['precio_hora_hortalizas'];
-        if (!empty($pRow['derrama_anual_comunidad'])) $derramaAnualComunidad = (float)$pRow['derrama_anual_comunidad'];
+// Si sólo hay una comunidad activa, asegurar que esté como predeterminada
+if (count($comunidades) === 1 && empty($comunidades[0]['es_predeterminada'])) {
+    $db->prepare("UPDATE comunidades_regantes SET es_predeterminada = 1 WHERE id_comunidad = :id")
+       ->execute([':id' => $comunidades[0]['id_comunidad']]);
+    $comunidades[0]['es_predeterminada'] = 1;
+}
+
+// Seleccionar la comunidad inicial propuesta
+$comSeleccionada = null;
+$paramComId = (int)($_GET['comunidad_id'] ?? 0);
+if ($paramComId > 0) {
+    foreach ($comunidades as $c) {
+        if ((int)$c['id_comunidad'] === $paramComId) {
+            $comSeleccionada = $c;
+            break;
+        }
     }
+}
+if (!$comSeleccionada) {
+    foreach ($comunidades as $c) {
+        if (!empty($c['es_predeterminada'])) {
+            $comSeleccionada = $c;
+            break;
+        }
+    }
+}
+if (!$comSeleccionada && !empty($comunidades)) {
+    $comSeleccionada = $comunidades[0];
 }
 
 // Datos predeterminados del socio inicial
@@ -101,7 +115,7 @@ $defNombre = $reganteInicial ? $reganteInicial['nombre_completo'] : $currentUser
 $defDni = $reganteInicial ? ($reganteInicial['cif_nif'] ?: '52810184E') : '52810184E';
 $defDomicilio = $reganteInicial ? ($reganteInicial['direccion'] . ($reganteInicial['municipio'] ? ' - ' . $reganteInicial['municipio'] : '')) : 'C/ Virgen de Montserrat, 31 1ºB - Totana';
 $defTelefono = $reganteInicial ? ($reganteInicial['telefono'] ?: '679873616') : '679873616';
-$defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') : 'CAJAMAR';
+$defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR') : ($reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') : 'CAJAMAR');
 ?>
 
 <div class="container py-4 no-print">
@@ -114,10 +128,13 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
             </div>
             <div>
                 <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Papeleta Oficial de Solicitud de Riego</h2>
-                <span class="text-muted small">Comunidad de Regantes del Río Alhárabe (Moratalla) • Formatos Oficiales: Comunitaria y Tanda con Cesiones</span>
+                <span class="text-muted small">Formatos Oficiales de Riego • 3 Variedades: Tanda, Comunitaria y Comunitaria HORTALIZAS</span>
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            <a href="<?= APP_URL ?>/comunidades-regantes" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-water me-1"></i> Comunidades de Riego
+            </a>
             <a href="<?= APP_URL ?>/regantes" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-address-book me-1"></i> Censo de Socios
             </a>
@@ -137,17 +154,54 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
     <div class="card card-custom p-4 mb-4 border-top border-4 border-primary shadow-sm">
         <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
             <h5 class="fw-bold mb-0 text-primary">
-                <i class="fa-solid fa-sliders me-2"></i>Cumplimentación Ultra Rápida
+                <i class="fa-solid fa-sliders me-2"></i>Cumplimentación Simplificada de Petición
             </h5>
-            <span class="badge bg-primary bg-opacity-10 text-primary">Selecciona Socio o Finca para auto-rellenar</span>
+            <span class="badge bg-primary bg-opacity-10 text-primary">Pre-rellenado automático por Comunidad, Socio y Finca</span>
         </div>
 
-        <!-- Fila de Autorellenado Inteligente -->
+        <!-- Fila 1: Comunidad de Regantes y Autorellenado -->
         <div class="row g-3 mb-3 bg-light p-3 rounded-3 border">
-            <div class="col-md-6">
-                <label class="form-label fw-bold small text-primary"><i class="fa-solid fa-user-check me-1"></i>Seleccionar Socio Regante (Censo Oficial)</label>
+            <!-- Comunidad de Regantes -->
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-primary">
+                    <i class="fa-solid fa-water me-1"></i>Comunidad de Regantes Destinataria *
+                </label>
+                <select id="sel_comunidad" class="form-select fw-bold text-dark font-monospace" onchange="cargarComunidadSeleccionada()">
+                    <?php if (empty($comunidades)): ?>
+                        <option value="0" data-nom="Comunidad de Regantes del Río Alhárabe" data-email="alharabemoratalla@gmail.com" data-banco="CAJAMAR" data-ptanda="0" data-maxtanda="0" data-pcom="12" data-maxcom="0" data-phort="15" data-maxhort="2" data-derr="150">
+                            Comunidad de Regantes del Río Alhárabe (Predeterminada)
+                        </option>
+                    <?php else: ?>
+                        <?php foreach ($comunidades as $com): ?>
+                            <option value="<?= $com['id_comunidad'] ?>"
+                                data-nom="<?= htmlspecialchars($com['nombre_comunidad']) ?>"
+                                data-email="<?= htmlspecialchars($com['email_solicitudes']) ?>"
+                                data-banco="<?= htmlspecialchars($com['banco_habitual'] ?: 'CAJAMAR') ?>"
+                                data-ptanda="<?= $com['precio_hora_tanda'] ?>"
+                                data-maxtanda="<?= $com['consumo_max_tanda_horas'] ?>"
+                                data-pcom="<?= $com['precio_hora_comunitaria'] ?>"
+                                data-maxcom="<?= $com['consumo_max_comunitaria_horas'] ?>"
+                                data-phort="<?= $com['precio_hora_hortalizas'] ?>"
+                                data-maxhort="<?= $com['consumo_max_hortalizas_horas'] ?>"
+                                data-derr="<?= $com['derrama_anual'] ?>"
+                                data-horario="<?= htmlspecialchars($com['horario_atencion'] ?: '') ?>"
+                                <?= ($comSeleccionada && $comSeleccionada['id_comunidad'] == $com['id_comunidad']) ? 'selected' : '' ?>
+                            >
+                                <?= htmlspecialchars($com['nombre_comunidad']) ?> <?= !empty($com['es_predeterminada']) ? '★ (Predeterminada)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+                <div class="form-text small" id="txt_comunidad_email">
+                    <i class="fa-solid fa-envelope me-1 text-primary"></i>Destino: <strong><?= htmlspecialchars($comSeleccionada['email_solicitudes'] ?? 'alharabemoratalla@gmail.com') ?></strong>
+                </div>
+            </div>
+
+            <!-- Socio Regante -->
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-primary"><i class="fa-solid fa-user-check me-1"></i>Socio Regante (Censo)</label>
                 <select id="sel_regante" class="form-select font-monospace" onchange="cargarDatosRegante()">
-                    <option value="">-- Buscar socio regante por Nº o Nombre --</option>
+                    <option value="">-- Buscar socio por Nº o Nombre --</option>
                     <?php foreach ($regantes as $rg): ?>
                         <option value="<?= $rg['id_regante'] ?>"
                             data-num="<?= htmlspecialchars($rg['num_regante']) ?>"
@@ -163,15 +217,17 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                             data-hc="<?= $rg['horas_comunitaria_disponibles'] ?>"
                             <?= ($reganteInicial && $reganteInicial['id_regante'] == $rg['id_regante']) ? 'selected' : '' ?>
                         >
-                            <?= htmlspecialchars($rg['num_regante']) ?> - <?= htmlspecialchars($rg['nombre_completo']) ?> (Tanda: <?= $rg['horas_tanda_disponibles'] ?>h | Com: <?= $rg['horas_comunitaria_disponibles'] ?>h)
+                            <?= htmlspecialchars($rg['num_regante']) ?> - <?= htmlspecialchars($rg['nombre_completo']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-6">
-                <label class="form-label fw-bold small text-primary"><i class="fa-solid fa-layer-group me-1"></i>O Seleccionar desde una de tus Fincas</label>
+
+            <!-- Finca -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-primary"><i class="fa-solid fa-layer-group me-1"></i>Finca Asignada</label>
                 <select id="sel_finca" class="form-select" onchange="cargarDatosFinca()">
-                    <option value="">-- Cargar Finca para fijar Parada y Paraje --</option>
+                    <option value="">-- Cargar Finca --</option>
                     <?php foreach ($fincas as $f): ?>
                         <option value="<?= $f['id_finca'] ?>"
                             data-socio="<?= htmlspecialchars($f['num_socio_comunidad'] ?: 'A1188') ?>"
@@ -185,40 +241,42 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                             data-domicilio="<?= htmlspecialchars($f['direccion'] ?: $defDomicilio) ?>"
                             data-tel="<?= htmlspecialchars($f['tel_prop'] ?: $defTelefono) ?>"
                         >
-                            <?= htmlspecialchars($f['nombre_finca']) ?> (Socio: <?= htmlspecialchars($f['num_socio_comunidad'] ?: 'A1188') ?> | Parada: <?= htmlspecialchars($f['parada'] ?: '-') ?>)
+                            <?= htmlspecialchars($f['nombre_finca']) ?> (<?= htmlspecialchars($f['parada'] ?: 'Sin parada') ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
         </div>
 
-        <!-- Tipo de Riego y Modalidad -->
+        <!-- Fila 2: Las 3 Variedades Oficiales de Riego -->
         <div class="row g-3 mb-3">
-            <div class="col-md-4">
-                <label class="form-label fw-semibold small">1. Formato de Papeleta / Tipo de Riego *</label>
-                <select id="in_tipo_riego" class="form-select fw-bold text-primary" onchange="conmutarTipoRiego()">
-                    <option value="comunitaria" selected>💧 AGUA COMUNITARIA (Por horas según tierra)</option>
-                    <option value="tanda">⏳ AGUA TANDA (Con cesiones de otros socios)</option>
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-primary">Modalidad / Variedad de Riego Solicitada *</label>
+                <select id="in_tipo_riego" class="form-select fw-bold text-primary fs-6" onchange="conmutarTipoRiego()">
+                    <option value="tanda">⏳ TANDA (Agua en propiedad con cesiones de socios)</option>
+                    <option value="comunitaria" selected>💧 COMUNITARIA (Por horas disponibles según tierra)</option>
+                    <option value="comunitaria_hortalizas">⭐ COMUNITARIA HORTALIZAS (Fin de semana en verano / horario pautado)</option>
                 </select>
-            </div>
-
-            <div class="col-md-3" id="col_subtipo_comunitaria">
-                <label class="form-label fw-semibold small">Modalidad Comunitaria *</label>
-                <select id="in_subtipo_comunitaria" class="form-select fw-semibold" onchange="conmutarSubtipoComunitaria()">
-                    <option value="normal" selected>Comunitaria Ordinaria (<?= number_format($precioHoraComunitaria, 2) ?> €/h)</option>
-                    <option value="hortalizas">⭐ COMUNITARIA HORTALIZAS (<?= number_format($precioHoraHortalizas, 2) ?> €/h)</option>
-                </select>
-            </div>
-
-            <div class="col-md-2">
-                <label class="form-label fw-semibold small">Horas Totales *</label>
-                <input type="number" step="0.25" id="in_horas" class="form-control font-monospace fw-bold text-primary fs-5" value="2.00" oninput="actualizarVistaPrevia()">
             </div>
 
             <div class="col-md-3">
+                <label class="form-label fw-semibold small">Horas Totales a Solicitar *</label>
+                <div class="input-group">
+                    <input type="number" step="0.25" id="in_horas" class="form-control font-monospace fw-bold text-primary fs-5" value="2.00" oninput="actualizarVistaPrevia()">
+                    <span class="input-group-text fw-bold">horas</span>
+                </div>
+            </div>
+
+            <div class="col-md-4">
                 <label class="form-label fw-semibold small">Fecha de Riego *</label>
                 <input type="date" id="in_fecha" class="form-control font-monospace" value="<?= date('Y-m-d') ?>" oninput="actualizarVistaPrevia()">
             </div>
+        </div>
+
+        <!-- Aviso Dinámico de Consumo Máximo / Fijo -->
+        <div id="boxConsumoInfo" class="alert alert-info py-2 px-3 mb-3 small d-flex align-items-center justify-content-between">
+            <span id="txtConsumoInfo"><i class="fa-solid fa-scale-balanced me-2"></i>Consumo según participaciones / derechos del socio.</span>
+            <span class="badge bg-primary font-monospace" id="badgeTarifaHora">12.00 €/h</span>
         </div>
 
         <!-- Datos del Solicitante -->
@@ -232,7 +290,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                 <input type="text" id="in_tablon" class="form-control font-monospace" value="<?= htmlspecialchars($defTablon) ?>" oninput="actualizarVistaPrevia()">
             </div>
             <div class="col-md-2">
-                <label class="form-label fw-semibold small">Teléfono de Contacto</label>
+                <label class="form-label fw-semibold small">Teléfono</label>
                 <input type="text" id="in_telefono" class="form-control font-monospace" value="<?= htmlspecialchars($defTelefono) ?>" oninput="actualizarVistaPrevia()">
             </div>
             <div class="col-md-3">
@@ -268,7 +326,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
         <div id="panelCesionesTanda" class="mb-3 p-3 rounded-3 border bg-light" style="display: none;">
             <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
                 <h6 class="fw-bold text-primary mb-0">
-                    <i class="fa-solid fa-users me-1"></i>Distribución de Horas y Cesiones de Otros Socios (Plantilla Tanda)
+                    <i class="fa-solid fa-users me-1"></i>Distribución de Horas y Cesiones de Otros Socios (Estadillo Tanda)
                 </h6>
                 <span class="badge bg-info text-dark">6 Filas Oficiales Río Alhárabe</span>
             </div>
@@ -298,7 +356,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                             <td><input type="text" id="ces_num_1" class="form-control form-control-sm font-monospace fw-bold" value="<?= htmlspecialchars($defNumRegante) ?>" oninput="actualizarCesiones()"></td>
                             <td class="text-muted small text-center">Titular Solicitante</td>
                         </tr>
-                        <!-- Filas 2 a 6: Cesiones -->
+                        <!-- Filas 2 a 6: Cesiones de otros socios -->
                         <?php for ($i = 2; $i <= 6; $i++): ?>
                             <tr>
                                 <td class="text-center fw-semibold text-muted"><?= $i ?></td>
@@ -336,7 +394,6 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                         Limpiar
                     </button>
                 </div>
-                <div class="form-text small">Obligatorio indicar HORTALIZAS si se solicita riego de fin de semana en verano.</div>
             </div>
             <div class="col-md-4 d-flex align-items-end">
                 <div class="w-100">
@@ -361,7 +418,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
         </div>
     </div>
 
-    <!-- Valoración Económica y Nombre Oficial del Archivo -->
+    <!-- Valoración Económica y Nombre Normalizado de las 3 Variedades -->
     <div class="row g-3 mb-4">
         <!-- Tarjeta de Coste Estimado -->
         <div class="col-md-6">
@@ -370,7 +427,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                     <div>
                         <div class="text-muted small fw-semibold">Valoración Económica del Riego</div>
                         <div class="fs-4 fw-bold text-success" id="box_coste_total">24.00 €</div>
-                        <div class="small text-muted" id="box_coste_detalle">2.00 h × <?= number_format($precioHoraComunitaria, 2) ?> €/h (Comunitaria)</div>
+                        <div class="small text-muted" id="box_coste_detalle">2.00 h × 12.00 €/h (Comunitaria)</div>
                     </div>
                     <div class="rounded-circle bg-success bg-opacity-10 p-3 text-success">
                         <i class="fa-solid fa-euro-sign fs-3"></i>
@@ -379,15 +436,15 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
             </div>
         </div>
 
-        <!-- Tarjeta de Nombre del Archivo y Envío -->
+        <!-- Tarjeta de Nombre del Archivo y Buzón Destino -->
         <div class="col-md-6">
             <div class="card card-custom p-3 border-start border-4 border-primary h-100 d-flex justify-content-between">
                 <div>
-                    <div class="text-muted small fw-semibold">Nombre de Archivo Normalizado (Río Alhárabe)</div>
-                    <code class="fs-6 fw-bold text-dark bg-light px-2 py-1 rounded d-block mt-1 text-truncate" id="preview_filename">A1188_2026-09-15_PABLO_Comunitaria_15.09.2026.pdf</code>
+                    <div class="text-muted small fw-semibold">Nombre de Archivo Normalizado (3 Variedades)</div>
+                    <code class="fs-6 fw-bold text-dark bg-light px-2 py-1 rounded d-block mt-1 text-truncate" id="preview_filename">A1188_2026-09-15_PABLO_Comunitaria_A1188_15.09.2026.pdf</code>
                 </div>
                 <div class="small text-muted mt-2">
-                    <i class="fa-solid fa-envelope me-1 text-primary"></i>Destino: <strong><?= htmlspecialchars($emailComunidadOficial) ?></strong>
+                    <i class="fa-solid fa-envelope me-1 text-primary"></i>Destino de envío: <strong id="lbl_email_destino">alharabemoratalla@gmail.com</strong>
                 </div>
             </div>
         </div>
@@ -411,11 +468,11 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
         <div class="marco-principal mb-4">
             <!-- Fila Superior: Logo + Nº papeleta + Tabla Socio/Tablón/Teléfono -->
             <div class="d-flex justify-content-between align-items-start mb-2 pb-1">
-                <!-- Logo Oficial Río Alhárabe -->
+                <!-- Logo Oficial de la Comunidad -->
                 <div class="logo-alharabe d-flex align-items-center">
                     <div class="logo-badge px-3 py-2 rounded-2">
                         <div class="logo-sub">Comunidad de Regantes del</div>
-                        <div class="logo-main">Río Alhárabe</div>
+                        <div class="logo-main" id="doc_nombre_comunidad">Río Alhárabe</div>
                     </div>
                 </div>
 
@@ -446,7 +503,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                 <h3 class="fw-bold mb-0 text-dark titulo-tipo-agua" id="doc_titulo_tipo">AGUA COMUNITARIA</h3>
             </div>
 
-            <!-- VISTA 1: CUERPO FORMATO AGUA COMUNITARIA -->
+            <!-- VISTA 1: CUERPO FORMATO AGUA COMUNITARIA (Ordinaria / Hortalizas) -->
             <div id="cuerpoComunitaria">
                 <table class="tabla-cuerpo w-100">
                     <tr>
@@ -496,7 +553,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                 </table>
             </div>
 
-            <!-- VISTA 2: CUERPO FORMATO AGUA TANDA CON CESIONES (Exacto imagen de usuario) -->
+            <!-- VISTA 2: CUERPO FORMATO AGUA TANDA CON CESIONES (Fiel al documento original) -->
             <div id="cuerpoTanda" style="display: none;">
                 <table class="tabla-cuerpo w-100">
                     <tr>
@@ -568,9 +625,9 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
                 <li>Todos los campos en blanco son obligatorios, excepto el de observaciones, y deben ser rellenados de forma clara y legible para una mejor identificación de los mismos.</li>
                 <li>El campo de observaciones deberá cumplimentarlo en caso de utilizar la plantilla para el riego de hortalizas, en tal situación tendrá que indicar <strong>HORTALIZAS</strong> en dicho campo.</li>
                 <li>Una vez hayan cumplimentado la solicitud tienen que guardar el archivo utilizando Nº de Regante mas la fecha del envío, (Ejemplo: A0000 25.05.2012) utilizando puntos en la separación de la fecha para que Word os permita guardarlo.</li>
-                <li>Una vez guardado, pueden enviarlo mediante un archivo adjunto a la dirección de e-mail de la Comunidad de Regantes que es la siguiente <strong><?= htmlspecialchars($emailComunidadOficial) ?></strong>.</li>
+                <li>Una vez guardado, pueden enviarlo mediante un archivo adjunto a la dirección de e-mail de la Comunidad de Regantes que es la siguiente <strong id="doc_instrucciones_email">alharabemoratalla@gmail.com</strong>.</li>
                 <li>Todas las solicitudes informáticas deberán ser enviadas con un mínimo de 3 a 4 días de antelación a los riegos al igual que las papeletas físicas para poder imprimirlas y colocarlas con el resto.</li>
-                <li>En caso de dudas pueden ponerse en contacto con la oficina de la Comunidad de lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00.</li>
+                <li>En caso de dudas pueden ponerse en contacto con la oficina de la Comunidad (<span id="doc_instrucciones_horario">lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00</span>).</li>
             </ol>
 
             <div class="caja-atencion text-center p-2 border border-dark">
@@ -585,7 +642,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
 </div>
 
 <!-- ============================================================================== -->
-<!-- ESTILOS EXACTOS PARA DOCUMENTO Y SALIDA DE IMPRESIÓN A4                         -->
+<!-- ESTILOS CSS PARA DOCUMENTO A4 Y SALIDA POR IMPRESORA                           -->
 <!-- ============================================================================== -->
 <style>
 .hoja-oficial {
@@ -664,7 +721,7 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
     background: #fff;
 }
 
-/* Tabla de Cesiones de Horas en Tanda (Rejilla de 6 filas) */
+/* Rejilla de Cesiones en Tanda (6 filas oficiales) */
 .tabla-cesiones-tanda {
     border-collapse: collapse;
     font-size: 1.02rem;
@@ -704,15 +761,24 @@ $defBanco = $reganteInicial ? ($reganteInicial['banco_habitual'] ?: 'CAJAMAR') :
 }
 </style>
 
-<!-- Librería html2pdf para generación fiel en cliente -->
+<!-- Librería html2pdf -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-// Precios configurados
-const PRECIO_COMUNITARIA = <?= $precioHoraComunitaria ?>;
-const PRECIO_HORTALIZAS  = <?= $precioHoraHortalizas ?>;
-const DERRAMA_ANUAL      = <?= $derramaAnualComunidad ?>;
-const EMAIL_DESTINO      = '<?= $emailComunidadOficial ?>';
+// Estado de la comunidad activa
+let comunidadActiva = {
+    nombre: 'Comunidad de Regantes del Río Alhárabe',
+    email: 'alharabemoratalla@gmail.com',
+    banco: 'CAJAMAR',
+    pTanda: 0.00,
+    maxTanda: 0.00,
+    pCom: 12.00,
+    maxCom: 0.00,
+    pHort: 15.00,
+    maxHort: 2.00,
+    derrama: 150.00,
+    horario: 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00'
+};
 
 // Canvas de firma digital
 const canvas = document.getElementById('canvasFirma');
@@ -765,6 +831,39 @@ function actualizarFirma() {
     }
 }
 
+// Cargar Comunidad Seleccionada
+function cargarComunidadSeleccionada() {
+    const sel = document.getElementById('sel_comunidad');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt) return;
+
+    comunidadActiva.nombre   = opt.getAttribute('data-nom') || 'Comunidad de Regantes del Río Alhárabe';
+    comunidadActiva.email    = opt.getAttribute('data-email') || 'alharabemoratalla@gmail.com';
+    comunidadActiva.banco    = opt.getAttribute('data-banco') || 'CAJAMAR';
+    comunidadActiva.pTanda   = parseFloat(opt.getAttribute('data-ptanda')) || 0;
+    comunidadActiva.maxTanda = parseFloat(opt.getAttribute('data-maxtanda')) || 0;
+    comunidadActiva.pCom     = parseFloat(opt.getAttribute('data-pcom')) || 12;
+    comunidadActiva.maxCom   = parseFloat(opt.getAttribute('data-maxcom')) || 0;
+    comunidadActiva.pHort    = parseFloat(opt.getAttribute('data-phort')) || 15;
+    comunidadActiva.maxHort  = parseFloat(opt.getAttribute('data-maxhort')) || 2;
+    comunidadActiva.derrama  = parseFloat(opt.getAttribute('data-derr')) || 150;
+    comunidadActiva.horario  = opt.getAttribute('data-horario') || 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00';
+
+    document.getElementById('lbl_email_destino').innerText = comunidadActiva.email;
+    document.getElementById('txt_comunidad_email').innerHTML = `<i class="fa-solid fa-envelope me-1 text-primary"></i>Destino: <strong>${comunidadActiva.email}</strong>`;
+    document.getElementById('in_banco').value = comunidadActiva.banco;
+
+    // Actualizar nombre en el encabezado del documento oficial
+    let shortName = comunidadActiva.nombre.replace(/^Comunidad de Regantes (del|de la|de)\s*/i, '');
+    document.getElementById('doc_nombre_comunidad').innerText = shortName;
+    document.getElementById('doc_instrucciones_email').innerText = comunidadActiva.email;
+    if (comunidadActiva.horario) {
+        document.getElementById('doc_instrucciones_horario').innerText = comunidadActiva.horario;
+    }
+
+    conmutarTipoRiego();
+}
+
 // Cargar datos al seleccionar Regante
 function cargarDatosRegante() {
     const sel = document.getElementById('sel_regante');
@@ -781,17 +880,8 @@ function cargarDatosRegante() {
     if (opt.getAttribute('data-paraje')) document.getElementById('in_paraje').value = opt.getAttribute('data-paraje');
     if (opt.getAttribute('data-tablon')) document.getElementById('in_tablon').value = opt.getAttribute('data-tablon');
 
-    // Asignar primera fila de cesión
     document.getElementById('ces_nom_1').value = opt.getAttribute('data-nom') || '';
     document.getElementById('ces_num_1').value = opt.getAttribute('data-num') || '';
-
-    // Horas disponibles según tipo
-    const tipo = document.getElementById('in_tipo_riego').value;
-    if (tipo === 'tanda' && opt.getAttribute('data-ht')) {
-        document.getElementById('in_horas').value = opt.getAttribute('data-ht');
-    } else if (tipo === 'comunitaria' && opt.getAttribute('data-hc')) {
-        document.getElementById('in_horas').value = opt.getAttribute('data-hc');
-    }
 
     actualizarCesiones();
     actualizarVistaPrevia();
@@ -819,48 +909,73 @@ function cargarDatosFinca() {
     actualizarVistaPrevia();
 }
 
-// Conmutar entre formato Comunitaria y formato Tanda
+// Conmutar entre las 3 variedades: Tanda, Comunitaria, Comunitaria HORTALIZAS
 function conmutarTipoRiego() {
     const tipo = document.getElementById('in_tipo_riego').value;
-    const colSub = document.getElementById('col_subtipo_comunitaria');
     const panelCesiones = document.getElementById('panelCesionesTanda');
     const cuerpoCom = document.getElementById('cuerpoComunitaria');
     const cuerpoTanda = document.getElementById('cuerpoTanda');
     const numPapeleta = document.getElementById('doc_indicador_num');
 
+    let maxHoras = 0;
+    let precio = 0;
+    let nombreMod = '';
+
     if (tipo === 'tanda') {
-        colSub.style.display = 'none';
         panelCesiones.style.display = 'block';
         cuerpoCom.style.display = 'none';
         cuerpoTanda.style.display = 'block';
         numPapeleta.style.display = 'block';
         document.getElementById('doc_titulo_tipo').innerText = 'AGUA TANDA';
-    } else {
-        colSub.style.display = 'block';
+
+        maxHoras = comunidadActiva.maxTanda;
+        precio = comunidadActiva.pTanda;
+        nombreMod = 'Tanda';
+    } else if (tipo === 'comunitaria_hortalizas') {
         panelCesiones.style.display = 'none';
         cuerpoCom.style.display = 'block';
         cuerpoTanda.style.display = 'none';
         numPapeleta.style.display = 'none';
-        conmutarSubtipoComunitaria();
-    }
-    actualizarVistaPrevia();
-}
-
-function conmutarSubtipoComunitaria() {
-    const sub = document.getElementById('in_subtipo_comunitaria').value;
-    if (sub === 'hortalizas') {
-        document.getElementById('in_observaciones').value = 'HORTALIZAS';
         document.getElementById('doc_titulo_tipo').innerText = 'AGUA COMUNITARIA';
-    } else {
+        document.getElementById('in_observaciones').value = 'HORTALIZAS';
+
+        maxHoras = comunidadActiva.maxHort;
+        precio = comunidadActiva.pHort;
+        nombreMod = 'Comunitaria HORTALIZAS';
+    } else { // comunitaria ordinaria
+        panelCesiones.style.display = 'none';
+        cuerpoCom.style.display = 'block';
+        cuerpoTanda.style.display = 'none';
+        numPapeleta.style.display = 'none';
+        document.getElementById('doc_titulo_tipo').innerText = 'AGUA COMUNITARIA';
         if (document.getElementById('in_observaciones').value === 'HORTALIZAS') {
             document.getElementById('in_observaciones').value = '';
         }
-        document.getElementById('doc_titulo_tipo').innerText = 'AGUA COMUNITARIA';
+
+        maxHoras = comunidadActiva.maxCom;
+        precio = comunidadActiva.pCom;
+        nombreMod = 'Comunitaria Ordinaria';
     }
+
+    // Comprobar si el consumo máximo o fijo está a cero
+    const txtInfo = document.getElementById('txtConsumoInfo');
+    const badgeTarifa = document.getElementById('badgeTarifaHora');
+    badgeTarifa.innerText = precio.toFixed(2) + ' €/h';
+
+    if (maxHoras > 0) {
+        txtInfo.innerHTML = `<i class="fa-solid fa-lock me-2 text-warning"></i><strong>Consumo máximo/fijo pautado por la Comunidad:</strong> <span class="badge bg-warning text-dark font-monospace fs-6">${maxHoras.toFixed(2)} horas</span> (${nombreMod}).`;
+        // Si las horas actuales superan el tope o están en default, proponer el cupo
+        if (parseFloat(document.getElementById('in_horas').value) === 0 || tipo === 'comunitaria_hortalizas') {
+            document.getElementById('in_horas').value = maxHoras.toFixed(2);
+        }
+    } else {
+        txtInfo.innerHTML = `<i class="fa-solid fa-scale-balanced me-2 text-primary"></i><strong>Consumo según participaciones:</strong> El cupo depende de las horas asignadas según tierra o derechos del socio (sin tope fijo).`;
+    }
+
     actualizarVistaPrevia();
 }
 
-// Asignar datos de socio cedente desde el selector
+// Asignar socio cedente en la rejilla de tanda
 function seleccionarCedente(filaIndex, selectEl) {
     const opt = selectEl.options[selectEl.selectedIndex];
     if (!opt || !opt.value) return;
@@ -873,7 +988,6 @@ function seleccionarCedente(filaIndex, selectEl) {
     actualizarCesiones();
 }
 
-// Sincronizar cesiones con el documento y calcular total
 function actualizarCesiones() {
     let totalH = 0;
     for (let i = 1; i <= 6; i++) {
@@ -899,12 +1013,13 @@ function actualizarCesiones() {
     actualizarVistaPrevia();
 }
 
-// Nombre oficial exacto según instrucción del usuario
+// Generador del nombre de archivo normalizado según las 3 variedades solicitadas
 function calcularNombreArchivo() {
     const socio = (document.getElementById('in_regante').value || 'A1188').trim().replace(/[^a-zA-Z0-9]/g, '');
     const fechaRaw = document.getElementById('in_fecha').value || '<?= date("Y-m-d") ?>';
     const partes = fechaRaw.split('-'); // [YYYY, MM, DD]
-    const fechaInvertida = partes[0] + '.' + partes[1] + '.' + partes[2]; // YYYY.MM.DD
+    const fechaInvertidaPuntos = partes[0] + '.' + partes[1] + '.' + partes[2]; // YYYY.MM.DD
+    const fechaInvertidaGuiones = partes[0] + '-' + partes[1] + '-' + partes[2]; // YYYY-MM-DD
     const fechaAlDerechoPuntos = partes[2] + '.' + partes[1] + '.' + partes[0]; // DD.MM.YYYY
     const fechaAlDerechoGuiones = partes[2] + '-' + partes[1] + '-' + partes[0]; // DD-MM-YYYY
 
@@ -914,23 +1029,24 @@ function calcularNombreArchivo() {
     const tipo = document.getElementById('in_tipo_riego').value;
     const paraje = (document.getElementById('in_paraje').value || '').trim().replace(/[^a-zA-Z0-9]/g, '');
 
+    // 1. VARIEDAD TANDA: [Socio]_[YYYY.MM.DD]_[PrimerNombre]_TANDA_[Paraje]_[Socio]_[DD-MM-YYYY].pdf
     if (tipo === 'tanda') {
-        // Formato exacto del adjunto de tanda: A0694_2026.06.12_PACO_TANDA_Perales_A0694_12-06-2026.pdf
         const pje = paraje ? ('_' + paraje) : '';
-        return `${socio}_${fechaInvertida}_${primerNombre}_TANDA${pje}_${socio}_${fechaAlDerechoGuiones}.pdf`;
-    } else {
-        const sub = document.getElementById('in_subtipo_comunitaria').value;
-        const tipoCom = (sub === 'hortalizas') ? 'Comunitaria_Hortalizas' : 'Comunitaria';
-        // Formato exacto del adjunto comunitaria: A1188_2026-09-15_PABLO_Comunitaria_Hortalizas_A1188_15.09.2026.pdf
-        const fInvGuiones = partes[0] + '-' + partes[1] + '-' + partes[2];
-        return `${socio}_${fInvGuiones}_${primerNombre}_${tipoCom}_${socio}_${fechaAlDerechoPuntos}.pdf`;
+        return `${socio}_${fechaInvertidaPuntos}_${primerNombre}_TANDA${pje}_${socio}_${fechaAlDerechoGuiones}.pdf`;
+    }
+    // 2. VARIEDAD COMUNITARIA HORTALIZAS: [Socio]_[YYYY-MM-DD]_[PrimerNombre]_Comunitaria_Hortalizas_[Socio]_[DD.MM.YYYY].pdf
+    else if (tipo === 'comunitaria_hortalizas') {
+        return `${socio}_${fechaInvertidaGuiones}_${primerNombre}_Comunitaria_Hortalizas_${socio}_${fechaAlDerechoPuntos}.pdf`;
+    }
+    // 3. VARIEDAD COMUNITARIA ORDINARIA: [Socio]_[YYYY-MM-DD]_[PrimerNombre]_Comunitaria_[Socio]_[DD.MM.YYYY].pdf
+    else {
+        return `${socio}_${fechaInvertidaGuiones}_${primerNombre}_Comunitaria_${socio}_${fechaAlDerechoPuntos}.pdf`;
     }
 }
 
-// Actualizar en tiempo real
+// Actualizar en tiempo real el documento oficial y los cálculos económicos
 function actualizarVistaPrevia() {
     const tipo = document.getElementById('in_tipo_riego').value;
-    const sub = document.getElementById('in_subtipo_comunitaria').value;
     const horas = parseFloat(document.getElementById('in_horas').value || 0);
 
     const reganteVal = document.getElementById('in_regante').value || 'A1188';
@@ -939,7 +1055,7 @@ function actualizarVistaPrevia() {
     const titularVal = document.getElementById('in_titular').value.toUpperCase() || '-';
     const domVal = document.getElementById('in_domicilio').value || '-';
     const dniVal = document.getElementById('in_dni').value.toUpperCase() || '-';
-    const bancoVal = document.getElementById('in_banco').value.toUpperCase() || 'CAJAMAR';
+    const bancoVal = document.getElementById('in_banco').value.toUpperCase() || comunidadActiva.banco;
     const paradaVal = document.getElementById('in_parada').value || '-';
     const parajeVal = document.getElementById('in_paraje').value || '-';
     const obsVal = document.getElementById('in_observaciones').value.toUpperCase() || '-';
@@ -977,25 +1093,30 @@ function actualizarVistaPrevia() {
     document.getElementById('doc_firma_placeholder_com').innerText = primerNombre;
     document.getElementById('doc_firma_placeholder_tanda').innerText = primerNombre;
 
-    // Valoración Económica
+    // Cálculo Económico según Comunidad Activa
     let coste = 0;
     let detalle = '';
+
     if (tipo === 'comunitaria') {
-        if (sub === 'hortalizas') {
-            coste = horas * PRECIO_HORTALIZAS;
-            detalle = `${horas.toFixed(2)} h × ${PRECIO_HORTALIZAS.toFixed(2)} €/h (Comunitaria HORTALIZAS Fin de Semana)`;
+        coste = horas * comunidadActiva.pCom;
+        detalle = `${horas.toFixed(2)} h × ${comunidadActiva.pCom.toFixed(2)} €/h (Comunitaria Ordinaria • ${comunidadActiva.nombre})`;
+    } else if (tipo === 'comunitaria_hortalizas') {
+        coste = horas * comunidadActiva.pHort;
+        detalle = `${horas.toFixed(2)} h × ${comunidadActiva.pHort.toFixed(2)} €/h (Comunitaria HORTALIZAS • ${comunidadActiva.nombre})`;
+    } else { // tanda
+        if (comunidadActiva.pTanda > 0) {
+            coste = horas * comunidadActiva.pTanda;
+            detalle = `${horas.toFixed(2)} h × ${comunidadActiva.pTanda.toFixed(2)} €/h (Tanda • ${comunidadActiva.nombre})`;
         } else {
-            coste = horas * PRECIO_COMUNITARIA;
-            detalle = `${horas.toFixed(2)} h × ${PRECIO_COMUNITARIA.toFixed(2)} €/h (Comunitaria Ordinaria)`;
+            coste = 0;
+            detalle = `Horas en propiedad cubiertas por derrama comunera (${comunidadActiva.derrama.toFixed(2)} €/año en ${comunidadActiva.nombre})`;
         }
-    } else {
-        coste = 0;
-        detalle = `Horas en propiedad cubiertas por derrama comunera (${DERRAMA_ANUAL.toFixed(2)} €/año)`;
     }
+
     document.getElementById('box_coste_total').innerText = coste.toFixed(2) + ' €';
     document.getElementById('box_coste_detalle').innerText = detalle;
 
-    // Nombre archivo
+    // Nombre de archivo en tiempo real
     const fname = calcularNombreArchivo();
     document.getElementById('preview_filename').innerText = fname;
 }
@@ -1014,24 +1135,24 @@ function generarPdfPromise() {
     return html2pdf().set(opt).from(el);
 }
 
-// Descargar PDF en cliente
+// Descargar PDF en navegador
 function descargarPDF() {
     generarPdfPromise().save();
 }
 
-// Enviar solicitud por correo directamente al servidor de la Comunidad
+// Enviar solicitud directamente por correo electrónico a la comunidad seleccionada
 async function enviarPorCorreo() {
     const statusBox = document.getElementById('alertEmailStatus');
     const msgBox = document.getElementById('alertEmailMsg');
     statusBox.className = 'alert alert-info border-0 shadow-sm mb-4';
     statusBox.style.display = 'block';
-    msgBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Generando documento oficial y conectando con el servidor de correo IONOS...';
+    msgBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Generando documento oficial y conectando por socket con ${comunidadActiva.email}...`;
 
     try {
         const worker = generarPdfPromise();
         const pdfBase64 = await worker.outputPdf('datauristring');
         const filename = calcularNombreArchivo();
-        const tipo = document.getElementById('in_tipo_riego').value;
+        const tipo = document.getElementById('in_tipo_riego').value.toUpperCase();
         const titular = document.getElementById('in_titular').value;
         const socio = document.getElementById('in_regante').value;
         const horas = document.getElementById('in_horas').value;
@@ -1040,15 +1161,15 @@ async function enviarPorCorreo() {
         formData.append('action', 'enviar_por_correo');
         formData.append('filename', filename);
         formData.append('pdf_base64', pdfBase64);
-        formData.append('destinatario', EMAIL_DESTINO);
-        formData.append('asunto', `Solicitud de Riego (${tipo.toUpperCase()}) - Socio ${socio} (${titular})`);
+        formData.append('destinatario', comunidadActiva.email);
+        formData.append('asunto', `Solicitud de Riego (${tipo}) - Socio ${socio} (${titular})`);
         formData.append('cuerpo_html', `
-            <h3>Comunidad de Regantes del Río Alhárabe</h3>
+            <h3>${comunidadActiva.nombre}</h3>
             <p>Remitimos adjunta la <strong>papeleta oficial de solicitud de agua para riego</strong> tramitada a través de AgroDietario:</p>
             <ul>
                 <li><strong>Socio Regante:</strong> ${socio}</li>
                 <li><strong>Titular:</strong> ${titular}</li>
-                <li><strong>Tipo de Riego:</strong> ${tipo.toUpperCase()}</li>
+                <li><strong>Variedad de Riego:</strong> ${tipo}</li>
                 <li><strong>Horas Solicitadas:</strong> ${horas} horas</li>
                 <li><strong>Archivo Adjunto:</strong> ${filename}</li>
             </ul>
@@ -1063,7 +1184,7 @@ async function enviarPorCorreo() {
 
         if (json.success) {
             statusBox.className = 'alert alert-success border-0 shadow-sm mb-4';
-            msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Papeleta enviada con éxito!</strong> El documento <code>${filename}</code> fue remitido correctamente a <strong>${EMAIL_DESTINO}</strong>.`;
+            msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Papeleta enviada con éxito!</strong> El documento <code>${filename}</code> fue remitido correctamente a <strong>${comunidadActiva.email}</strong>.`;
         } else {
             statusBox.className = 'alert alert-danger border-0 shadow-sm mb-4';
             msgBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation me-2"></i>Error al enviar:</strong> ${json.message}`;
@@ -1074,9 +1195,9 @@ async function enviarPorCorreo() {
     }
 }
 
-// Inicializar al cargar
+// Inicializar al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
-    conmutarTipoRiego();
+    cargarComunidadSeleccionada();
 });
 </script>
 

@@ -160,6 +160,7 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus-circle me-2 text-primary"></i>Nueva Finca</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/regantes"><i class="fa-solid fa-address-book me-2 text-primary"></i>Socios Regantes (C.R. Alhárabe)</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/comunidades-regantes"><i class="fa-solid fa-water me-2 text-primary"></i>Comunidades de Regantes</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes</a></li>
                         </ul>
                     </li>

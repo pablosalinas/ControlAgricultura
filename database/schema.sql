@@ -132,6 +132,36 @@ CREATE TABLE regantes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
+-- 4.2 COMUNIDADES DE REGANTES (Maestro con tarifas y cupos de consumo)
+-- ------------------------------------------------------------------------------
+CREATE TABLE comunidades_regantes (
+    id_comunidad INT AUTO_INCREMENT PRIMARY KEY,
+    id_propietario INT NULL,
+    nombre_comunidad VARCHAR(150) NOT NULL,
+    cif VARCHAR(20) NULL,
+    email_solicitudes VARCHAR(150) NOT NULL DEFAULT 'alharabemoratalla@gmail.com',
+    telefono VARCHAR(50) NULL,
+    direccion VARCHAR(255) NULL,
+    municipio VARCHAR(100) NULL DEFAULT 'Moratalla',
+    provincia VARCHAR(100) NULL DEFAULT 'Murcia',
+    banco_habitual VARCHAR(100) NULL DEFAULT 'CAJAMAR',
+    derrama_anual DECIMAL(10,2) NOT NULL DEFAULT 150.00,
+    precio_hora_tanda DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    consumo_max_tanda_horas DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    precio_hora_comunitaria DECIMAL(8,2) NOT NULL DEFAULT 12.00,
+    consumo_max_comunitaria_horas DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    precio_hora_hortalizas DECIMAL(8,2) NOT NULL DEFAULT 15.00,
+    consumo_max_hortalizas_horas DECIMAL(8,2) NOT NULL DEFAULT 2.00,
+    es_predeterminada TINYINT(1) NOT NULL DEFAULT 0,
+    horario_atencion VARCHAR(255) NULL DEFAULT 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00',
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    notas TEXT NULL,
+    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_comunidad_nombre (nombre_comunidad),
+    INDEX idx_comunidad_predet (es_predeterminada)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
 -- 5. FINCAS (Datos registrales, catastrales y derechos/tandas de riego)
 -- ------------------------------------------------------------------------------
 CREATE TABLE fincas (

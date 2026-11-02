@@ -106,6 +106,64 @@ class DatabaseMigrator {
                 ]);
             }
 
+            // 5. Tabla COMUNIDADES_REGANTES (Maestro de Comunidades de Riego)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS comunidades_regantes (
+                    id_comunidad INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NULL,
+                    nombre_comunidad VARCHAR(150) NOT NULL,
+                    cif VARCHAR(20) NULL,
+                    email_solicitudes VARCHAR(150) NOT NULL DEFAULT 'alharabemoratalla@gmail.com',
+                    telefono VARCHAR(50) NULL,
+                    direccion VARCHAR(255) NULL,
+                    municipio VARCHAR(100) NULL DEFAULT 'Moratalla',
+                    provincia VARCHAR(100) NULL DEFAULT 'Murcia',
+                    banco_habitual VARCHAR(100) NULL DEFAULT 'CAJAMAR',
+                    derrama_anual DECIMAL(10,2) NOT NULL DEFAULT 150.00,
+                    precio_hora_tanda DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+                    consumo_max_tanda_horas DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+                    precio_hora_comunitaria DECIMAL(8,2) NOT NULL DEFAULT 12.00,
+                    consumo_max_comunitaria_horas DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+                    precio_hora_hortalizas DECIMAL(8,2) NOT NULL DEFAULT 15.00,
+                    consumo_max_hortalizas_horas DECIMAL(8,2) NOT NULL DEFAULT 2.00,
+                    es_predeterminada TINYINT(1) NOT NULL DEFAULT 0,
+                    horario_atencion VARCHAR(255) NULL DEFAULT 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00',
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    notas TEXT NULL,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_comunidad_nombre (nombre_comunidad),
+                    INDEX idx_comunidad_predet (es_predeterminada)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Semilla inicial Río Alhárabe si está vacía
+            $countCom = $pdo->query("SELECT COUNT(*) FROM comunidades_regantes")->fetchColumn();
+            if ($countCom == 0) {
+                $stmtInsCom = $pdo->prepare("
+                    INSERT INTO comunidades_regantes (
+                        nombre_comunidad, cif, email_solicitudes, telefono, direccion, municipio,
+                        banco_habitual, derrama_anual, precio_hora_tanda, consumo_max_tanda_horas,
+                        precio_hora_comunitaria, consumo_max_comunitaria_horas,
+                        precio_hora_hortalizas, consumo_max_hortalizas_horas,
+                        es_predeterminada, horario_atencion, activo
+                    ) VALUES (
+                        'Comunidad de Regantes del Río Alhárabe', 'G30029381', 'alharabemoratalla@gmail.com',
+                        '968 73 00 00', 'Calle Mayor, s/n', 'Moratalla',
+                        'CAJAMAR', 150.00, 0.00, 0.00,
+                        12.00, 0.00,
+                        15.00, 2.00,
+                        1, 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00', 1
+                    )
+                ");
+                $stmtInsCom->execute();
+            }
+
+            // Si hay sólo una activa, asegurar que sea la predeterminada
+            $totalActivas = (int)$pdo->query("SELECT COUNT(*) FROM comunidades_regantes WHERE activo = 1")->fetchColumn();
+            if ($totalActivas === 1) {
+                $pdo->exec("UPDATE comunidades_regantes SET es_predeterminada = 1 WHERE activo = 1");
+            }
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }

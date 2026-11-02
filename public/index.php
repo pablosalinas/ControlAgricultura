@@ -163,6 +163,15 @@ switch ($route) {
         require_once VIEWS_PATH . '/regantes/index.php';
         break;
 
+    case 'comunidades':
+    case 'comunidades-regantes':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/comunidades/index.php';
+        break;
+
     // Rutas para Cultivos
     case 'cultivos':
     case 'cultivos/nuevo':
