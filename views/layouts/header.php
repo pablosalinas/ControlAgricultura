@@ -6,58 +6,116 @@
     <title><?= htmlspecialchars(isset($pageTitle) ? $pageTitle : APP_NAME) ?></title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Icons -->
+    <!-- FontAwesome 6 Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts: Inter / Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --ag-primary: #2e7d32;
-            --ag-primary-hover: #1b5e20;
-            --ag-accent: #81c784;
-            --ag-bg: #f8fafc;
+            --ag-blue-primary: #1d4ed8;       /* Azul real vibrante */
+            --ag-blue-hover: #1e40af;         /* Azul zafiro profundo */
+            --ag-blue-dark: #091e3a;          /* Azul noche profundo */
+            --ag-blue-surface: #0f2b48;       /* Superficie navbar */
+            --ag-blue-cyan: #06b6d4;          /* Cyan eléctrico para acentos */
+            --ag-blue-sky: #38bdf8;           /* Azul cielo */
+            --ag-bg-body: #f1f5f9;            /* Fondo gris azulado ultra limpio */
+            --ag-card-border: #e2e8f0;
         }
+
         body {
-            background-color: var(--ag-bg);
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            color: #2c3e50;
+            background-color: var(--ag-bg-body);
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
+
+        h1, h2, h3, h4, h5, h6, .navbar-brand {
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        /* Navbar estilo Aero-Tech Azul */
         .navbar-ag {
-            background-color: #1b4332;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: linear-gradient(90deg, #091e3a 0%, #0e345a 50%, #164e87 100%);
+            box-shadow: 0 4px 20px rgba(9, 30, 58, 0.25);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
         }
+
+        .navbar-brand span {
+            background: linear-gradient(90deg, #ffffff 30%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
         .navbar-ag .nav-link {
-            color: rgba(255,255,255,0.85);
+            color: #cbd5e1;
             font-weight: 500;
-            padding: 0.5rem 0.9rem;
-            border-radius: 6px;
-            transition: all 0.2s ease;
+            font-size: 0.92rem;
+            padding: 0.55rem 0.85rem;
+            border-radius: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
         .navbar-ag .nav-link:hover, .navbar-ag .nav-link.active {
             color: #ffffff;
-            background-color: rgba(255,255,255,0.12);
+            background-color: rgba(56, 189, 248, 0.15);
+            box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.3);
         }
+
         .btn-ag {
-            background-color: var(--ag-primary);
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
             color: #ffffff;
+            font-weight: 600;
             border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+            transition: all 0.2s ease;
         }
+
         .btn-ag:hover {
-            background-color: var(--ag-primary-hover);
+            background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
             color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(29, 78, 216, 0.45);
         }
-        .card-custom {
+
+        .btn-cyan {
+            background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+            color: #ffffff;
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            background: #ffffff;
+            font-weight: 600;
         }
+        .btn-cyan:hover {
+            color: #ffffff;
+            background: linear-gradient(135deg, #0369a1 0%, #0891b2 100%);
+        }
+
+        .card-custom {
+            border: 1px solid var(--ag-card-border);
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+            background: #ffffff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .badge-tenant {
+            background: rgba(56, 189, 248, 0.15);
+            color: #0284c7;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            font-weight: 600;
+        }
+
         .footer-ag {
             margin-top: auto;
-            background: #0f2419;
+            background: #091e3a;
             color: #94a3b8;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
+            border-top: 1px solid rgba(56, 189, 248, 0.15);
         }
     </style>
 </head>
@@ -65,10 +123,14 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-ag sticky-top">
     <div class="container-fluid px-4">
+        <!-- Brand con icono satelital tecnológico -->
         <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="<?= APP_URL ?>/">
-            <i class="fa-solid fa-seedling text-warning fs-4"></i>
-            <span>AgroDietario</span>
+            <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary bg-opacity-25 p-2 text-info border border-info border-opacity-25" style="width: 36px; height: 36px;">
+                <i class="fa-solid fa-satellite fs-5 text-info"></i>
+            </div>
+            <span class="fs-4">AgroDietario</span>
         </a>
+
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -76,62 +138,74 @@
         <div class="collapse navbar-collapse" id="navMain">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item">
-                    <a class="nav-link" href="<?= APP_URL ?>/"><i class="fa-solid fa-house me-1"></i> Inicio</a>
+                    <a class="nav-link" href="<?= APP_URL ?>/"><i class="fa-solid fa-house-chimney-window me-1 text-info"></i> Inicio</a>
                 </li>
 
                 <?php if (Auth::check()): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?= APP_URL ?>/dashboard"><i class="fa-solid fa-chart-pie me-1"></i> Panel</a>
+                        <a class="nav-link" href="<?= APP_URL ?>/dashboard"><i class="fa-solid fa-chart-pie me-1 text-info"></i> Panel</a>
                     </li>
+
+                    <!-- Fincas con icono de teledetección/capas SIG -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-map-location-dot me-1"></i> Fincas
+                            <i class="fa-solid fa-layer-group me-1 text-info"></i> Fincas
                         </a>
-                        <ul class="dropdown-menu shadow-sm">
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-vector-square me-2 text-success"></i>Mis Fincas</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus me-2 text-success"></i>Nueva Finca</a></li>
+                        <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-draw-polygon me-2 text-primary"></i>Mis Fincas</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus-circle me-2 text-primary"></i>Nueva Finca</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-pin me-2 text-primary"></i>Maestro de Parajes</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes</a></li>
                         </ul>
                     </li>
+
+                    <!-- Cultivos con icono de ADN / Genética botánica -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-leaf me-1"></i> Cultivos
+                            <i class="fa-solid fa-dna me-1 text-info"></i> Cultivos
                         </a>
-                        <ul class="dropdown-menu shadow-sm">
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/cultivos"><i class="fa-solid fa-book-bookmark me-2 text-success"></i>Catálogo Botánico</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/plantaciones"><i class="fa-solid fa-calendar-days me-2 text-info"></i>Plantaciones Activas</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/plantaciones/nueva"><i class="fa-solid fa-plus me-2 text-info"></i>Nueva Plantación</a></li>
+                        <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/cultivos"><i class="fa-solid fa-book-bookmark me-2 text-primary"></i>Catálogo Botánico</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones"><i class="fa-solid fa-cubes-stacked me-2 text-info"></i>Plantaciones Activas</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones/nueva"><i class="fa-solid fa-plus me-2 text-info"></i>Nueva Plantación</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/diario"><i class="fa-solid fa-camera me-2 text-warning"></i>Diario y Fotos</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/diario"><i class="fa-solid fa-camera-retro me-2 text-warning"></i>Diario y Fotos</a></li>
                         </ul>
                     </li>
+
+                    <!-- Labores con icono de telemetría y operaciones -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-clipboard-list me-1"></i> Labores de Campo
+                            <i class="fa-solid fa-sliders me-1 text-info"></i> Labores de Campo
                         </a>
-                        <ul class="dropdown-menu shadow-sm">
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/tratamientos"><i class="fa-solid fa-spray-can-sparkles me-2 text-danger"></i>Tratamientos (Eco/Conv)</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/labores"><i class="fa-solid fa-tractor me-2 text-secondary"></i>Laboreo y Desbroce</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/podas"><i class="fa-solid fa-scissors me-2 text-warning"></i>Podas y Reciclaje</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/riegos"><i class="fa-solid fa-faucet-drip me-2 text-primary"></i>Riegos y Tandas</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/recolecciones"><i class="fa-solid fa-basket-shopping me-2 text-success"></i>Cosechas y Ventas</a></li>
+                        <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/tratamientos"><i class="fa-solid fa-shield-virus me-2 text-danger"></i>Tratamientos (Eco/Conv)</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/labores"><i class="fa-solid fa-mountain-sun me-2 text-secondary"></i>Laboreo y Desbroce</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/podas"><i class="fa-solid fa-arrows-spin me-2 text-success"></i>Podas y Reciclaje</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/riegos"><i class="fa-solid fa-gauge-high me-2 text-primary"></i>Riegos y Tandas</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/recolecciones"><i class="fa-solid fa-scale-balanced me-2 text-info"></i>Cosechas y Ventas</a></li>
                         </ul>
                     </li>
+
+                    <!-- Cuaderno oficial con certificado de explotación -->
                     <li class="nav-item">
                         <a class="nav-link text-warning fw-semibold" href="<?= APP_URL ?>/cuaderno">
-                            <i class="fa-solid fa-file-contract me-1"></i> Cuaderno Oficial
+                            <i class="fa-solid fa-certificate me-1"></i> Cuaderno Oficial
                         </a>
                     </li>
 
-                    <?php if (Auth::isAdmin()): ?>
+                    <!-- Configuración y Equipo -->
+                    <?php if (Auth::canManageUsers()): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-shield-halved me-1 text-warning"></i> Admin
+                            <i class="fa-solid fa-people-roof me-1 text-info"></i> Configuración
                         </a>
-                        <ul class="dropdown-menu shadow-sm">
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-users-gear me-2"></i>Aprobar Usuarios</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/admin/configuracion"><i class="fa-solid fa-sliders me-2"></i>Configurar Portal</a></li>
+                        <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/gestion-usuarios"><i class="fa-solid fa-id-card-clip me-2 text-primary"></i>Equipo y Usuarios</a></li>
+                            <?php if (Auth::isSuperAdmin()): ?>
+                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
+                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/configuracion"><i class="fa-solid fa-compass-drafting me-2 text-info"></i>Personalizar Portal</a></li>
+                            <?php endif; ?>
                         </ul>
                     </li>
                     <?php endif; ?>
@@ -143,22 +217,24 @@
                     <?php $u = Auth::user(); ?>
                     <li class="nav-item me-3 text-light text-end d-none d-lg-block">
                         <div class="fw-bold" style="font-size:0.9rem;"><?= htmlspecialchars($u['nombre_completo']) ?></div>
-                        <div class="badge bg-success" style="font-size:0.75rem;"><?= htmlspecialchars($u['nombre_propietario']) ?></div>
+                        <div class="badge badge-tenant px-2 py-1" style="font-size:0.75rem;">
+                            <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
+                        </div>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-sm btn-outline-light" href="<?= APP_URL ?>/logout">
-                            <i class="fa-solid fa-right-from-bracket me-1"></i> Salir
+                        <a class="btn btn-sm btn-outline-info text-white" href="<?= APP_URL ?>/logout">
+                            <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> Salir
                         </a>
                     </li>
                 <?php else: ?>
                     <li class="nav-item me-2">
                         <a class="btn btn-sm btn-outline-light" href="<?= APP_URL ?>/login">
-                            <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Iniciar Sesión
+                            <i class="fa-solid fa-key me-1"></i> Iniciar Sesión
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-sm btn-warning text-dark fw-bold" href="<?= APP_URL ?>/register">
-                            <i class="fa-solid fa-user-plus me-1"></i> Solicitar Acceso
+                        <a class="btn btn-sm btn-cyan fw-bold shadow-sm" href="<?= APP_URL ?>/register">
+                            <i class="fa-solid fa-id-card me-1"></i> Solicitar Acceso
                         </a>
                     </li>
                 <?php endif; ?>

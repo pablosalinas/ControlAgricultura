@@ -3,44 +3,45 @@ $pageTitle = "Inicio - " . APP_NAME;
 require_once VIEWS_PATH . '/layouts/header.php';
 
 // Obtener datos del portal configurables
-$config = [
-    'titulo' => 'AgroDietario - Gestión Agrícola Integral',
-    'subtitulo' => 'Control agronómico, trazabilidad de fincas, turnos de riego y cuaderno de explotación digital',
-    'descripcion' => 'Diseñado para propietarios, cooperativas y agricultores profesionales que requieren un control riguroso de labores, tratamientos convencionales y ecológicos, podas con reciclaje de restos, y seguimiento fenológico de cada plantación.'
-];
+$config = array(
+    'titulo' => 'AgroDietario - Gestión Agrícola de Precisión',
+    'subtitulo' => 'Control agronómico, teledetección de parcelas, turnos de riego y cuaderno de explotación digital',
+    'descripcion' => 'Diseñado para propietarios, cooperativas y explotaciones agrícolas profesionales que requieren un control riguroso de parcelas catastrales, labores de campo, tratamientos fitosanitarios y ecológicos certificados, y trazabilidad total.'
+);
 
 try {
     $db = Database::getConnection();
     $stmt = $db->query("SELECT * FROM configuracion_web LIMIT 1");
     if ($row = $stmt->fetch()) {
-        $config['titulo'] = $row['titulo_portal'] ?: $config['titulo'];
-        $config['subtitulo'] = $row['subtitulo_portal'] ?: $config['subtitulo'];
-        $config['descripcion'] = $row['descripcion_bienvenida'] ?: $config['descripcion'];
+        $config['titulo'] = $row['titulo_portal'] ? $row['titulo_portal'] : $config['titulo'];
+        $config['subtitulo'] = $row['subtitulo_portal'] ? $row['subtitulo_portal'] : $config['subtitulo'];
+        $config['descripcion'] = $row['descripcion_bienvenida'] ? $row['descripcion_bienvenida'] : $config['descripcion'];
     }
 } catch (Exception $e) {
     // Si la BD no está aún instalada, usa los valores por defecto
 }
 ?>
 
-<div class="bg-dark text-white py-5 position-relative overflow-hidden" style="background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);">
-    <div class="container py-4 text-center">
-        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold mb-3 shadow-sm">
-            <i class="fa-solid fa-wheat-awn me-1"></i> Cuaderno de Campo Digital Multi-Propietario
+<!-- Banner Hero con Azul Chulo Tecnológico -->
+<div class="text-white py-5 position-relative overflow-hidden" style="background: linear-gradient(135deg, #091e3a 0%, #0e3863 50%, #1d4ed8 100%); border-bottom: 2px solid rgba(56, 189, 248, 0.3);">
+    <div class="container py-4 text-center position-relative" style="z-index: 2;">
+        <span class="badge bg-info bg-opacity-25 text-info px-3 py-2 rounded-pill fw-bold mb-3 border border-info border-opacity-50">
+            <i class="fa-solid fa-satellite me-1"></i> Plataforma Agronómica Multi-Explotación
         </span>
-        <h1 class="display-4 fw-bold mb-3"><?= htmlspecialchars($config['titulo']) ?></h1>
+        <h1 class="display-4 fw-bold mb-3" style="letter-spacing: -0.03em;"><?= htmlspecialchars($config['titulo']) ?></h1>
         <p class="lead col-lg-8 mx-auto text-light opacity-90 mb-4"><?= htmlspecialchars($config['subtitulo']) ?></p>
         
         <div class="d-flex justify-content-center gap-3">
             <?php if (Auth::check()): ?>
-                <a href="<?= APP_URL ?>/dashboard" class="btn btn-warning btn-lg fw-bold px-4 shadow">
-                    <i class="fa-solid fa-gauge-high me-2"></i> Ir a mi Panel de Control
+                <a href="<?= APP_URL ?>/dashboard" class="btn btn-cyan btn-lg fw-bold px-4 shadow">
+                    <i class="fa-solid fa-chart-pie me-2"></i> Ir a mi Panel de Control
                 </a>
             <?php else: ?>
-                <a href="<?= APP_URL ?>/login" class="btn btn-warning btn-lg fw-bold px-4 shadow">
-                    <i class="fa-solid fa-right-to-bracket me-2"></i> Acceso Propietarios
+                <a href="<?= APP_URL ?>/login" class="btn btn-cyan btn-lg fw-bold px-4 shadow">
+                    <i class="fa-solid fa-key me-2"></i> Acceso a Explotaciones
                 </a>
                 <a href="<?= APP_URL ?>/register" class="btn btn-outline-light btn-lg px-4 shadow">
-                    <i class="fa-solid fa-user-plus me-2"></i> Solicitar Cuenta
+                    <i class="fa-solid fa-id-card me-2"></i> Solicitar Cuenta
                 </a>
             <?php endif; ?>
         </div>
@@ -50,55 +51,68 @@ try {
 <div class="container py-5">
     <div class="row text-center mb-5">
         <div class="col-lg-8 mx-auto">
-            <h3 class="fw-bold text-dark mb-3">Plataforma Profesional para el Campo</h3>
+            <h3 class="fw-bold text-dark mb-3">Tecnología y Control Integral de tus Fincas</h3>
             <p class="text-muted"><?= nl2br(htmlspecialchars($config['descripcion'])) ?></p>
         </div>
     </div>
 
+    <!-- Tarjetas de Módulos con Iconografía Innovadora -->
     <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card card-custom h-100 p-4 border-top border-4 border-success">
-                <div class="text-success fs-1 mb-3"><i class="fa-solid fa-map-location-dot"></i></div>
-                <h5 class="fw-bold">Fincas, Catastro y Riegos</h5>
-                <p class="text-muted small">
-                    Control de referencias catastrales, polígonos, parcelas, superficies en hectáreas, y gestión de turnos de riego (parada, tablón, horas en propiedad y disponibles por tanda).
-                </p>
-            </div>
-        </div>
-
+        <!-- Fincas / Teledetección -->
         <div class="col-md-4">
             <div class="card card-custom h-100 p-4 border-top border-4 border-primary">
-                <div class="text-primary fs-1 mb-3"><i class="fa-solid fa-leaf"></i></div>
-                <h5 class="fw-bold">Catálogo Botánico y Cultivos</h5>
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary mb-3" style="width: 56px; height: 56px;">
+                    <i class="fa-solid fa-layer-group fs-3"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Catastro y Derechos Hídricos</h5>
                 <p class="text-muted small">
-                    Registro de cultivos con nombre científico, acceso directo a consultas botánicas en internet, variedades y trazabilidad por campañas de siembra y trasplante.
+                    Integración con referencias catastrales SIGPAC, delimitación de parajes, comunidades de regantes, tandas, paradas, tablones y horas en propiedad y disponibles.
                 </p>
             </div>
         </div>
 
+        <!-- Cultivos / Genética -->
+        <div class="col-md-4">
+            <div class="card card-custom h-100 p-4 border-top border-4 border-info">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-info bg-opacity-10 text-info mb-3" style="width: 56px; height: 56px;">
+                    <i class="fa-solid fa-dna fs-3"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Botánica y Ciclos Fenológicos</h5>
+                <p class="text-muted small">
+                    Catálogo de variedades con consulta botánica directa en internet, seguimiento por campañas, cálculo de días a cosecha y diario fotográfico a pie de parcela.
+                </p>
+            </div>
+        </div>
+
+        <!-- Cuaderno Oficial / Trazabilidad -->
         <div class="col-md-4">
             <div class="card card-custom h-100 p-4 border-top border-4 border-warning">
-                <div class="text-warning fs-1 mb-3"><i class="fa-solid fa-clipboard-check"></i></div>
-                <h5 class="fw-bold">Dietario Completo de Labores</h5>
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10 text-warning mb-3" style="width: 56px; height: 56px;">
+                    <i class="fa-solid fa-certificate fs-3"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Cuaderno de Campo Homologado</h5>
                 <p class="text-muted small">
-                    Registro exhaustivo de tratamientos (convencionales y ecológicos certificados), labores de suelo, podas y talas con reciclaje de restos, y liquidaciones de cosechas.
+                    Registro riguroso de tratamientos convencionales y ecológicos certificados, labores de suelo, podas con reciclaje de biomasa, riegos y recolecciones con liquidación.
                 </p>
             </div>
         </div>
     </div>
 
-    <!-- Acceso de seguridad -->
-    <div class="card card-custom mt-5 p-4 bg-light border">
+    <!-- Módulo de Seguridad y Multi-Propietario -->
+    <div class="card card-custom mt-5 p-4 p-md-5 border-0 text-white" style="background: linear-gradient(135deg, #091e3a 0%, #1e3a8a 100%);">
         <div class="row align-items-center">
-            <div class="col-md-8">
-                <h5 class="fw-bold mb-1"><i class="fa-solid fa-shield-halved text-success me-2"></i>Seguridad y Acceso Restringido</h5>
-                <p class="text-muted mb-0 small">
-                    Para acceder a la información de las fincas y cuadernos de campo es obligatoria la autenticación. Las nuevas solicitudes son validadas con Captcha y requieren aprobación manual por el administrador.
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center gap-2 mb-2 text-info">
+                    <i class="fa-solid fa-people-roof fs-4"></i>
+                    <h5 class="fw-bold mb-0 text-white">Arquitectura Multi-Explotación con Aislamiento Estricto</h5>
+                </div>
+                <p class="text-light opacity-75 mb-0 small">
+                    Cada titular agrícola gestiona con total privacidad sus parcelas y equipo técnico. Las nuevas solicitudes son verificadas mediante Captcha y requieren validación previa del Superadministrador antes de operar.
                 </p>
             </div>
-            <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                <a href="<?= APP_URL ?>/register" class="btn btn-ag px-4 py-2">
-                    <i class="fa-solid fa-user-shield me-2"></i>Solicitar Alta
+            <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                <a href="<?= APP_URL ?>/register" class="btn btn-cyan btn-lg px-4 shadow">
+                    <i class="fa-solid fa-id-card me-2"></i>Solicitar Alta de Explotación
                 </a>
             </div>
         </div>

@@ -89,7 +89,15 @@ switch ($route) {
         require_once VIEWS_PATH . '/informes/cuaderno.php';
         break;
 
-    // Rutas de Administración
+    // Rutas de Administración y Equipo
+    case 'admin/gestion-usuarios':
+        if (!Auth::canManageUsers()) {
+            header("Location: " . APP_URL . "/dashboard");
+            exit;
+        }
+        require_once VIEWS_PATH . '/admin/gestion_usuarios.php';
+        break;
+
     case 'admin/usuarios':
         if (!Auth::isAdmin()) {
             header("Location: " . APP_URL . "/dashboard");
@@ -219,7 +227,7 @@ switch ($route) {
         http_response_code(404);
         $pageTitle = "Página no encontrada - " . APP_NAME;
         require_once VIEWS_PATH . '/layouts/header.php';
-        echo "<div class='container py-5 text-center'><h1 class='display-1 fw-bold text-success'>404</h1><p class='lead'>La página solicitada no existe.</p><a href='" . APP_URL . "/' class='btn btn-ag'>Volver al Inicio</a></div>";
+        echo "<div class='container py-5 text-center'><h1 class='display-1 fw-bold text-primary'>404</h1><p class='lead'>La página solicitada no existe.</p><a href='" . APP_URL . "/' class='btn btn-ag'>Volver al Inicio</a></div>";
         require_once VIEWS_PATH . '/layouts/footer.php';
         break;
 }

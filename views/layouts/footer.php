@@ -1,14 +1,14 @@
 </main>
 
-<footer class="footer-ag py-4 border-top border-dark">
+<footer class="footer-ag py-4 mt-5">
     <div class="container text-center">
         <div class="row align-items-center">
             <div class="col-md-6 text-md-start mb-2 mb-md-0">
-                <span class="fw-bold text-white">AgroDietario</span> &copy; <?= date('Y') ?> - Cuaderno de Campo y Gestión de Fincas Multi-Propietario
+                <span class="fw-bold text-white"><i class="fa-solid fa-satellite text-info me-1"></i>AgroDietario</span> &copy; <?= date('Y') ?> - Plataforma de Gestión Agrícola y Cuaderno de Explotación
             </div>
             <div class="col-md-6 text-md-end text-muted small">
-                <span>Entorno: <strong class="text-light"><?= strtoupper(APP_ENV) ?></strong></span>
-                <span class="ms-3"><i class="fa-solid fa-lock text-success me-1"></i>Conexión Segura</span>
+                <span>Entorno: <strong class="badge bg-primary bg-opacity-25 text-info border border-info border-opacity-25"><?= strtoupper(APP_ENV) ?></strong></span>
+                <span class="ms-3"><i class="fa-solid fa-shield-halved text-info me-1"></i>Acceso Seguro SSL</span>
             </div>
         </div>
     </div>

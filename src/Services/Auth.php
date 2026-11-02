@@ -142,6 +142,18 @@ class Auth {
         return self::check() && $_SESSION['user_rol'] === 'superadmin';
     }
 
+    public static function isSuperAdmin() {
+        return self::isAdmin();
+    }
+
+    /**
+     * Comprueba si el usuario tiene permiso para gestionar el equipo (Superadmin o Propietario de la explotación)
+     */
+    public static function canManageUsers() {
+        if (!self::check()) return false;
+        return ($_SESSION['user_rol'] === 'superadmin' || $_SESSION['user_rol'] === 'propietario');
+    }
+
     public static function tenantId() {
         return isset($_SESSION['id_propietario']) ? $_SESSION['id_propietario'] : null;
     }
