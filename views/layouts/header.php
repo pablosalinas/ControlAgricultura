@@ -183,6 +183,7 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/labores"><i class="fa-solid fa-mountain-sun me-2 text-secondary"></i>Laboreo y Desbroce</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/podas"><i class="fa-solid fa-arrows-spin me-2 text-success"></i>Podas y Reciclaje</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/riegos"><i class="fa-solid fa-gauge-high me-2 text-primary"></i>Riegos y Tandas</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/solicitud-riego"><i class="fa-solid fa-file-invoice me-2 text-info"></i>Papeleta Riego (Río Alhárabe)</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/recolecciones"><i class="fa-solid fa-scale-balanced me-2 text-info"></i>Cosechas y Ventas</a></li>
                         </ul>
                     </li>

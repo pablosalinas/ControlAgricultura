@@ -213,6 +213,15 @@ switch ($route) {
         require_once VIEWS_PATH . '/labores/riegos.php';
         break;
 
+    case 'solicitud-riego':
+    case 'riegos/solicitud':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/solicitud_riego.php';
+        break;
+
     case 'recolecciones':
     case 'recolecciones/nueva':
         if (!Auth::check()) {

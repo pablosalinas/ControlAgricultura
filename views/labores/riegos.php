@@ -51,9 +51,14 @@ $riegos = $db->query("
             <h2 class="fw-bold mb-1"><i class="fa-solid fa-faucet-drip text-primary me-2"></i>Control de Riegos y Turnos de Agua</h2>
             <p class="text-muted mb-0">Gestión de tiempos, metros cúbicos, tandas (parada/tablón) y fertirrigación</p>
         </div>
-        <button class="btn btn-ag shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formRiego">
-            <i class="fa-solid fa-plus me-1"></i> Registrar Riego
-        </button>
+        <div class="d-flex gap-2">
+            <a href="<?= APP_URL ?>/solicitud-riego" class="btn btn-outline-primary fw-semibold shadow-sm">
+                <i class="fa-solid fa-file-invoice me-1"></i> Papeleta Oficial Río Alhárabe
+            </a>
+            <button class="btn btn-ag shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formRiego">
+                <i class="fa-solid fa-plus me-1"></i> Registrar Riego
+            </button>
+        </div>
     </div>
 
     <?php if ($mensaje): ?>
