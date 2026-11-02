@@ -48,7 +48,7 @@ jobs:
           APP_NAME="AgroDietario"
           APP_ENV=production
           APP_DEBUG=false
-          APP_URL=https://${{ secrets.PROD_DOMAIN || vars.PROD_DOMAIN || 'tudominio.com' }}
+          APP_URL=https://www.moratalla-murcia.com/agricultura
 
           # Base de Datos Producción (IONOS)
           DB_HOST=${{ secrets.PROD_DB_HOST || vars.PROD_DB_HOST }}
@@ -67,7 +67,7 @@ jobs:
           USER: ${{ secrets.SFTP_USER || vars.SFTP_USER }}
           PASS: ${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}
           PORT: ${{ secrets.SFTP_PORT || vars.SFTP_PORT || 22 }}
-          TARGET: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || '.' }}
+          TARGET: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || './agricultura/' }}
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
           lftp -u "$USER","$PASS" -p "$PORT" "sftp://$HOST" << 'EOF'

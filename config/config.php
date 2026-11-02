@@ -1,7 +1,8 @@
 <?php
 /**
  * Configuración global de la aplicación AgroDietario
- * Carga variables de entorno desde .env si existe, o utiliza valores por defecto
+ * Compatible con ejecución en subdirectorios tanto en Local como en Producción
+ * (Ej: http://localhost/agrodietario o https://www.moratalla-murcia.com/agricultura)
  */
 
 if (!function_exists('loadEnv')) {
@@ -22,7 +23,6 @@ if (!function_exists('loadEnv')) {
                 $name = trim($name);
                 $value = trim($value);
 
-                // Quitar comillas dobles o simples si las tuviera
                 if (preg_match('/^"(.*)"$/', $value, $m) || preg_match('/^\'(.*)\'$/', $value, $m)) {
                     $value = $m[1];
                 }
@@ -41,7 +41,7 @@ if (!function_exists('loadEnv')) {
 // Cargar .env desde la raíz del proyecto
 loadEnv(dirname(__DIR__) . '/.env');
 
-// Función helper para obtener variables de entorno con valor fallback
+// Función helper para leer variables de entorno
 if (!function_exists('env')) {
     function env($key, $default = null) {
         $val = getenv($key);
@@ -59,13 +59,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Constantes de la aplicación
+// Constantes básicas
 define('APP_NAME', env('APP_NAME', 'AgroDietario'));
 define('APP_ENV', env('APP_ENV', 'local'));
 define('APP_DEBUG', env('APP_DEBUG', true));
-define('APP_URL', rtrim(env('APP_URL', 'http://localhost/agrodietario/public'), '/'));
 
-// Rutas de directorios
+// Rutas absolutas del sistema de archivos
 define('ROOT_PATH', dirname(__DIR__));
 define('CONFIG_PATH', ROOT_PATH . '/config');
 define('SRC_PATH', ROOT_PATH . '/src');
@@ -73,7 +72,22 @@ define('VIEWS_PATH', ROOT_PATH . '/views');
 define('UPLOADS_PATH', ROOT_PATH . '/uploads');
 define('PUBLIC_PATH', ROOT_PATH . '/public');
 
-// Control de errores según entorno
+// Cálculo automático e inteligente de la APP_URL (soporta subcarpetas tanto en local como en producción)
+if (!defined('APP_URL')) {
+    $configuredUrl = env('APP_URL');
+    if (!empty($configuredUrl)) {
+        define('APP_URL', rtrim($configuredUrl, '/'));
+    } else {
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
+        $scheme = $isHttps ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
+        $baseDir = preg_replace('#/public$#', '', str_replace('\\', '/', $scriptDir));
+        define('APP_URL', rtrim("{$scheme}://{$host}{$baseDir}", '/'));
+    }
+}
+
+// Gestión de errores
 if (APP_DEBUG) {
     ini_set('display_errors', '1');
     ini_set('display_startup_errors', '1');
