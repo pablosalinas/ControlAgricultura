@@ -67,19 +67,21 @@ jobs:
           USER: ${{ secrets.SFTP_USER || vars.SFTP_USER }}
           PASS: ${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}
           PORT: ${{ secrets.SFTP_PORT || vars.SFTP_PORT || 22 }}
-          TARGET: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || './agricultura/' }}
+          TARGET: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || 'agricultura' }}
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
-          lftp -u "$USER","$PASS" -p "$PORT" "sftp://$HOST" << 'EOF'
+          lftp -u "$USER","$PASS" -p "$PORT" "sftp://$HOST" << EOF
           set sftp:auto-confirm yes
           set net:timeout 60
           set net:max-retries 3
-          mirror --reverse --delete --verbose=1 \
+          mkdir -p "$TARGET"
+          cd "$TARGET"
+          mirror --reverse --delete --verbose \
             --exclude-glob .git* \
             --exclude-glob .git*/** \
             --exclude-glob database/schema.sql \
             --exclude-glob .env.example \
             --exclude-glob README.md \
-            ./ "$TARGET"
+            ./ ./
           bye
           EOF
