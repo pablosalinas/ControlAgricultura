@@ -307,6 +307,10 @@ VALUES (1, 'Explotación Agrícola Modelo', 'B12345678', '600000000', 'contacto@
 INSERT INTO usuarios (id_usuario, id_propietario, nombre, apellidos, email, password_hash, rol, estado, fecha_aprobacion)
 VALUES (1, 1, 'Administrador', 'Principal', 'admin@agrodietario.local', '$2y$10$wK2V7WwT7.2Z3L6n1U8WKe2OsqqH7H0eJv6oU8iA1hZ0sV9A1Wp3K', 'superadmin', 'aprobado', NOW());
 
+-- 2.1 Superadministrador Pablo Salinas (Contraseña: p1s2m3)
+INSERT INTO usuarios (id_usuario, id_propietario, nombre, apellidos, email, password_hash, rol, estado, fecha_aprobacion)
+VALUES (2, 1, 'Pablo', 'Salinas Marín', 'pablosalinasmarin@gmail.com', '$2y$10$hK5isTQcHKXsWRRuABsDw.RE9PZ/SQc1lQ9..cQ1rOTci4rhF8jAG', 'superadmin', 'aprobado', NOW());
+
 -- 3. Configuración inicial del portal
 INSERT INTO configuracion_web (id_config, titulo_portal, subtitulo_portal, descripcion_bienvenida, telefono_soporte, email_contacto, permitir_registro_publico, usar_captcha)
 VALUES (1, 'AgroDietario', 'Sistema Integral de Gestión y Control Agrícola', 'Bienvenido a la plataforma centralizada de gestión de fincas, cuaderno de campo digital y seguimiento de labores agronómicas.', '968 000 000', 'info@agrodietario.local', 1, 1);

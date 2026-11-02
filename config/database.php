@@ -20,36 +20,42 @@ class Database {
             $user = env('DB_USER', 'root');
             $pass = env('DB_PASS', '');
 
-            // Corrección inteligente para configuraciones de IONOS
+            // Corrección inteligente para IONOS si se colocó el host como nombre de BD
             if (strpos($dbName, '.hosting-data.io') !== false) {
                 $host = $dbName;
                 $parts = explode('.', $dbName);
                 $dbName = $parts[0];
             }
-            if (empty($host) || $host === 'localhost') {
-                if (strpos($dbName, 'db50') === 0) {
-                    $host = $dbName . '.hosting-data.io';
-                }
-            }
-
-            $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
 
             $options = array(
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
             );
 
-            try {
-                self::$instance = new PDO($dsn, $user, $pass, $options);
-            } catch (PDOException $e) {
-                if (APP_DEBUG) {
-                    die("<h3>Error al conectar con la Base de Datos:</h3><p>" . htmlspecialchars($e->getMessage()) . "</p>" .
-                        "<p><strong>Host:</strong> {$host} | <strong>BD:</strong> {$dbName} | <strong>Usuario:</strong> {$user}</p>");
-                } else {
-                    die("Lo sentimos, no es posible conectar con el servicio de base de datos en este momento.");
+            // Generar nombres candidatos (ej. db5021806071 vs dbs5021806071)
+            $candidatos = array($dbName);
+            if (strpos($dbName, 'db50') === 0) {
+                $candidatos[] = 'dbs' . substr($dbName, 2);
+            } elseif (strpos($dbName, 'dbs50') === 0) {
+                $candidatos[] = 'db' . substr($dbName, 3);
+            }
+            $candidatos = array_unique($candidatos);
+
+            $ultimoError = null;
+            foreach ($candidatos as $cand) {
+                try {
+                    $dsn = "mysql:host={$host};port={$port};dbname={$cand};charset=utf8mb4";
+                    self::$instance = new PDO($dsn, $user, $pass, $options);
+                    break;
+                } catch (PDOException $e) {
+                    $ultimoError = $e;
                 }
+            }
+
+            if (self::$instance === null && $ultimoError !== null) {
+                throw $ultimoError;
             }
         }
 
