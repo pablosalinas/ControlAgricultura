@@ -10,15 +10,16 @@ $isSuperAdmin = Auth::isSuperAdmin();
 // Procesar envío directo por correo electrónico mediante AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'enviar_por_correo') {
     header('Content-Type: application/json');
-    $pdfBase64 = $_POST['pdf_base64'] ?? '';
-    $filename = $_POST['filename'] ?? 'solicitud_riego.pdf';
-    $destinatario = trim($_POST['destinatario'] ?? '');
-    $asunto = $_POST['asunto'] ?? ("Solicitud Oficial de Riego - " . $filename);
-    $cuerpoHtml = $_POST['cuerpo_html'] ?? ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
+    $pdfBase64 = isset($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
+    $filename = isset($_POST['filename']) ? $_POST['filename'] : 'solicitud_riego.pdf';
+    $destinatario = isset($_POST['destinatario']) ? trim($_POST['destinatario']) : '';
+    // El asunto del correo DEBE ser exactamente el nombre del archivo a enviar
+    $asunto = $filename;
+    $cuerpoHtml = isset($_POST['cuerpo_html']) ? $_POST['cuerpo_html'] : ("<p>Adjuntamos la papeleta oficial de solicitud de riego para la Comunidad de Regantes.</p>");
 
     if (empty($destinatario)) {
         $cfgMail = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE es_predeterminada = 1 LIMIT 1")->fetch();
-        $destinatario = $cfgMail['email_solicitudes'] ?? 'alharabemoratalla@gmail.com';
+        $destinatario = !empty($cfgMail['email_solicitudes']) ? $cfgMail['email_solicitudes'] : 'alharabemoratalla@gmail.com';
     }
 
     if (empty($pdfBase64)) {
@@ -26,17 +27,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    $cleanBase64 = preg_replace('#^data:application/pdf;base64,#', '', $pdfBase64);
-    $pdfBytes = base64_decode($cleanBase64);
-    if (!$pdfBytes) {
-        echo json_encode(['success' => false, 'message' => 'Error al decodificar el archivo PDF adjunto.']);
+    // Extraer y limpiar rigurosamente cualquier cabecera data URI (p. ej. data:application/pdf;filename=...;base64,)
+    if (strpos($pdfBase64, 'base64,') !== false) {
+        $parts = explode('base64,', $pdfBase64);
+        $pdfBase64 = end($parts);
+    }
+    // Reemplazar espacios por + en caso de codificación url
+    $pdfBase64 = str_replace(' ', '+', trim($pdfBase64));
+    $pdfBytes = base64_decode($pdfBase64);
+
+    if (!$pdfBytes || strlen($pdfBytes) < 50 || substr($pdfBytes, 0, 4) !== '%PDF') {
+        echo json_encode(['success' => false, 'message' => 'Error: El archivo PDF generado no es válido o está corrupto.']);
         exit;
     }
 
     $tempFile = sys_get_temp_dir() . '/' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
     file_put_contents($tempFile, $pdfBytes);
 
-    $res = Mailer::send($destinatario, $asunto, $cuerpoHtml, [$tempFile]);
+    $res = Mailer::send($destinatario, $asunto, $cuerpoHtml, [
+        [
+            'name' => $filename,
+            'path' => $tempFile,
+            'data' => $pdfBytes,
+            'mime' => 'application/pdf'
+        ]
+    ]);
     @unlink($tempFile);
 
     echo json_encode($res);
@@ -74,7 +89,7 @@ if (count($comunidades) === 1 && empty($comunidades[0]['es_predeterminada'])) {
 
 // Seleccionar la comunidad inicial propuesta
 $comSeleccionada = null;
-$paramComId = (int)($_GET['comunidad_id'] ?? 0);
+$paramComId = (int)(isset($_GET['comunidad_id']) ? $_GET['comunidad_id'] : 0);
 if ($paramComId > 0) {
     foreach ($comunidades as $c) {
         if ((int)$c['id_comunidad'] === $paramComId) {
@@ -97,7 +112,7 @@ if (!$comSeleccionada && !empty($comunidades)) {
 
 // Datos predeterminados del socio inicial
 $reganteInicial = !empty($regantes) ? $regantes[0] : null;
-$preReganteId = (int)($_GET['regante_id'] ?? 0);
+$preReganteId = (int)(isset($_GET['regante_id']) ? $_GET['regante_id'] : 0);
 if ($preReganteId > 0) {
     foreach ($regantes as $r) {
         if ((int)$r['id_regante'] === $preReganteId) {
@@ -193,7 +208,7 @@ $defBanco = $comSeleccionada ? ($comSeleccionada['banco_habitual'] ?: 'CAJAMAR')
                     <?php endif; ?>
                 </select>
                 <div class="form-text small" id="txt_comunidad_email">
-                    <i class="fa-solid fa-envelope me-1 text-primary"></i>Destino: <strong><?= htmlspecialchars($comSeleccionada['email_solicitudes'] ?? 'alharabemoratalla@gmail.com') ?></strong>
+                    <i class="fa-solid fa-envelope me-1 text-primary"></i>Destino: <strong><?= htmlspecialchars(!empty($comSeleccionada['email_solicitudes']) ? $comSeleccionada['email_solicitudes'] : 'alharabemoratalla@gmail.com') ?></strong>
                 </div>
             </div>
 
@@ -1122,22 +1137,22 @@ function actualizarVistaPrevia() {
 }
 
 // Generación de PDF con html2pdf
-function generarPdfPromise() {
-    const el = document.getElementById('documentoOficial');
-    const fname = calcularNombreArchivo();
-    const opt = {
-        margin:       [10, 10, 10, 10],
-        filename:     fname,
+function obtenerConfigPdf(filename) {
+    return {
+        margin:       [8, 8, 8, 8],
+        filename:     filename,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-    return html2pdf().set(opt).from(el);
 }
 
 // Descargar PDF en navegador
 function descargarPDF() {
-    generarPdfPromise().save();
+    const el = document.getElementById('documentoOficial');
+    const filename = calcularNombreArchivo();
+    const opt = obtenerConfigPdf(filename);
+    html2pdf().set(opt).from(el).save();
 }
 
 // Enviar solicitud directamente por correo electrónico a la comunidad seleccionada
@@ -1146,12 +1161,16 @@ async function enviarPorCorreo() {
     const msgBox = document.getElementById('alertEmailMsg');
     statusBox.className = 'alert alert-info border-0 shadow-sm mb-4';
     statusBox.style.display = 'block';
-    msgBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Generando documento oficial y conectando por socket con ${comunidadActiva.email}...`;
+    msgBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Generando documento oficial y enviando por correo a ${comunidadActiva.email}...`;
 
     try {
-        const worker = generarPdfPromise();
-        const pdfBase64 = await worker.outputPdf('datauristring');
+        const el = document.getElementById('documentoOficial');
         const filename = calcularNombreArchivo();
+        const opt = obtenerConfigPdf(filename);
+
+        // Generar base64 oficial del documento PDF
+        const pdfBase64 = await html2pdf().set(opt).from(el).outputPdf('datauristring');
+
         const tipo = document.getElementById('in_tipo_riego').value.toUpperCase();
         const titular = document.getElementById('in_titular').value;
         const socio = document.getElementById('in_regante').value;
@@ -1162,18 +1181,19 @@ async function enviarPorCorreo() {
         formData.append('filename', filename);
         formData.append('pdf_base64', pdfBase64);
         formData.append('destinatario', comunidadActiva.email);
-        formData.append('asunto', `Solicitud de Riego (${tipo}) - Socio ${socio} (${titular})`);
+        // El asunto del correo es estrictamente el nombre del archivo a enviar
+        formData.append('asunto', filename);
         formData.append('cuerpo_html', `
             <h3>${comunidadActiva.nombre}</h3>
             <p>Remitimos adjunta la <strong>papeleta oficial de solicitud de agua para riego</strong> tramitada a través de AgroDietario:</p>
             <ul>
+                <li><strong>Asunto / Archivo:</strong> ${filename}</li>
                 <li><strong>Socio Regante:</strong> ${socio}</li>
                 <li><strong>Titular:</strong> ${titular}</li>
-                <li><strong>Variedad de Riego:</strong> ${tipo}</li>
+                <li><strong>Modalidad de Riego:</strong> ${tipo}</li>
                 <li><strong>Horas Solicitadas:</strong> ${horas} horas</li>
-                <li><strong>Archivo Adjunto:</strong> ${filename}</li>
             </ul>
-            <p>Rogamos confirmen recepción y asignación de turno.</p>
+            <p>Rogamos confirmen recepción y asignación de turno de riego.</p>
         `);
 
         const resp = await fetch('<?= APP_URL ?>/solicitud-riego', {
@@ -1184,7 +1204,7 @@ async function enviarPorCorreo() {
 
         if (json.success) {
             statusBox.className = 'alert alert-success border-0 shadow-sm mb-4';
-            msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Papeleta enviada con éxito!</strong> El documento <code>${filename}</code> fue remitido correctamente a <strong>${comunidadActiva.email}</strong>.`;
+            msgBox.innerHTML = `<strong><i class="fa-solid fa-circle-check me-2"></i>¡Papeleta enviada con éxito!</strong> El documento <code>${filename}</code> fue remitido correctamente a <strong>${comunidadActiva.email}</strong> con asunto idéntico al nombre del archivo.`;
         } else {
             statusBox.className = 'alert alert-danger border-0 shadow-sm mb-4';
             msgBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation me-2"></i>Error al enviar:</strong> ${json.message}`;

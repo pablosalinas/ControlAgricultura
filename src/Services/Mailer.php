@@ -208,18 +208,47 @@ class Mailer {
             $messageData .= "Content-Transfer-Encoding: base64\r\n\r\n";
             $messageData .= chunk_split(base64_encode($htmlBody)) . "\r\n";
 
-            // Adjuntos (PDF, imágenes, etc.)
+            // Adjuntos (PDF, imágenes, documentos, etc.)
             if (!empty($attachments)) {
                 foreach ($attachments as $att) {
-                    $attName = isset($att['name']) ? $att['name'] : 'adjunto.pdf';
-                    $attData = isset($att['data']) ? $att['data'] : '';
-                    $attMime = isset($att['mime']) ? $att['mime'] : 'application/pdf';
+                    $attName = 'adjunto.pdf';
+                    $attData = '';
+                    $attMime = 'application/pdf';
 
-                    $messageData .= "--{$boundary}\r\n";
-                    $messageData .= "Content-Type: {$attMime}; name=\"{$attName}\"\r\n";
-                    $messageData .= "Content-Disposition: attachment; filename=\"{$attName}\"\r\n";
-                    $messageData .= "Content-Transfer-Encoding: base64\r\n\r\n";
-                    $messageData .= chunk_split(base64_encode($attData)) . "\r\n";
+                    if (is_string($att)) {
+                        if (file_exists($att)) {
+                            $attName = basename($att);
+                            $attData = file_get_contents($att);
+                            if (function_exists('mime_content_type')) {
+                                $detected = @mime_content_type($att);
+                                if ($detected) $attMime = $detected;
+                            }
+                        }
+                    } elseif (is_array($att)) {
+                        if (!empty($att['name'])) {
+                            $attName = $att['name'];
+                        }
+                        if (isset($att['path']) && file_exists($att['path'])) {
+                            $attData = file_get_contents($att['path']);
+                            if (empty($att['name'])) {
+                                $attName = basename($att['path']);
+                            }
+                        } elseif (isset($att['data'])) {
+                            $attData = $att['data'];
+                        }
+                        if (!empty($att['mime'])) {
+                            $attMime = $att['mime'];
+                        }
+                    }
+
+                    if (!empty($attData)) {
+                        $encAttName = "=?UTF-8?B?" . base64_encode($attName) . "?=";
+                        $messageData .= "--{$boundary}\r\n";
+                        $messageData .= "Content-Type: {$attMime}; name=\"{$encAttName}\"\r\n";
+                        $messageData .= "Content-Disposition: attachment; filename=\"{$attName}\"\r\n";
+                        $messageData .= "Content-Transfer-Encoding: base64\r\n\r\n";
+                        $messageData .= chunk_split(base64_encode($attData)) . "\r\n";
+                    }
                 }
             }
 
