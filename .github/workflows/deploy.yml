@@ -76,11 +76,13 @@ jobs:
           set net:max-retries 3
           mkdir -p "$TARGET"
           cd "$TARGET"
-          mirror --reverse --delete --verbose \
-            --exclude-glob .git* \
-            --exclude-glob .git*/** \
+          mirror -R -v \
+            --exclude-glob .git/ \
+            --exclude-glob .github/ \
             --exclude-glob .env.example \
             --exclude-glob README.md \
             ./ ./
+          put -O ./ .htaccess || true
+          put -O public/ public/.htaccess || true
           bye
           EOF
