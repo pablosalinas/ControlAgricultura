@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Permite disparar el despliegue manualmente desde GitHub
+  workflow_dispatch: # Permite disparar el despliegue manualmente desde el botón Run workflow
 
 jobs:
   deploy:
@@ -17,20 +17,30 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: 🔍 Verificar configuración de Secretos
+      - name: 🔍 Diagnóstico y comprobación de credenciales
         run: |
-          if [ -z "${{ secrets.SFTP_HOST }}" ]; then
-            echo "::error::Falta el secreto 'SFTP_HOST' en GitHub Secrets. Por favor, añádelo en Settings -> Secrets and variables -> Actions."
+          echo "Comprobando disponibilidad de credenciales SFTP..."
+          
+          HOST="${{ secrets.SFTP_HOST || vars.SFTP_HOST }}"
+          USER="${{ secrets.SFTP_USER || vars.SFTP_USER }}"
+          PASS="${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}"
+          
+          if [ -z "$HOST" ]; then
+            echo "::error::El campo SFTP_HOST está vacío. Asegúrate de haberlo creado en GitHub -> Settings -> Secrets and variables -> Actions -> Secrets (como Repository secret, no como Environment)."
             exit 1
           fi
-          if [ -z "${{ secrets.SFTP_USER }}" ]; then
-            echo "::error::Falta el secreto 'SFTP_USER' en GitHub Secrets."
+          
+          if [ -z "$USER" ]; then
+            echo "::error::El campo SFTP_USER está vacío."
             exit 1
           fi
-          if [ -z "${{ secrets.SFTP_PASSWORD }}" ]; then
-            echo "::error::Falta el secreto 'SFTP_PASSWORD' en GitHub Secrets."
+          
+          if [ -z "$PASS" ]; then
+            echo "::error::El campo SFTP_PASSWORD está vacío."
             exit 1
           fi
+          
+          echo "✅ Todos los secretos requeridos están detectados correctamente."
 
       - name: ⚙️ Generar archivo .env para Producción
         run: |
@@ -38,14 +48,14 @@ jobs:
           APP_NAME="AgroDietario"
           APP_ENV=production
           APP_DEBUG=false
-          APP_URL=https://${{ secrets.PROD_DOMAIN || 'tudominio.com' }}
+          APP_URL=https://${{ secrets.PROD_DOMAIN || vars.PROD_DOMAIN || 'tudominio.com' }}
 
           # Base de Datos Producción (IONOS)
-          DB_HOST=${{ secrets.PROD_DB_HOST }}
-          DB_PORT=${{ secrets.PROD_DB_PORT || '3306' }}
-          DB_NAME=${{ secrets.PROD_DB_NAME }}
-          DB_USER=${{ secrets.PROD_DB_USER }}
-          DB_PASS=${{ secrets.PROD_DB_PASS }}
+          DB_HOST=${{ secrets.PROD_DB_HOST || vars.PROD_DB_HOST }}
+          DB_PORT=${{ secrets.PROD_DB_PORT || vars.PROD_DB_PORT || '3306' }}
+          DB_NAME=${{ secrets.PROD_DB_NAME || vars.PROD_DB_NAME }}
+          DB_USER=${{ secrets.PROD_DB_USER || vars.PROD_DB_USER }}
+          DB_PASS=${{ secrets.PROD_DB_PASS || vars.PROD_DB_PASS }}
 
           CAPTCHA_DRIVER=local_gd
           UPLOAD_MAX_MB=15
@@ -54,11 +64,11 @@ jobs:
       - name: 🚀 Subir archivos a Servidor IONOS por SFTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USER }}
-          password: ${{ secrets.SFTP_PASSWORD }}
-          port: ${{ secrets.SFTP_PORT || 22 }}
-          server-dir: ${{ secrets.SFTP_TARGET_DIR || './' }}
+          server: ${{ secrets.SFTP_HOST || vars.SFTP_HOST }}
+          username: ${{ secrets.SFTP_USER || vars.SFTP_USER }}
+          password: ${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}
+          port: ${{ secrets.SFTP_PORT || vars.SFTP_PORT || 22 }}
+          server-dir: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || './' }}
           protocol: sftp
           exclude: |
             **/.git*
