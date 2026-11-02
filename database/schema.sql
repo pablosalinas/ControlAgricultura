@@ -32,6 +32,17 @@ CREATE TABLE propietarios (
     municipio VARCHAR(100) NULL,
     provincia VARCHAR(100) NULL,
     codigo_postal VARCHAR(10) NULL,
+    logo VARCHAR(255) NULL,
+    precio_hora_comunitaria DECIMAL(8,2) NOT NULL DEFAULT 12.00,
+    precio_hora_hortalizas DECIMAL(8,2) NOT NULL DEFAULT 15.00,
+    derrama_anual_comunidad DECIMAL(10,2) NOT NULL DEFAULT 150.00,
+    smtp_host VARCHAR(150) NULL,
+    smtp_port INT NULL,
+    smtp_encryption VARCHAR(20) NULL,
+    smtp_user_enc TEXT NULL,
+    smtp_pass_enc TEXT NULL,
+    email_remitente VARCHAR(150) NULL,
+    email_comunidad VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com',
     activo TINYINT(1) NOT NULL DEFAULT 1,
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_propietario_activo (activo)
@@ -93,6 +104,34 @@ CREATE TABLE parajes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
+-- 4.1 REGANTES (Socios de la Comunidad de Regantes del Río Alhárabe)
+-- ------------------------------------------------------------------------------
+CREATE TABLE regantes (
+    id_regante INT AUTO_INCREMENT PRIMARY KEY,
+    id_propietario INT NULL,
+    num_regante VARCHAR(50) NOT NULL,
+    nombre_completo VARCHAR(150) NOT NULL,
+    cif_nif VARCHAR(20) NULL,
+    direccion VARCHAR(255) NULL,
+    municipio VARCHAR(100) NULL,
+    telefono VARCHAR(50) NULL,
+    banco_habitual VARCHAR(100) NULL DEFAULT 'CAJAMAR',
+    horas_tanda_disponibles DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    volumen_m3_tanda DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    horas_comunitaria_disponibles DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    volumen_m3_comunitaria DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    parada_habitual VARCHAR(100) NULL,
+    paraje_habitual VARCHAR(100) NULL,
+    tablon_habitual VARCHAR(50) NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    notas TEXT NULL,
+    fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_propietario) REFERENCES propietarios(id_propietario) ON DELETE SET NULL,
+    INDEX idx_regante_num (num_regante),
+    INDEX idx_regante_nombre (nombre_completo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
 -- 5. FINCAS (Datos registrales, catastrales y derechos/tandas de riego)
 -- ------------------------------------------------------------------------------
 CREATE TABLE fincas (
@@ -108,6 +147,7 @@ CREATE TABLE fincas (
     parada VARCHAR(50) NULL,
     tablon VARCHAR(50) NULL,
     num_socio_comunidad VARCHAR(50) NULL,
+    coste_anual_ibi DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     horas_propiedad_tanda DECIMAL(6, 2) NOT NULL DEFAULT 0.00,
     horas_disponibles_tanda DECIMAL(6, 2) NOT NULL DEFAULT 0.00,
     datos_registrales TEXT NULL,

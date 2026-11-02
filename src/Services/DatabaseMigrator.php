@@ -65,10 +65,18 @@ class DatabaseMigrator {
             // 2. Columnas en FINCAS
             self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_ibi', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
 
-            // 3. Columnas en PROPIETARIOS
+            // 3. Columnas en PROPIETARIOS (Explotaciones)
+            self::addColumnIfNotExists($pdo, 'propietarios', 'logo', 'VARCHAR(255) NULL');
             self::addColumnIfNotExists($pdo, 'propietarios', 'precio_hora_comunitaria', 'DECIMAL(8,2) NOT NULL DEFAULT 12.00');
             self::addColumnIfNotExists($pdo, 'propietarios', 'precio_hora_hortalizas', 'DECIMAL(8,2) NOT NULL DEFAULT 15.00');
             self::addColumnIfNotExists($pdo, 'propietarios', 'derrama_anual_comunidad', 'DECIMAL(10,2) NOT NULL DEFAULT 150.00');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'smtp_host', 'VARCHAR(150) NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'smtp_port', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'smtp_encryption', 'VARCHAR(20) NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'smtp_user_enc', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'smtp_pass_enc', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'email_remitente', 'VARCHAR(150) NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'email_comunidad', "VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com'");
 
             // 4. Columnas en CONFIGURACION_WEB
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'precio_hora_comunitaria', 'DECIMAL(8,2) NOT NULL DEFAULT 12.00');

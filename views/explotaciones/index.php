@@ -78,10 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "El nombre de la explotación no puede quedar vacío.";
             } else {
                 try {
+                    $pCom = (float)($_POST['precio_hora_comunitaria'] ?? 12.00);
+                    $pHort = (float)($_POST['precio_hora_hortalizas'] ?? 15.00);
+                    $derr = (float)($_POST['derrama_anual_comunidad'] ?? 150.00);
+
                     $stmt = $db->prepare("
                         UPDATE propietarios 
                         SET nombre_razon_social = :nom, cif_nif = :cif, telefono = :tel, email = :email,
-                            direccion = :dir, municipio = :mun, provincia = :prov, codigo_postal = :cp
+                            direccion = :dir, municipio = :mun, provincia = :prov, codigo_postal = :cp,
+                            precio_hora_comunitaria = :pcom, precio_hora_hortalizas = :phort, derrama_anual_comunidad = :derr
                         WHERE id_propietario = :id
                     ");
                     $stmt->execute(array(
@@ -93,10 +98,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':mun' => $mun ?: null,
                         ':prov' => $prov ?: null,
                         ':cp' => $cp ?: null,
+                        ':pcom' => $pCom,
+                        ':phort' => $pHort,
+                        ':derr' => $derr,
                         ':id' => $idProp
                     ));
+
+                    // Subida de Logo de la explotación
+                    if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                        $tmpName = $_FILES['logo']['tmp_name'];
+                        $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+                        if (in_array($ext, array('jpg', 'jpeg', 'png', 'webp', 'gif'))) {
+                            $filename = 'logo_exp_' . $idProp . '_' . time() . '.' . $ext;
+                            $dest1 = ROOT_PATH . '/uploads/logos/' . $filename;
+                            $dest2 = ROOT_PATH . '/public/uploads/logos/' . $filename;
+                            @mkdir(dirname($dest1), 0777, true);
+                            @mkdir(dirname($dest2), 0777, true);
+                            if (move_uploaded_file($tmpName, $dest1) || copy($tmpName, $dest1)) {
+                                @copy($dest1, $dest2);
+                                $logoRel = 'uploads/logos/' . $filename;
+                                $db->prepare("UPDATE propietarios SET logo = :logo WHERE id_propietario = :id")
+                                   ->execute(array(':logo' => $logoRel, ':id' => $idProp));
+                            }
+                        }
+                    }
+
                     Auth::refreshTenantName();
-                    $success = "Datos de la explotación <strong>" . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
+                    $success = "Datos y tarifas de la explotación <strong>" . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
                 } catch (Exception $e) {
                     $error = "Error al guardar cambios: " . $e->getMessage();
                 }
@@ -241,13 +269,24 @@ $currentTenantId = Auth::tenantId();
                             <tr class="<?= $isCurrent ? 'table-primary bg-opacity-25' : '' ?>">
                                 <td class="ps-4 fw-bold font-monospace text-muted">#<?= $exp['id_propietario'] ?></td>
                                 <td>
-                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
-                                        <?= htmlspecialchars($exp['nombre_razon_social']) ?>
-                                        <?php if ($isCurrent): ?>
-                                            <span class="badge bg-success small"><i class="fa-solid fa-check me-1"></i>En uso</span>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <?php if (!empty($exp['logo'])): ?>
+                                            <img src="<?= APP_URL ?>/<?= htmlspecialchars($exp['logo']) ?>" class="rounded-3 border shadow-sm" style="width: 44px; height: 44px; object-fit: cover;">
+                                        <?php else: ?>
+                                            <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 text-center" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fa-solid fa-building-wheat fs-5"></i>
+                                            </div>
                                         <?php endif; ?>
+                                        <div>
+                                            <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                                <?= htmlspecialchars($exp['nombre_razon_social']) ?>
+                                                <?php if ($isCurrent): ?>
+                                                    <span class="badge bg-success small"><i class="fa-solid fa-check me-1"></i>En uso</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="small text-muted">Alta: <?= date('d/m/Y', strtotime($exp['fecha_alta'])) ?></div>
+                                        </div>
                                     </div>
-                                    <div class="small text-muted">Alta: <?= date('d/m/Y', strtotime($exp['fecha_alta'])) ?></div>
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border font-monospace">
@@ -313,11 +352,29 @@ $currentTenantId = Auth::tenantId();
                                                     </h5>
                                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <form method="POST" action="">
+                                                <form method="POST" action="" enctype="multipart/form-data">
                                                     <input type="hidden" name="action" value="editar">
                                                     <input type="hidden" name="id_propietario" value="<?= $exp['id_propietario'] ?>">
                                                     <div class="modal-body p-4">
                                                         <div class="row g-3">
+                                                            <!-- Logo de la Explotación -->
+                                                            <div class="col-12 bg-light p-3 rounded-3 border mb-2">
+                                                                <div class="d-flex align-items-center gap-3">
+                                                                    <?php if (!empty($exp['logo'])): ?>
+                                                                        <img src="<?= APP_URL ?>/<?= htmlspecialchars($exp['logo']) ?>" class="rounded-3 border shadow-sm" style="width: 60px; height: 60px; object-fit: cover;">
+                                                                    <?php else: ?>
+                                                                        <div class="rounded-3 bg-white border p-3 text-muted text-center" style="width: 60px; height: 60px;">
+                                                                            <i class="fa-solid fa-image fs-4"></i>
+                                                                        </div>
+                                                                    <?php endif; ?>
+                                                                    <div class="flex-grow-1">
+                                                                        <label class="form-label fw-bold small mb-1">Logotipo Personalizado de la Explotación</label>
+                                                                        <input type="file" name="logo" class="form-control form-control-sm" accept="image/*">
+                                                                        <div class="form-text small">Sube una imagen representativa (JPG, PNG, WebP). Si no se sube, se usará el logotipo oficial de la web.</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
                                                             <div class="col-md-8">
                                                                 <label class="form-label fw-semibold">Nombre o Razón Social *</label>
                                                                 <input type="text" name="nombre_razon_social" class="form-control" value="<?= htmlspecialchars($exp['nombre_razon_social']) ?>" required>
@@ -350,6 +407,32 @@ $currentTenantId = Auth::tenantId();
                                                             <div class="col-md-3">
                                                                 <label class="form-label fw-semibold">Código Postal</label>
                                                                 <input type="text" name="codigo_postal" class="form-control font-monospace" value="<?= htmlspecialchars($exp['codigo_postal'] ?: '') ?>">
+                                                            </div>
+
+                                                            <!-- Precios y Costes de Riego de la Explotación -->
+                                                            <div class="col-12 mt-3">
+                                                                <h6 class="fw-bold text-primary border-bottom pb-1"><i class="fa-solid fa-droplet me-1"></i>Tarifas y Cuotas de Riego para esta Explotación</h6>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold small">Precio Hora Comunitaria</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.01" name="precio_hora_comunitaria" class="form-control font-monospace fw-bold" value="<?= $exp['precio_hora_comunitaria'] ?? '12.00' ?>">
+                                                                    <span class="input-group-text">€/h</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold small">Hora Comunitaria HORTALIZAS</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.01" name="precio_hora_hortalizas" class="form-control font-monospace fw-bold text-success" value="<?= $exp['precio_hora_hortalizas'] ?? '15.00' ?>">
+                                                                    <span class="input-group-text">€/h</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold small">Derrama Anual Comunidad</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.01" name="derrama_anual_comunidad" class="form-control font-monospace fw-bold" value="<?= $exp['derrama_anual_comunidad'] ?? '150.00' ?>">
+                                                                    <span class="input-group-text">€/año</span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

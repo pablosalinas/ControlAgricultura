@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $poligono = trim($_POST['poligono'] ?? '');
     $parcela = trim($_POST['parcela'] ?? '');
     $superficie = (float)($_POST['superficie_ha'] ?? 0);
+    $costeIbi = (float)($_POST['coste_anual_ibi'] ?? 0);
     $zonaRiego = trim($_POST['zona_riego'] ?? '');
     $parada = trim($_POST['parada'] ?? '');
     $tablon = trim($_POST['tablon'] ?? '');
@@ -34,11 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("
                 INSERT INTO fincas (
                     id_propietario, id_paraje, nombre_finca, referencia_catastral, poligono, parcela,
-                    superficie_ha, zona_riego, parada, tablon, num_socio_comunidad,
+                    superficie_ha, coste_anual_ibi, zona_riego, parada, tablon, num_socio_comunidad,
                     horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones
                 ) VALUES (
                     :prop, :paraje, :nombre, :catastro, :pol, :parc,
-                    :sup, :zona, :parada, :tablon, :socio,
+                    :sup, :ibi, :zona, :parada, :tablon, :socio,
                     :hprop, :hdisp, :reg, :obs
                 )
             ");
@@ -50,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':pol'     => $poligono,
                 ':parc'    => $parcela,
                 ':sup'     => $superficie,
+                ':ibi'     => $costeIbi,
                 ':zona'    => $zonaRiego,
                 ':parada'  => $parada,
                 ':tablon'  => $tablon,
@@ -139,9 +141,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <span class="input-group-text">ha</span>
                             </div>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Coste Anual IBI (€/año)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" placeholder="0.00" value="0.00">
+                                <span class="input-group-text">€</span>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
                             <label class="form-label fw-semibold">Datos Registrales</label>
-                            <input type="text" name="datos_registrales" class="form-control" placeholder="Registro de la Propiedad, Tomo, Libro, Folio, Finca nº...">
+                            <input type="text" name="datos_registrales" class="form-control" placeholder="Registro de la Propiedad, Tomo, Folio...">
                         </div>
                     </div>
 

@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars(isset($pageTitle) ? $pageTitle : APP_NAME) ?></title>
+    <!-- Favicon Package Oficial AgroDietario -->
+    <link rel="icon" type="image/x-icon" href="<?= APP_URL ?>/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= APP_URL ?>/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= APP_URL ?>/assets/img/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= APP_URL ?>/assets/img/apple-touch-icon.png">
+    <link rel="manifest" href="<?= APP_URL ?>/site.webmanifest">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome 6 Icons -->
@@ -123,11 +129,9 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark navbar-ag sticky-top">
     <div class="container-fluid px-4">
-        <!-- Brand con icono satelital tecnológico -->
+        <!-- Brand con Logo Oficial AgroDietario -->
         <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="<?= APP_URL ?>/">
-            <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary bg-opacity-25 p-2 text-info border border-info border-opacity-25" style="width: 36px; height: 36px;">
-                <i class="fa-solid fa-satellite fs-5 text-info"></i>
-            </div>
+            <img src="<?= APP_URL ?>/assets/img/logo.jpg" alt="AgroDietario" class="rounded-3 shadow-sm border border-info border-opacity-25" style="height: 38px; width: 38px; object-fit: cover;">
             <span class="fs-4">AgroDietario</span>
         </a>
 
@@ -155,6 +159,7 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-draw-polygon me-2 text-primary"></i>Mis Fincas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus-circle me-2 text-primary"></i>Nueva Finca</a></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/regantes"><i class="fa-solid fa-address-book me-2 text-primary"></i>Socios Regantes (C.R. Alhárabe)</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes</a></li>
                         </ul>
                     </li>

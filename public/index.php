@@ -155,6 +155,14 @@ switch ($route) {
         require_once VIEWS_PATH . '/fincas/parajes.php';
         break;
 
+    case 'regantes':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/regantes/index.php';
+        break;
+
     // Rutas para Cultivos
     case 'cultivos':
     case 'cultivos/nuevo':
