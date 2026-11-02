@@ -9,7 +9,7 @@ require_once SRC_PATH . '/Services/Auth.php';
 require_once SRC_PATH . '/Services/Captcha.php';
 
 // Obtener la ruta solicitada
-$route = $_GET['route'] ?? '';
+$route = isset($_GET['route']) ? $_GET['route'] : '';
 $route = trim($route, '/');
 
 // Enrutamiento
@@ -27,8 +27,8 @@ switch ($route) {
         $error = '';
         $info = '';
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = $_POST['email'] ?? '';
-            $password = $_POST['password'] ?? '';
+            $email = isset($_POST['email']) ? $_POST['email'] : '';
+            $password = isset($_POST['password']) ? $_POST['password'] : '';
             $result = Auth::attempt($email, $password);
 
             if ($result['success']) {
@@ -50,7 +50,7 @@ switch ($route) {
         $error = '';
         $success = '';
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $captchaInput = $_POST['captcha_input'] ?? '';
+            $captchaInput = isset($_POST['captcha_input']) ? $_POST['captcha_input'] : '';
             if (!Captcha::validate($captchaInput)) {
                 $error = 'El código de seguridad (Captcha) es incorrecto o ha caducado. Inténtalo de nuevo.';
             } elseif (empty($_POST['nombre']) || empty($_POST['email']) || empty($_POST['password'])) {
@@ -80,6 +80,15 @@ switch ($route) {
         require_once VIEWS_PATH . '/dashboard.php';
         break;
 
+    // Cuaderno Oficial / Informes
+    case 'cuaderno':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/informes/cuaderno.php';
+        break;
+
     // Rutas de Administración
     case 'admin/usuarios':
         if (!Auth::isAdmin()) {
@@ -105,8 +114,15 @@ switch ($route) {
             header("Location: " . APP_URL . "/login");
             exit;
         }
-        $sub = explode('/', $route)[1] ?? 'index';
-        $viewFile = VIEWS_PATH . '/fincas/' . ($sub === 'nueva' ? 'form.php' : 'index.php');
+        $parts = explode('/', $route);
+        $sub = isset($parts[1]) ? $parts[1] : 'index';
+        if ($sub === 'nueva') {
+            $viewFile = VIEWS_PATH . '/fincas/form.php';
+        } elseif ($sub === 'detalle') {
+            $viewFile = VIEWS_PATH . '/fincas/detalle.php';
+        } else {
+            $viewFile = VIEWS_PATH . '/fincas/index.php';
+        }
         require_once $viewFile;
         break;
 
@@ -125,7 +141,8 @@ switch ($route) {
             header("Location: " . APP_URL . "/login");
             exit;
         }
-        $sub = explode('/', $route)[1] ?? 'index';
+        $parts = explode('/', $route);
+        $sub = isset($parts[1]) ? $parts[1] : 'index';
         $viewFile = VIEWS_PATH . '/cultivos/' . ($sub === 'nuevo' ? 'form.php' : 'index.php');
         require_once $viewFile;
         break;
@@ -137,7 +154,8 @@ switch ($route) {
             header("Location: " . APP_URL . "/login");
             exit;
         }
-        $sub = explode('/', $route)[1] ?? 'index';
+        $parts = explode('/', $route);
+        $sub = isset($parts[1]) ? $parts[1] : 'index';
         $viewFile = VIEWS_PATH . '/plantaciones/' . ($sub === 'nueva' ? 'form.php' : 'index.php');
         require_once $viewFile;
         break;

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
+    <title><?= htmlspecialchars(isset($pageTitle) ? $pageTitle : APP_NAME) ?></title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome Icons -->
@@ -53,11 +53,6 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             background: #ffffff;
         }
-        .page-header {
-            padding: 1.5rem 0;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid #e2e8f0;
-        }
         .footer-ag {
             margin-top: auto;
             background: #0f2419;
@@ -90,11 +85,13 @@
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-map-location-dot me-1"></i> Fincas y Parajes
+                            <i class="fa-solid fa-map-location-dot me-1"></i> Fincas
                         </a>
                         <ul class="dropdown-menu shadow-sm">
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-vector-square me-2 text-success"></i>Mis Fincas</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-pin me-2 text-primary"></i>Parajes</a></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus me-2 text-success"></i>Nueva Finca</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-pin me-2 text-primary"></i>Maestro de Parajes</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -104,7 +101,9 @@
                         <ul class="dropdown-menu shadow-sm">
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/cultivos"><i class="fa-solid fa-book-bookmark me-2 text-success"></i>Catálogo Botánico</a></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/plantaciones"><i class="fa-solid fa-calendar-days me-2 text-info"></i>Plantaciones Activas</a></li>
-                            <li><a class="dropdown-item" href="<?= APP_URL ?>/diario"><i class="fa-solid fa-book-open me-2 text-warning"></i>Diario de Evolución</a></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/plantaciones/nueva"><i class="fa-solid fa-plus me-2 text-info"></i>Nueva Plantación</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/diario"><i class="fa-solid fa-camera me-2 text-warning"></i>Diario y Fotos</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -119,11 +118,16 @@
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/recolecciones"><i class="fa-solid fa-basket-shopping me-2 text-success"></i>Cosechas y Ventas</a></li>
                         </ul>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-warning fw-semibold" href="<?= APP_URL ?>/cuaderno">
+                            <i class="fa-solid fa-file-contract me-1"></i> Cuaderno Oficial
+                        </a>
+                    </li>
 
                     <?php if (Auth::isAdmin()): ?>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-warning" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-shield-halved me-1"></i> Administración
+                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-shield-halved me-1 text-warning"></i> Admin
                         </a>
                         <ul class="dropdown-menu shadow-sm">
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-users-gear me-2"></i>Aprobar Usuarios</a></li>
@@ -143,7 +147,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="btn btn-sm btn-outline-light" href="<?= APP_URL ?>/logout">
-                            <i class="fa-solid fa-right-from-bracket me-1"></i> Cerrar sesión
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> Salir
                         </a>
                     </li>
                 <?php else: ?>
