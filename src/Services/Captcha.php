@@ -1,19 +1,19 @@
 <?php
 /**
  * Servicio de Generación y Validación de Captcha Nativo
- * No requiere APIs externas de Google, funciona tanto en XAMPP como en Producción
+ * Compatible con PHP 5.6, 7.x, 8.x
  */
 
 class Captcha {
     /**
      * Genera un código aleatorio alfanumérico legible
      */
-    public static function generateCode(int $length = 5): string {
+    public static function generateCode($length = 5) {
         $chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
         $code = '';
         $max = strlen($chars) - 1;
         for ($i = 0; $i < $length; $i++) {
-            $code .= $chars[random_int(0, $max)];
+            $code .= $chars[mt_rand(0, $max)];
         }
         $_SESSION['captcha_code'] = $code;
         return $code;
@@ -21,9 +21,8 @@ class Captcha {
 
     /**
      * Genera la imagen del Captcha codificada en Data-URI (base64)
-     * para incrustarla directamente en el HTML <img src="...">
      */
-    public static function generateBase64Image(): string {
+    public static function generateBase64Image() {
         $code = self::generateCode(5);
 
         $width = 150;
@@ -42,12 +41,12 @@ class Captcha {
 
             // Líneas de ruido de seguridad
             for ($i = 0; $i < 5; $i++) {
-                imageline($image, random_int(0, $width), random_int(0, $height), random_int(0, $width), random_int(0, $height), $lineColor);
+                imageline($image, mt_rand(0, $width), mt_rand(0, $height), mt_rand(0, $width), mt_rand(0, $height), $lineColor);
             }
 
             // Puntos de ruido
             for ($i = 0; $i < 100; $i++) {
-                imagesetpixel($image, random_int(0, $width), random_int(0, $height), $noiseColor);
+                imagesetpixel($image, mt_rand(0, $width), mt_rand(0, $height), $noiseColor);
             }
 
             // Dibujar caracteres
@@ -55,7 +54,7 @@ class Captcha {
             for ($i = 0; $i < $len; $i++) {
                 $char = $code[$i];
                 $x = 20 + ($i * 24);
-                $y = random_int(10, 16);
+                $y = mt_rand(10, 16);
                 imagechar($image, 5, $x, $y, $char, $textColor);
             }
 
@@ -77,7 +76,7 @@ class Captcha {
     /**
      * Valida el código captcha enviado por el usuario
      */
-    public static function validate(?string $input): bool {
+    public static function validate($input) {
         if (empty($input) || empty($_SESSION['captcha_code'])) {
             return false;
         }

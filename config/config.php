@@ -1,8 +1,7 @@
 <?php
 /**
  * Configuración global de la aplicación AgroDietario
- * Compatible con ejecución en subdirectorios tanto en Local como en Producción
- * (Ej: http://localhost/agrodietario o https://www.moratalla-murcia.com/agricultura)
+ * Compatible con PHP 5.6, 7.x y 8.x tanto en Local como en Producción
  */
 
 if (!function_exists('loadEnv')) {
@@ -14,7 +13,7 @@ if (!function_exists('loadEnv')) {
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         foreach ($lines as $line) {
             $line = trim($line);
-            if (empty($line) || str_starts_with($line, '#')) {
+            if (empty($line) || (isset($line[0]) && $line[0] === '#')) {
                 continue;
             }
 
@@ -46,7 +45,7 @@ if (!function_exists('env')) {
     function env($key, $default = null) {
         $val = getenv($key);
         if ($val === false) {
-            $val = $_ENV[$key] ?? $_SERVER[$key] ?? $default;
+            $val = isset($_ENV[$key]) ? $_ENV[$key] : (isset($_SERVER[$key]) ? $_SERVER[$key] : $default);
         }
         if ($val === 'true') return true;
         if ($val === 'false') return false;
@@ -72,16 +71,16 @@ define('VIEWS_PATH', ROOT_PATH . '/views');
 define('UPLOADS_PATH', ROOT_PATH . '/uploads');
 define('PUBLIC_PATH', ROOT_PATH . '/public');
 
-// Cálculo automático e inteligente de la APP_URL (soporta subcarpetas tanto en local como en producción)
+// Cálculo inteligente de la APP_URL
 if (!defined('APP_URL')) {
     $configuredUrl = env('APP_URL');
     if (!empty($configuredUrl)) {
         define('APP_URL', rtrim($configuredUrl, '/'));
     } else {
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
         $scheme = $isHttps ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+        $scriptDir = dirname(isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '');
         $baseDir = preg_replace('#/public$#', '', str_replace('\\', '/', $scriptDir));
         define('APP_URL', rtrim("{$scheme}://{$host}{$baseDir}", '/'));
     }
