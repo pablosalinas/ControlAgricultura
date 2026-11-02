@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Permite disparar el despliegue manualmente desde el botón Run workflow
+  workflow_dispatch: # Permite disparar el despliegue manualmente desde GitHub
 
 jobs:
   deploy:
@@ -26,7 +26,7 @@ jobs:
           PASS="${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}"
           
           if [ -z "$HOST" ]; then
-            echo "::error::El campo SFTP_HOST está vacío. Asegúrate de haberlo creado en GitHub -> Settings -> Secrets and variables -> Actions -> Secrets (como Repository secret, no como Environment)."
+            echo "::error::El campo SFTP_HOST está vacío."
             exit 1
           fi
           
@@ -62,18 +62,24 @@ jobs:
           EOF
 
       - name: 🚀 Subir archivos a Servidor IONOS por SFTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.SFTP_HOST || vars.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USER || vars.SFTP_USER }}
-          password: ${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}
-          port: ${{ secrets.SFTP_PORT || vars.SFTP_PORT || 22 }}
-          server-dir: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || './' }}
-          protocol: sftp
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            .env.example
-            database/schema.sql
-            README.md
+        env:
+          HOST: ${{ secrets.SFTP_HOST || vars.SFTP_HOST }}
+          USER: ${{ secrets.SFTP_USER || vars.SFTP_USER }}
+          PASS: ${{ secrets.SFTP_PASSWORD || vars.SFTP_PASSWORD }}
+          PORT: ${{ secrets.SFTP_PORT || vars.SFTP_PORT || 22 }}
+          TARGET: ${{ secrets.SFTP_TARGET_DIR || vars.SFTP_TARGET_DIR || '.' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          lftp -u "$USER","$PASS" -p "$PORT" "sftp://$HOST" << 'EOF'
+          set sftp:auto-confirm yes
+          set net:timeout 60
+          set net:max-retries 3
+          mirror --reverse --delete --verbose=1 \
+            --exclude-glob .git* \
+            --exclude-glob .git*/** \
+            --exclude-glob database/schema.sql \
+            --exclude-glob .env.example \
+            --exclude-glob README.md \
+            ./ "$TARGET"
+          bye
+          EOF
