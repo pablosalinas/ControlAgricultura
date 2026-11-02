@@ -17,6 +17,21 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: 🔍 Verificar configuración de Secretos
+        run: |
+          if [ -z "${{ secrets.SFTP_HOST }}" ]; then
+            echo "::error::Falta el secreto 'SFTP_HOST' en GitHub Secrets. Por favor, añádelo en Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          if [ -z "${{ secrets.SFTP_USER }}" ]; then
+            echo "::error::Falta el secreto 'SFTP_USER' en GitHub Secrets."
+            exit 1
+          fi
+          if [ -z "${{ secrets.SFTP_PASSWORD }}" ]; then
+            echo "::error::Falta el secreto 'SFTP_PASSWORD' en GitHub Secrets."
+            exit 1
+          fi
+
       - name: ⚙️ Generar archivo .env para Producción
         run: |
           cat << 'EOF' > .env
