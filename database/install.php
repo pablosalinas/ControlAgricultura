@@ -8,14 +8,12 @@ require_once dirname(__DIR__) . '/config/config.php';
 
 $isCli = (php_sapi_name() === 'cli');
 
-// Datos iniciales desde el entorno o valores por defecto
 $defHost = env('DB_HOST', '127.0.0.1');
 $defPort = env('DB_PORT', '3306');
 $defDb   = env('DB_NAME', 'agrodietario_db');
 $defUser = env('DB_USER', 'root');
 $defPass = env('DB_PASS', '');
 
-// Si estamos en producción y los datos están vacíos o por defecto de local
 if (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'moratalla-murcia.com') !== false && ($defHost === '127.0.0.1' || $defHost === 'localhost')) {
     $defHost = 'db5021806071.hosting-data.io';
     $defDb   = 'db5021806071';
@@ -28,7 +26,6 @@ $dbName = isset($_POST['db_name']) ? trim($_POST['db_name']) : $defDb;
 $user = isset($_POST['db_user']) ? trim($_POST['db_user']) : $defUser;
 $pass = isset($_POST['db_pass']) ? $_POST['db_pass'] : $defPass;
 
-// Normalización automática para IONOS si se pone el host como nombre de BD
 if (strpos($dbName, '.hosting-data.io') !== false) {
     $host = $dbName;
     $parts = explode('.', $dbName);
@@ -38,35 +35,59 @@ if (strpos($dbName, '.hosting-data.io') !== false) {
 $instalado = false;
 $error = '';
 $mensajes = array();
-$debugAuth = '';
+$diagnosticoBases = array();
 
-// Si se envía el formulario o si estamos en CLI
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
-    $debugAuth = "Intentando conectar con Usuario: '{$user}' | Longitud contraseña: " . strlen($pass) . " caracteres.";
-
     try {
-        // En IONOS probamos primero PDO estándar
-        $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
+        // PASO 1: Conectar al servidor MySQL SIN forzar la base de datos en el DSN
+        // para evitar el error 1044 si el nombre de BD tiene alguna variación
+        $dsnSinBd = "mysql:host={$host};port={$port}";
         $options = array(
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
-            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
         );
 
-        $pdo = new PDO($dsn, $user, $pass, $options);
-        $mensajes[] = "✅ Conexión establecida con éxito con el servidor MySQL.";
+        $mensajes[] = "⏳ Conectando al servidor MySQL <code>{$host}</code> con usuario <code>{$user}</code>...";
+        $pdo = new PDO($dsnSinBd, $user, $pass, $options);
+        $mensajes[] = "✅ ¡Conexión con el servidor MySQL aceptada exitosamente!";
 
+        // PASO 2: Descubrir a qué bases de datos tiene acceso este usuario
+        $stmtDbs = $pdo->query("SHOW DATABASES");
+        $dbsDisponibles = $stmtDbs->fetchAll(PDO::FETCH_COLUMN);
+        $diagnosticoBases = $dbsDisponibles;
+
+        $mensajes[] = "🔍 Bases de datos accesibles para este usuario: <strong>" . implode(', ', $dbsDisponibles) . "</strong>";
+
+        // Determinar cuál base de datos usar
+        $bdFinal = $dbName;
+        if (!in_array($bdFinal, $dbsDisponibles)) {
+            // Si la que buscamos no está pero hay otra que empiece por db o dbs
+            foreach ($dbsDisponibles as $d) {
+                if ($d !== 'information_schema' && $d !== 'performance_schema') {
+                    $bdFinal = $d;
+                    break;
+                }
+            }
+            $mensajes[] = "ℹ️ Conectando automáticamente a la base de datos asignada: <strong>{$bdFinal}</strong>";
+        }
+
+        // PASO 3: Seleccionar la base de datos
+        $pdo->exec("USE `{$bdFinal}`");
+        $mensajes[] = "✅ Base de datos <strong>{$bdFinal}</strong> seleccionada con éxito.";
+
+        // PASO 4: Ejecutar schema.sql
         $sqlFile = __DIR__ . '/schema.sql';
         if (!file_exists($sqlFile)) {
             throw new Exception("No se encontró el archivo schema.sql en: " . $sqlFile);
         }
 
-        $mensajes[] = "📖 Leyendo archivo <em>schema.sql</em> y generando tablas maestras...";
+        $mensajes[] = "📖 Leyendo <em>schema.sql</em> y creando todas las tablas maestras...";
         $sql = file_get_contents($sqlFile);
         $pdo->exec($sql);
 
-        // Guardar configuración correcta en el archivo .env
+        // Guardar configuración funcional en .env
         $envPath = dirname(__DIR__) . '/.env';
         $envContent = "APP_NAME=\"AgroDietario\"\n";
         $envContent .= "APP_ENV=" . (strpos(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '', 'localhost') !== false ? "local" : "production") . "\n";
@@ -74,19 +95,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
         $envContent .= "APP_URL=" . APP_URL . "\n\n";
         $envContent .= "DB_HOST={$host}\n";
         $envContent .= "DB_PORT={$port}\n";
-        $envContent .= "DB_NAME={$dbName}\n";
+        $envContent .= "DB_NAME={$bdFinal}\n";
         $envContent .= "DB_USER={$user}\n";
         $envContent .= "DB_PASS={$pass}\n\n";
         $envContent .= "CAPTCHA_DRIVER=local_gd\n";
         $envContent .= "UPLOAD_MAX_MB=15\n";
 
         file_put_contents($envPath, $envContent);
-        $mensajes[] = "💾 Archivo <code>.env</code> guardado automáticamente con las credenciales funcionales.";
+        $mensajes[] = "💾 Archivo <code>.env</code> guardado automáticamente.";
 
         $instalado = true;
 
     } catch (PDOException $e) {
-        $error = "Fallo de conexión MySQL: " . $e->getMessage();
+        $error = "Fallo de conexión MySQL: [" . $e->getCode() . "] " . $e->getMessage();
     } catch (Exception $e) {
         $error = "Error: " . $e->getMessage();
     }
@@ -141,13 +162,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
         <?php if ($error): ?>
             <div class="alert alert-danger p-3 mb-4">
                 <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> <?= htmlspecialchars($error) ?></div>
-                <div class="small text-muted mb-2"><?= htmlspecialchars($debugAuth) ?></div>
-                <div class="small">Revisa si la contraseña introducida es exactamente la que figura en tu panel de IONOS para este usuario.</div>
+                <div class="small mt-2">
+                    <strong>Datos enviados:</strong> Host: <code><?= htmlspecialchars($host) ?></code> | Usuario: <code><?= htmlspecialchars($user) ?></code> | Longitud contraseña: <?= strlen($pass) ?> caracteres.
+                </div>
             </div>
         <?php else: ?>
             <p class="text-muted small mb-4">
-                Verifica los datos de conexión de tu base de datos MySQL (los datos están precargados desde tu configuración). Pulsa el botón para probar la conexión y crear todas las tablas automáticamente.
+                Verifica los datos de conexión de tu base de datos MySQL. Pulsa el botón para conectar y crear todas las tablas automáticamente.
             </p>
+        <?php endif; ?>
+
+        <?php if (!empty($mensajes)): ?>
+            <div class="alert alert-info p-3 mb-4 small">
+                <?php foreach ($mensajes as $m): ?>
+                    <p class="mb-1"><?= $m ?></p>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
 
         <form action="" method="POST">
@@ -155,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
                 <div class="col-md-8">
                     <label class="form-label fw-semibold small">Servidor / Host MySQL</label>
                     <input type="text" name="db_host" class="form-control font-monospace" value="<?= htmlspecialchars($host) ?>" required>
-                    <div class="form-text small">En IONOS suele ser <code>db5021806071.hosting-data.io</code> (en local <code>127.0.0.1</code>).</div>
+                    <div class="form-text small">En IONOS es <code>db5021806071.hosting-data.io</code> (en local <code>127.0.0.1</code>).</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold small">Puerto</label>
@@ -182,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $isCli) {
                         <i class="fa-solid fa-eye" id="eyeIcon"></i>
                     </button>
                 </div>
-                <div class="form-text small">Pulsa en el ojo para verificar que no haya espacios ni caracteres cambiados.</div>
+                <div class="form-text small">Pulsa en el ojo para verificar que no haya caracteres cambiados.</div>
             </div>
 
             <button type="submit" class="btn btn-install w-100 rounded-3 shadow">
