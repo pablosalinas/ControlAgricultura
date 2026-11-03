@@ -7,7 +7,7 @@ $tenantId = Auth::tenantId();
 
 $sqlFincas = "SELECT id_finca, nombre_finca, superficie_ha FROM fincas WHERE activo = 1";
 if ($tenantId) {
-    $sqlFincas .= " AND id_propietario = " . (int)$tenantId;
+    $sqlFincas .= " AND (id_propietario = " . (int)$tenantId . " OR id_propietario IS NULL)";
 }
 $sqlFincas .= " ORDER BY nombre_finca ASC";
 $fincas = $db->query($sqlFincas)->fetchAll();

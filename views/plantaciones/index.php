@@ -81,7 +81,7 @@ $filtroCampana = isset($_GET['campana']) ? (int)$_GET['campana'] : 0;
 // Fincas para el filtro
 $sqlFincas = "SELECT id_finca, nombre_finca FROM fincas WHERE activo = 1";
 if ($tenantId) {
-    $sqlFincas .= " AND id_propietario = " . (int)$tenantId;
+    $sqlFincas .= " AND (id_propietario = " . (int)$tenantId . " OR id_propietario IS NULL)";
 }
 $sqlFincas .= " ORDER BY nombre_finca ASC";
 $fincasList = $db->query($sqlFincas)->fetchAll();
@@ -99,7 +99,7 @@ $sql = "
 $params = array();
 
 if ($tenantId) {
-    $sql .= " AND f.id_propietario = :tenant";
+    $sql .= " AND (f.id_propietario = :tenant OR f.id_propietario IS NULL)";
     $params[':tenant'] = (int)$tenantId;
 }
 

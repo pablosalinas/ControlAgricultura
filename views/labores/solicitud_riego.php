@@ -222,7 +222,7 @@ $sqlFincas = "
     WHERE f.activo = 1
 ";
 if ($tenantId) {
-    $sqlFincas .= " AND f.id_propietario = " . (int)$tenantId;
+    $sqlFincas .= " AND (f.id_propietario = " . (int)$tenantId . " OR f.id_propietario IS NULL)";
 }
 $sqlFincas .= " ORDER BY f.nombre_finca ASC";
 $fincas = $db->query($sqlFincas)->fetchAll();

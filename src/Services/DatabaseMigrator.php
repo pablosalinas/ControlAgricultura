@@ -358,9 +358,130 @@ class DatabaseMigrator {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
+            // 13. Columnas en PARAJES y Semillero de Paradas Oficiales
+            self::addColumnIfNotExists($pdo, 'parajes', 'codigo', 'VARCHAR(20) NULL AFTER id_paraje');
+            self::addColumnIfNotExists($pdo, 'parajes', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+
+            self::seedParadasOficiales($pdo);
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }
+    }
+
+    private static function seedParadasOficiales($pdo) {
+        try {
+            $paradas = array(
+                array('001', 'CORTIJO DON RAFFAEL'),
+                array('002', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('003', 'JOSÉ CARCÍA MARÍN'),
+                array('004', 'JOSÉ CARCÍA MARÍN'),
+                array('005', 'JAVIER SANCHEZ DE AMORAGA'),
+                array('006', 'JULÍA VÉLEZ GONZÁLEZ'),
+                array('007', 'JULÍA VÉLEZ GONZÁLEZ'),
+                array('008', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('009', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('010', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('011', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('012', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('013', 'ANTONIO CARRIDO'),
+                array('014', 'MOLINO DEL CAMINO'),
+                array('015', 'LA RAMBLA'),
+                array('016', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('016A', 'JUAN DE DIOS LÓPEZ LÓPEZ'),
+                array('017', 'JAVIER SÁNCHEZ DE AMORAGA'),
+                array('018', 'ROSILLO'),
+                array('019', 'FRANCISCO MARTÍNEZ OLIVA AGUILERA'),
+                array('020', 'RAMÓN LÓPEZ GARCÍA'),
+                array('021', 'RAMÓN LÓPEZ GARCÍA CORTIJO'),
+                array('022', 'MARTÍN CUERRERO ABELLÁN'),
+                array('023', 'MARTÍN GUERRERO ABELLÁN'),
+                array('024', 'PARADA EL BOLSAS'),
+                array('025', 'FRANCISCO MARTÍNEZ OLIVA AGUILERA'),
+                array('026', 'RAMÓN LÓPEZ GARCÍA'),
+                array('027', 'VEREDA DE PROVENCIO'),
+                array('028', 'FRANCISCO ELADIO GARCÍA LOZANO'),
+                array('029', 'LA TERESA'),
+                array('030', 'PICHI 1'),
+                array('031', 'PICHI2'),
+                array('032', 'PICHI 3'),
+                array('033', 'PICHI 4'),
+                array('034', 'PICHI 5'),
+                array('035', 'LAS TORERAS'),
+                array('036', 'EL BALADRE'),
+                array('037', 'LA TEJERA'),
+                array('038', 'JESÚS MELLINAS SÁNCHEZ'),
+                array('039', 'JESÚS MELLINAS SÁNCHEZ'),
+                array('040', 'PEDRO MARTÍNEZ CARRASCO'),
+                array('041', 'EL BEBEDOR'),
+                array('042', 'PARADA EL ZORRA'),
+                array('043', 'PARADA ZANCAJO'),
+                array('044', 'PARADA HONDA'),
+                array('045', 'LA OLIVERA'),
+                array('046', 'BANCAL DEL PANTANO OLIVERA'),
+                array('047', 'TAHONA ISABEL SÁNCHEZ CARCÍA'),
+                array('048', 'TAHONA HEREDEROS PEPE EL MOLINO'),
+                array('049', 'EL CARCABO'),
+                array('050', 'LO ANCHO'),
+                array('051', 'LA CASICA CEFERINO SÁNCHEZ VALERO'),
+                array('052', 'LA CASICA JOSÉ MARTÍNEZ MARTÍNEZ'),
+                array('053', 'LA CASICA'),
+                array('054', 'LA CASICA SALTA JOSÉ MARTÍNEZ MARTÍNEZ'),
+                array('055', 'LA CASICA MOLINO JUAN MANUEL ANDREU GUE'),
+                array('056', 'LA CASICA MOLINO DESAGÜE A LA RAMBLA'),
+                array('057', 'MOLINO LA LANA JUAN SOLER NAVARRO'),
+                array('058', 'MOLINO LA LANA RAMIRO GALLEGO MARTÍNEZ'),
+                array('059', 'LA LAGUENA'),
+                array('060', 'EL ABREVADOR'),
+                array('061', 'EL ABREVADOR FRANCISCO NAVARRO SÁNCHEZ'),
+                array('062', 'LAS PISCINAS JOSÉ ANTONIO MARTÍNEZ RUBIO'),
+                array('063', 'LAS PISCINAS'),
+                array('064', 'LAS PISCINAS MANUEL MARTÍNEZ RUBIO'),
+                array('065', 'LAS PISCINAS JOSÉ LÓPEZ MARÍN'),
+                array('066', 'LAS PISCINAS JOSÉ LÓPEZ MARÍN'),
+                array('067', 'BALSAS LOS PERALES'),
+                array('068', 'LOS PERALES JESÚS MARTÍNEZ PASTOR'),
+                array('069', 'PARADA NUEVA'),
+                array('070', 'CUBO MOLINILLO ANTONIO SÁNCHEZ VALERO'),
+                array('071', 'CUBO MOLINILLO ANTONIO SÁNCHEZ VALERO'),
+                array('072', 'CUBO MOLINILLO DOLORES RODRÍGUEZ MARTÍN'),
+                array('073', 'CUBO MOLINILLO DOLORES RODRÍGUEZ MARTÍN'),
+                array('074', 'CUBO MOLINILLO FRANCISCO LÓPEZ MARTÍNEZ'),
+                array('075', 'CUBO MOLINILLO'),
+                array('076', 'CUBO MOLINILLO VITÁLICO SÁNCHEZ MARTÍNEZ'),
+                array('077', 'SARRIÓN JUAN SÁNCHEZ MARTÍNEZ'),
+                array('078', 'S C ABAJO'),
+                array('079', 'S.A. ADELANTE 1'),
+                array('080', 'SANTAQUITERIA'),
+                array('081', 'S.A. ADELANTE 2'),
+                array('082', 'MALANCÓN PUENTE ALTO'),
+                array('083', 'S.A. ADELANTE 3'),
+                array('084', 'TIO TORRES'),
+                array('085', 'SA ADELANTE 4'),
+                array('086', 'LAS MARGARITAS'),
+                array('087', 'S.A. ADELANTE 5'),
+                array('088', 'LAS BALSICAS')
+            );
+
+            $stmtChk = $pdo->prepare("SELECT id_paraje FROM parajes WHERE codigo = :cod LIMIT 1");
+            $stmtIns = $pdo->prepare("
+                INSERT INTO parajes (codigo, nombre_paraje, termino_municipal, provincia, descripcion, activo)
+                VALUES (:cod, :nom, 'Moratalla', 'Murcia', :desc, 1)
+            ");
+
+            foreach ($paradas as $p) {
+                $cod = $p[0];
+                $nom = $p[1];
+                $stmtChk->execute(array(':cod' => $cod));
+                if (!$stmtChk->fetchColumn()) {
+                    $stmtIns->execute(array(
+                        ':cod'  => $cod,
+                        ':nom'  => $nom,
+                        ':desc' => "Parada / Paraje de riego oficial nº {$cod} (Moratalla)"
+                    ));
+                }
+            }
+        } catch (Exception $e) {}
     }
 
     private static function addColumnIfNotExists($pdo, $table, $column, $definition) {

@@ -13,62 +13,66 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-    // 1. CREAR PARAJE
+    // 1. CREAR PARAJE / PARADA
     if ($action === 'crear_paraje') {
+        $codigo = trim(isset($_POST['codigo']) ? $_POST['codigo'] : '');
         $nombre = trim(isset($_POST['nombre_paraje']) ? $_POST['nombre_paraje'] : '');
-        $termino = trim(isset($_POST['termino_municipal']) ? $_POST['termino_municipal'] : '');
+        $termino = trim(isset($_POST['termino_municipal']) ? $_POST['termino_municipal'] : 'Moratalla');
         $provincia = trim(isset($_POST['provincia']) ? $_POST['provincia'] : 'Murcia');
         $desc = trim(isset($_POST['descripcion']) ? $_POST['descripcion'] : '');
 
         if (empty($nombre) || empty($termino)) {
-            $error = "El nombre del paraje y el término municipal son obligatorios.";
+            $error = "El nombre del paraje/parada y el término municipal son obligatorios.";
         } else {
             try {
                 $stmt = $db->prepare("
-                    INSERT INTO parajes (id_propietario, nombre_paraje, termino_municipal, provincia, descripcion)
-                    VALUES (:prop, :nom, :term, :prov, :desc)
+                    INSERT INTO parajes (codigo, id_propietario, nombre_paraje, termino_municipal, provincia, descripcion, activo)
+                    VALUES (:cod, :prop, :nom, :term, :prov, :desc, 1)
                 ");
                 $stmt->execute(array(
+                    ':cod'  => $codigo ?: null,
                     ':prop' => $isSuperAdmin ? null : $tenantId,
                     ':nom'  => $nombre,
                     ':term' => $termino,
                     ':prov' => $provincia ?: 'Murcia',
                     ':desc' => $desc
                 ));
-                $mensaje = "Paraje <strong>" . htmlspecialchars($nombre) . "</strong> añadido correctamente.";
+                $mensaje = "Paraje/Parada <strong>" . htmlspecialchars($nombre) . "</strong> añadido correctamente.";
             } catch (Exception $e) {
-                $error = "Error al guardar el paraje: " . $e->getMessage();
+                $error = "Error al guardar: " . $e->getMessage();
             }
         }
     }
 
-    // 2. EDITAR / MODIFICAR PARAJE
+    // 2. EDITAR / MODIFICAR PARAJE / PARADA
     elseif ($action === 'editar_paraje') {
         $idParaje = (int)$_POST['id_paraje'];
+        $codigo = trim(isset($_POST['codigo']) ? $_POST['codigo'] : '');
         $nombre = trim(isset($_POST['nombre_paraje']) ? $_POST['nombre_paraje'] : '');
-        $termino = trim(isset($_POST['termino_municipal']) ? $_POST['termino_municipal'] : '');
+        $termino = trim(isset($_POST['termino_municipal']) ? $_POST['termino_municipal'] : 'Moratalla');
         $provincia = trim(isset($_POST['provincia']) ? $_POST['provincia'] : 'Murcia');
         $desc = trim(isset($_POST['descripcion']) ? $_POST['descripcion'] : '');
 
         if (empty($nombre) || empty($termino)) {
-            $error = "El nombre del paraje y el término municipal son obligatorios.";
+            $error = "El nombre del paraje/parada y el término municipal son obligatorios.";
         } else {
             try {
                 $stmt = $db->prepare("
                     UPDATE parajes
-                    SET nombre_paraje = :nom, termino_municipal = :term, provincia = :prov, descripcion = :desc
+                    SET codigo = :cod, nombre_paraje = :nom, termino_municipal = :term, provincia = :prov, descripcion = :desc
                     WHERE id_paraje = :id
                 ");
                 $stmt->execute(array(
+                    ':cod'  => $codigo ?: null,
                     ':nom'  => $nombre,
                     ':term' => $termino,
                     ':prov' => $provincia ?: 'Murcia',
                     ':desc' => $desc,
                     ':id'   => $idParaje
                 ));
-                $mensaje = "Paraje <strong>" . htmlspecialchars($nombre) . "</strong> actualizado correctamente.";
+                $mensaje = "Paraje/Parada <strong>" . htmlspecialchars($nombre) . "</strong> actualizado correctamente.";
             } catch (Exception $e) {
-                $error = "Error al modificar paraje: " . $e->getMessage();
+                $error = "Error al modificar: " . $e->getMessage();
             }
         }
     }
@@ -100,16 +104,16 @@ $sqlParajes = "
     SELECT p.*, COUNT(f.id_finca) AS total_fincas
     FROM parajes p
     LEFT JOIN fincas f ON p.id_paraje = f.id_paraje
-    WHERE 1=1
+    WHERE (p.activo = 1 OR p.activo IS NULL)
 ";
 $params = array();
 
 if (!empty($filtroTxt)) {
-    $sqlParajes .= " AND (p.nombre_paraje LIKE :txt OR p.termino_municipal LIKE :txt OR p.descripcion LIKE :txt)";
+    $sqlParajes .= " AND (p.codigo LIKE :txt OR p.nombre_paraje LIKE :txt OR p.termino_municipal LIKE :txt OR p.descripcion LIKE :txt)";
     $params[':txt'] = '%' . $filtroTxt . '%';
 }
 
-$sqlParajes .= " GROUP BY p.id_paraje ORDER BY p.nombre_paraje ASC";
+$sqlParajes .= " GROUP BY p.id_paraje ORDER BY CASE WHEN p.codigo IS NOT NULL AND p.codigo != '' THEN 0 ELSE 1 END, p.codigo ASC, p.nombre_paraje ASC";
 $stmtP = $db->prepare($sqlParajes);
 $stmtP->execute($params);
 $parajes = $stmtP->fetchAll();
@@ -124,12 +128,12 @@ $parajes = $stmtP->fetchAll();
                 <i class="fa-solid fa-location-crosshairs fs-3 text-info"></i>
             </div>
             <div>
-                <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Maestro de Parajes</h2>
-                <p class="text-muted mb-0 small">Estandarización y catálogo oficial de zonas y parajes agrícolas para tus parcelas</p>
+                <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Maestro de Parajes y Paradas de Riego</h2>
+                <p class="text-muted mb-0 small">Estandarización y catálogo oficial de parajes y paradas de la Comunidad de Regantes</p>
             </div>
         </div>
         <button class="btn btn-ag shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formParaje">
-            <i class="fa-solid fa-plus-circle me-1"></i> Nuevo Paraje
+            <i class="fa-solid fa-plus-circle me-1"></i> Nueva Parada / Paraje
         </button>
     </div>
 
@@ -154,15 +158,19 @@ $parajes = $stmtP->fetchAll();
             <form action="<?= APP_URL ?>/parajes" method="POST">
                 <input type="hidden" name="action" value="crear_paraje">
                 <div class="row g-3 mb-3">
-                    <div class="col-md-5">
-                        <label class="form-label fw-semibold small">Nombre del Paraje <span class="text-danger">*</span></label>
-                        <input type="text" name="nombre_paraje" class="form-control" required placeholder="Ej: Hoya del Pozo, El Carche, Las Cañadas...">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold small">Nº / Código de Parada</label>
+                        <input type="text" name="codigo" class="form-control font-monospace" placeholder="Ej: 067, 016A...">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold small">Término Municipal <span class="text-danger">*</span></label>
-                        <input type="text" name="termino_municipal" class="form-control" required placeholder="Ej: Moratalla, Cieza, Jumilla...">
+                        <label class="form-label fw-semibold small">Nombre de la Parada / Paraje <span class="text-danger">*</span></label>
+                        <input type="text" name="nombre_paraje" class="form-control" required placeholder="Ej: BALSAS LOS PERALES, Hornillos...">
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold small">Término Municipal <span class="text-danger">*</span></label>
+                        <input type="text" name="termino_municipal" class="form-control" required value="Moratalla" placeholder="Ej: Moratalla">
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label fw-semibold small">Provincia</label>
                         <input type="text" name="provincia" class="form-control" value="Murcia">
                     </div>
@@ -207,7 +215,8 @@ $parajes = $stmtP->fetchAll();
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light small text-muted text-uppercase">
                     <tr>
-                        <th class="ps-4">Nombre del Paraje</th>
+                        <th class="ps-4">Código / Parada</th>
+                        <th>Nombre Parada / Paraje</th>
                         <th>Término Municipal</th>
                         <th>Provincia</th>
                         <th>Fincas Asignadas</th>
@@ -218,15 +227,24 @@ $parajes = $stmtP->fetchAll();
                 <tbody>
                     <?php if (empty($parajes)): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
+                            <td colspan="7" class="text-center py-5 text-muted">
                                 <i class="fa-solid fa-location-dot fa-2x mb-3 text-secondary"></i>
-                                <p class="mb-0">No se encontraron parajes registrados.</p>
+                                <p class="mb-0">No se encontraron parajes ni paradas registradas.</p>
                             </td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($parajes as $p): ?>
                             <tr>
                                 <td class="ps-4">
+                                    <?php if (!empty($p['codigo'])): ?>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle font-monospace fs-6 px-2 py-1">
+                                            <?= htmlspecialchars($p['codigo']) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border font-monospace">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
                                     <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
                                         <i class="fa-solid fa-map-pin text-primary"></i>
                                         <?= htmlspecialchars($p['nombre_paraje']) ?>
@@ -277,9 +295,15 @@ $parajes = $stmtP->fetchAll();
                                                     <input type="hidden" name="action" value="editar_paraje">
                                                     <input type="hidden" name="id_paraje" value="<?= $p['id_paraje'] ?>">
                                                     <div class="modal-body p-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-semibold small">Nombre del Paraje *</label>
-                                                            <input type="text" name="nombre_paraje" class="form-control" value="<?= htmlspecialchars($p['nombre_paraje']) ?>" required>
+                                                        <div class="row g-3 mb-3">
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold small">Nº / Código Parada</label>
+                                                                <input type="text" name="codigo" class="form-control font-monospace fw-bold text-primary" value="<?= htmlspecialchars($p['codigo'] ?: '') ?>" placeholder="Ej: 067">
+                                                            </div>
+                                                            <div class="col-md-8">
+                                                                <label class="form-label fw-semibold small">Nombre de Parada / Paraje *</label>
+                                                                <input type="text" name="nombre_paraje" class="form-control" value="<?= htmlspecialchars($p['nombre_paraje']) ?>" required>
+                                                            </div>
                                                         </div>
                                                         <div class="row g-3 mb-3">
                                                             <div class="col-md-7">

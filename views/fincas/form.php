@@ -5,8 +5,8 @@ require_once VIEWS_PATH . '/layouts/header.php';
 $db = Database::getConnection();
 $tenantId = Auth::tenantId();
 
-// Cargar parajes maestros
-$parajes = $db->query("SELECT * FROM parajes ORDER BY nombre_paraje ASC")->fetchAll();
+// Cargar parajes maestros y paradas oficiales
+$parajes = $db->query("SELECT * FROM parajes WHERE (activo = 1 OR activo IS NULL) ORDER BY CASE WHEN codigo IS NOT NULL AND codigo != '' THEN 0 ELSE 1 END, codigo ASC, nombre_paraje ASC")->fetchAll();
 
 // Cargar explotaciones agrarias
 $explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE activo = 1 ORDER BY nombre_razon_social ASC")->fetchAll();
@@ -167,12 +167,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Paraje</label>
-                            <select name="id_paraje" class="form-select">
-                                <option value="">-- Seleccionar Paraje --</option>
+                            <label class="form-label fw-semibold">Paraje / Parada</label>
+                            <select name="id_paraje" id="select_paraje_finca" class="form-select">
+                                <option value="" data-codigo="">-- Seleccionar Paraje --</option>
                                 <?php foreach ($parajes as $p): ?>
-                                    <option value="<?= $p['id_paraje'] ?>" <?= (isset($_POST['id_paraje']) && (int)$_POST['id_paraje'] === (int)$p['id_paraje']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($p['nombre_paraje'] . ' (' . $p['termino_municipal'] . ')') ?>
+                                    <option value="<?= $p['id_paraje'] ?>" data-codigo="<?= htmlspecialchars($p['codigo'] ?: '') ?>" <?= (isset($_POST['id_paraje']) && (int)$_POST['id_paraje'] === (int)$p['id_paraje']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars(($p['codigo'] ? '[' . $p['codigo'] . '] ' : '') . $p['nombre_paraje'] . ' (' . $p['termino_municipal'] . ')') ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -286,8 +286,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Parada</label>
-                            <input type="text" name="parada" class="form-control" placeholder="Ej: Parada 4" value="<?= htmlspecialchars(isset($_POST['parada']) ? $_POST['parada'] : '') ?>">
+                            <label class="form-label fw-semibold">Parada (Nº / Código)</label>
+                            <input type="text" name="parada" id="in_parada" class="form-control" placeholder="Ej: 067" value="<?= htmlspecialchars(isset($_POST['parada']) ? $_POST['parada'] : '') ?>">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Tablón</label>
@@ -359,6 +359,17 @@ function syncFanegasToHa() {
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('finca_ha').value) {
         syncHaToFanegas();
+    }
+    var selPar = document.getElementById('select_paraje_finca');
+    var inPar = document.getElementById('in_parada');
+    if (selPar && inPar) {
+        selPar.addEventListener('change', function() {
+            var opt = this.options[this.selectedIndex];
+            var cod = opt ? opt.getAttribute('data-codigo') : '';
+            if (cod && !inPar.value) {
+                inPar.value = cod;
+            }
+        });
     }
 });
 </script>

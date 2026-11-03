@@ -219,7 +219,7 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-draw-polygon me-2 text-primary"></i>Mis Fincas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus-circle me-2 text-primary"></i>Nueva Finca</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes y Paradas</a></li>
                         </ul>
                     </li>
 
@@ -305,6 +305,10 @@
                             <?php if (Auth::isSuperAdmin()): ?>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/configuracion"><i class="fa-solid fa-compass-drafting me-2 text-info"></i>Personalizar Portal</a></li>
+                            <?php endif; ?>
+                            <?php if (Auth::canManageUsers() || Auth::isAdmin()): ?>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/backup"><i class="fa-solid fa-shield-halved me-2 text-warning"></i>Copias de Seguridad (Backup)</a></li>
                             <?php endif; ?>
                         </ul>
                     </li>

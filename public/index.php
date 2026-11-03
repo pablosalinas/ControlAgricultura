@@ -310,6 +310,16 @@ switch ($route) {
         require_once VIEWS_PATH . '/gastos/tipos.php';
         break;
 
+    // Copias de Seguridad (Backup)
+    case 'backup':
+    case 'configuracion/backup':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/configuracion/backup.php';
+        break;
+
     default:
         http_response_code(404);
         $pageTitle = "Página no encontrada - " . APP_NAME;

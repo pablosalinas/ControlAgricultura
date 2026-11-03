@@ -13,7 +13,7 @@ $error = '';
 $sqlFincas = "SELECT id_finca, nombre_finca, superficie_ha, poligono, parcela FROM fincas WHERE activo = 1";
 $paramsF = array();
 if ($tenantId) {
-    $sqlFincas .= " AND id_propietario = :prop";
+    $sqlFincas .= " AND (id_propietario = :prop OR id_propietario IS NULL)";
     $paramsF[':prop'] = $tenantId;
 }
 $sqlFincas .= " ORDER BY nombre_finca ASC";

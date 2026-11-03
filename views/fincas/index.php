@@ -99,8 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Parajes para modal de edición
-$parajes = $db->query("SELECT id_paraje, nombre_paraje, termino_municipal FROM parajes ORDER BY nombre_paraje ASC")->fetchAll();
+// Parajes para modal de edición y filtros
+$parajes = $db->query("SELECT id_paraje, codigo, nombre_paraje, termino_municipal FROM parajes WHERE (activo = 1 OR activo IS NULL) ORDER BY CASE WHEN codigo IS NOT NULL AND codigo != '' THEN 0 ELSE 1 END, codigo ASC, nombre_paraje ASC")->fetchAll();
 
 // Explotaciones para selector en modal de edición
 $explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE activo = 1 ORDER BY nombre_razon_social ASC")->fetchAll();
@@ -132,6 +132,9 @@ if (empty($comunidades)) {
 // Filtros
 $filtroParaje = isset($_GET['paraje_id']) ? (int)$_GET['paraje_id'] : 0;
 $filtroTxt = isset($_GET['q']) ? trim($_GET['q']) : '';
+$verTodas = (isset($_GET['ver_todas']) && $_GET['ver_todas'] == '1') || empty($tenantId);
+
+$totalFincasBd = (int)$db->query("SELECT COUNT(*) FROM fincas WHERE activo = 1")->fetchColumn();
 
 $sql = "
     SELECT f.*, p.nombre_paraje, cr.nombre_comunidad AS nombre_comunidad_ref, prop.nombre_razon_social AS nombre_explotacion,
@@ -144,9 +147,12 @@ $sql = "
 ";
 $params = array();
 
-// Las fincas deben estar asociadas a la explotación seleccionada
-if ($tenantId) {
-    $sql .= " AND f.id_propietario = :tenant";
+// Las fincas deben estar asociadas a la explotación seleccionada.
+// Para garantizar que NUNCA se oculte ninguna finca registrada, se muestran las de la explotación activa
+// Y TAMBIÉN aquellas sin explotación asignada (id_propietario IS NULL).
+// Si se solicita ver todas ($verTodas), se muestran absolutamente todas las fincas de la base de datos.
+if ($tenantId && !$verTodas) {
+    $sql .= " AND (f.id_propietario = :tenant OR f.id_propietario IS NULL)";
     $params[':tenant'] = (int)$tenantId;
 }
 
@@ -177,11 +183,20 @@ $fincas = $stmtF->fetchAll();
             <div>
                 <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Maestro de Fincas y Parcelas</h2>
                 <p class="text-muted mb-0 small">Control registral, catastral y asignación de derechos de riego por tanda</p>
-                <div class="d-flex align-items-center gap-2 mt-1">
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
                     <span class="badge bg-light text-dark border">
                         <i class="fa-solid fa-building-wheat text-primary me-1"></i>Explotación: <strong><?= htmlspecialchars(isset($_SESSION['nombre_propietario']) && $_SESSION['nombre_propietario'] ? $_SESSION['nombre_propietario'] : 'Vista Global (Todas)') ?></strong>
                     </span>
-                    <a href="<?= APP_URL ?>/explotaciones" class="small text-decoration-none"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Cambiar</a>
+                    <a href="<?= APP_URL ?>/explotaciones" class="small text-decoration-none me-2"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Cambiar</a>
+                    <?php if ($tenantId && !$verTodas): ?>
+                        <a href="<?= APP_URL ?>/fincas?ver_todas=1" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none py-1 px-2" title="Mostrar todas las fincas registradas en el sistema">
+                            <i class="fa-solid fa-eye me-1"></i>Ver todas las fincas (<?= $totalFincasBd ?>)
+                        </a>
+                    <?php elseif ($tenantId && $verTodas): ?>
+                        <a href="<?= APP_URL ?>/fincas" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-decoration-none py-1 px-2" title="Volver a filtrar por la explotación activa">
+                            <i class="fa-solid fa-filter me-1"></i>Filtrar sólo esta explotación
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -212,10 +227,10 @@ $fincas = $stmtF->fetchAll();
             </div>
             <div class="col-md-4">
                 <select name="paraje_id" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="0">-- Todos los parajes --</option>
+                    <option value="0">-- Todos los parajes / paradas --</option>
                     <?php foreach ($parajes as $par): ?>
                         <option value="<?= $par['id_paraje'] ?>" <?= ($filtroParaje === (int)$par['id_paraje']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($par['nombre_paraje'] . ' (' . $par['termino_municipal'] . ')') ?>
+                            <?= htmlspecialchars(($par['codigo'] ? '[' . $par['codigo'] . '] ' : '') . $par['nombre_paraje'] . ' (' . $par['termino_municipal'] . ')') ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -382,12 +397,12 @@ $fincas = $stmtF->fetchAll();
                                                                 </select>
                                                             </div>
                                                             <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Paraje</label>
-                                                                <select name="id_paraje" class="form-select">
-                                                                    <option value="">-- Sin Paraje Asignado --</option>
+                                                                <label class="form-label fw-semibold small">Paraje / Parada</label>
+                                                                <select name="id_paraje" class="form-select select-paraje-modal" data-finca="<?= $f['id_finca'] ?>">
+                                                                    <option value="" data-codigo="">-- Sin Paraje Asignado --</option>
                                                                     <?php foreach ($parajes as $par): ?>
-                                                                        <option value="<?= $par['id_paraje'] ?>" <?= ((int)$f['id_paraje'] === (int)$par['id_paraje']) ? 'selected' : '' ?>>
-                                                                            <?= htmlspecialchars($par['nombre_paraje'] . ' (' . $par['termino_municipal'] . ')') ?>
+                                                                        <option value="<?= $par['id_paraje'] ?>" data-codigo="<?= htmlspecialchars($par['codigo'] ?: '') ?>" <?= ((int)$f['id_paraje'] === (int)$par['id_paraje']) ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars(($par['codigo'] ? '[' . $par['codigo'] . '] ' : '') . $par['nombre_paraje'] . ' (' . $par['termino_municipal'] . ')') ?>
                                                                         </option>
                                                                     <?php endforeach; ?>
                                                                 </select>
@@ -469,8 +484,8 @@ $fincas = $stmtF->fetchAll();
                                                                 <input type="text" name="num_socio_comunidad" class="form-control font-monospace" value="<?= htmlspecialchars($f['num_socio_comunidad'] ?: '') ?>">
                                                             </div>
                                                             <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Parada</label>
-                                                                <input type="text" name="parada" class="form-control" value="<?= htmlspecialchars($f['parada'] ?: '') ?>">
+                                                                <label class="form-label fw-semibold small">Parada (Nº / Nombre)</label>
+                                                                <input type="text" name="parada" id="modal_parada_<?= $f['id_finca'] ?>" class="form-control" value="<?= htmlspecialchars($f['parada'] ?: '') ?>" placeholder="Ej: 067">
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Tablón</label>
@@ -532,6 +547,18 @@ function syncModalFan(id) {
         haEl.value = '';
     }
 }
+
+document.querySelectorAll('.select-paraje-modal').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+        var fincaId = this.getAttribute('data-finca');
+        var opt = this.options[this.selectedIndex];
+        var codigo = opt ? opt.getAttribute('data-codigo') : '';
+        var inputParada = document.getElementById('modal_parada_' + fincaId);
+        if (inputParada && codigo && !inputParada.value) {
+            inputParada.value = codigo;
+        }
+    });
+});
 </script>
 
 <?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>
