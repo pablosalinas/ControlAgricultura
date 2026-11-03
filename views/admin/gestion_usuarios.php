@@ -28,7 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $telefono = trim(isset($_POST['telefono']) ? $_POST['telefono'] : '');
         $rol = isset($_POST['rol']) ? $_POST['rol'] : 'tecnico';
         
-        $idProp = $isSuperAdmin ? (!empty($_POST['id_propietario']) ? (int)$_POST['id_propietario'] : null) : $tenantId;
+        // Multi-explotación
+        $expSeleccionadas = isset($_POST['explotaciones']) && is_array($_POST['explotaciones']) ? array_map('intval', $_POST['explotaciones']) : array();
+        if (!$isSuperAdmin) {
+            $expSeleccionadas = array((int)$tenantId);
+        }
+        $idProp = !empty($expSeleccionadas) ? $expSeleccionadas[0] : null;
 
         if (!$isSuperAdmin && $rol === 'superadmin') {
             $rol = 'tecnico';
@@ -57,7 +62,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':rol'   => $rol,
                     ':admin' => $currentUser['id']
                 ));
-                $mensaje = "Usuario creado y activado correctamente en la explotación.";
+                $newUserId = (int)$db->lastInsertId();
+
+                // Guardar asignaciones multi-explotación
+                if (!empty($expSeleccionadas) && $newUserId > 0) {
+                    $insUE = $db->prepare("INSERT IGNORE INTO usuarios_explotaciones (id_usuario, id_propietario) VALUES (?, ?)");
+                    foreach ($expSeleccionadas as $pid) {
+                        if ($pid > 0) {
+                            $insUE->execute(array($newUserId, $pid));
+                        }
+                    }
+                }
+
+                $mensaje = "Usuario creado y activado correctamente en las explotaciones seleccionadas.";
             }
         }
     }
@@ -90,8 +107,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "El correo electrónico ya está en uso por otro usuario.";
             } else {
                 $idProp = $targetUser['id_propietario'];
+                $expSeleccionadas = null;
                 if ($isSuperAdmin) {
-                    $idProp = !empty($_POST['id_propietario']) ? (int)$_POST['id_propietario'] : null;
+                    if (isset($_POST['explotaciones']) && is_array($_POST['explotaciones'])) {
+                        $expSeleccionadas = array_map('intval', $_POST['explotaciones']);
+                        $idProp = !empty($expSeleccionadas) ? $expSeleccionadas[0] : null;
+                    } else {
+                        $expSeleccionadas = array();
+                        $idProp = null;
+                    }
                 }
 
                 if (!$isSuperAdmin && $rol === 'superadmin') {
@@ -137,6 +161,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':id'   => $idTarget
                     ));
                     $mensaje = "Datos del usuario actualizados correctamente.";
+                }
+
+                // Sincronizar tabla intermedia si es superadmin
+                if ($isSuperAdmin && $expSeleccionadas !== null) {
+                    $db->prepare("DELETE FROM usuarios_explotaciones WHERE id_usuario = :id")->execute(array(':id' => $idTarget));
+                    if (!empty($expSeleccionadas)) {
+                        $insUE = $db->prepare("INSERT IGNORE INTO usuarios_explotaciones (id_usuario, id_propietario) VALUES (:uid, :pid)");
+                        foreach ($expSeleccionadas as $pid) {
+                            if ($pid > 0) {
+                                $insUE->execute(array(':uid' => $idTarget, ':pid' => $pid));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -191,10 +228,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Cargar explotaciones para asignación
-$explotaciones = array();
-if ($isSuperAdmin) {
-    $explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios ORDER BY nombre_razon_social ASC")->fetchAll();
+// Cargar todas las explotaciones para asignación
+$explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios ORDER BY nombre_razon_social ASC")->fetchAll();
+
+// Cargar mapa de asignaciones multi-explotación
+$stmtUE = $db->query("
+    SELECT ue.id_usuario, ue.id_propietario, p.nombre_razon_social
+    FROM usuarios_explotaciones ue
+    JOIN propietarios p ON ue.id_propietario = p.id_propietario
+    ORDER BY p.nombre_razon_social ASC
+");
+$userExplotacionesMap = array();
+$userExpIdsMap = array();
+while ($ueRow = $stmtUE->fetch()) {
+    $uid = (int)$ueRow['id_usuario'];
+    $pid = (int)$ueRow['id_propietario'];
+    $userExplotacionesMap[$uid][] = $ueRow['nombre_razon_social'];
+    $userExpIdsMap[$uid][] = $pid;
 }
 
 // Filtros
@@ -304,11 +354,11 @@ $usuarios = $stmtUsers->fetchAll();
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label fw-semibold small">Teléfono</label>
                         <input type="tel" name="telefono" class="form-control" placeholder="600 000 000">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label fw-semibold small">Rol / Perfil de Trabajo <span class="text-danger">*</span></label>
                         <select name="rol" class="form-select" required>
                             <option value="tecnico" selected>Técnico / Encargado (Registra labores y riegos)</option>
@@ -321,17 +371,38 @@ $usuarios = $stmtUsers->fetchAll();
                     </div>
 
                     <?php if ($isSuperAdmin): ?>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold small">Explotación Agrícola Asignada</label>
-                            <select name="id_propietario" class="form-select">
-                                <option value="">-- Sin Explotación / Global --</option>
-                                <?php foreach ($explotaciones as $exp): ?>
-                                    <option value="<?= $exp['id_propietario'] ?>"><?= htmlspecialchars($exp['nombre_razon_social']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="col-12">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+                                    <label class="form-label fw-bold small text-primary mb-0">
+                                        <i class="fa-solid fa-building-wheat me-1"></i> Asignación de Explotaciones Agrarias (Una o Varias)
+                                    </label>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" onclick="seleccionarTodasExplotaciones('chk_exp_nuevo')">
+                                            <i class="fa-solid fa-check-double me-1"></i> Asignar Todas
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="deseleccionarTodasExplotaciones('chk_exp_nuevo')">
+                                            <i class="fa-solid fa-ban me-1"></i> Ninguna
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="chk_exp_nuevo" class="row g-2" style="max-height: 180px; overflow-y: auto;">
+                                    <?php foreach ($explotaciones as $exp): ?>
+                                        <div class="col-md-4 col-sm-6">
+                                            <div class="form-check p-2 rounded bg-white border">
+                                                <input class="form-check-input ms-0 me-2" type="checkbox" name="explotaciones[]" value="<?= $exp['id_propietario'] ?>" id="exp_nuevo_<?= $exp['id_propietario'] ?>">
+                                                <label class="form-check-label small fw-semibold text-truncate d-block" for="exp_nuevo_<?= $exp['id_propietario'] ?>" title="<?= htmlspecialchars($exp['nombre_razon_social']) ?>">
+                                                    <?= htmlspecialchars($exp['nombre_razon_social']) ?>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <div class="form-text small text-muted mt-2">Puedes seleccionar individualmente o usar los botones para asignar todas o ninguna.</div>
+                            </div>
                         </div>
                     <?php else: ?>
-                        <div class="col-md-4">
+                        <div class="col-12">
                             <label class="form-label fw-semibold small">Explotación Asignada</label>
                             <input type="text" class="form-control bg-light" readonly value="<?= htmlspecialchars($currentUser['nombre_propietario']) ?>">
                             <div class="form-text small">El usuario operará estrictamente en tu explotación.</div>
@@ -440,12 +511,31 @@ $usuarios = $stmtUsers->fetchAll();
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($u['nombre_explotacion']): ?>
+                                    <?php
+                                    $uidActual = (int)$u['id_usuario'];
+                                    $misExplotaciones = isset($userExplotacionesMap[$uidActual]) ? $userExplotacionesMap[$uidActual] : array();
+                                    $totalAsignadas = count($misExplotaciones);
+                                    ?>
+                                    <?php if ($totalAsignadas > 0): ?>
+                                        <?php if ($totalAsignadas === 1): ?>
+                                            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold border border-primary-subtle">
+                                                <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($misExplotaciones[0]) ?>
+                                            </span>
+                                        <?php elseif (!empty($explotaciones) && $totalAsignadas === count($explotaciones)): ?>
+                                            <span class="badge bg-success bg-opacity-15 text-success fw-bold border border-success-subtle" title="<?= htmlspecialchars(implode(', ', $misExplotaciones)) ?>">
+                                                <i class="fa-solid fa-check-double me-1"></i>Todas las Explotaciones (<?= $totalAsignadas ?>)
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-info bg-opacity-15 text-primary fw-bold border border-info-subtle" title="<?= htmlspecialchars(implode(', ', $misExplotaciones)) ?>" style="cursor: help;">
+                                                <i class="fa-solid fa-layer-group me-1"></i><?= $totalAsignadas ?> Explotaciones
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php elseif ($u['nombre_explotacion']): ?>
                                         <span class="badge bg-primary bg-opacity-10 text-primary fw-bold border border-primary-subtle">
                                             <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($u['nombre_explotacion']) ?>
                                         </span>
                                     <?php else: ?>
-                                        <span class="badge bg-secondary"><i class="fa-solid fa-globe me-1"></i>Global / Todas</span>
+                                        <span class="badge bg-secondary"><i class="fa-solid fa-globe me-1"></i>Sin Asignar / Global</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -569,16 +659,39 @@ $usuarios = $stmtUsers->fetchAll();
                                                         </div>
 
                                                         <?php if ($isSuperAdmin): ?>
+                                                            <?php 
+                                                            $assignedIds = isset($userExpIdsMap[$u['id_usuario']]) ? $userExpIdsMap[$u['id_usuario']] : (!empty($u['id_propietario']) ? array((int)$u['id_propietario']) : array()); 
+                                                            ?>
                                                             <div class="mb-3">
-                                                                <label class="form-label fw-semibold small">Explotación Agraria Asignada</label>
-                                                                <select name="id_propietario" class="form-select">
-                                                                    <option value="" <?= empty($u['id_propietario']) ? 'selected' : '' ?>>-- Sin Explotación / Global (Técnico Central) --</option>
-                                                                    <?php foreach ($explotaciones as $exp): ?>
-                                                                        <option value="<?= $exp['id_propietario'] ?>" <?= ((int)$u['id_propietario'] === (int)$exp['id_propietario']) ? 'selected' : '' ?>>
-                                                                            <?= htmlspecialchars($exp['nombre_razon_social']) ?>
-                                                                        </option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
+                                                                <div class="p-3 bg-light rounded-3 border">
+                                                                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+                                                                        <label class="form-label fw-bold small text-primary mb-0">
+                                                                            <i class="fa-solid fa-building-wheat me-1"></i> Explotaciones Agrarias Asignadas (Una o Varias)
+                                                                        </label>
+                                                                        <div class="btn-group btn-group-sm">
+                                                                            <button type="button" class="btn btn-outline-primary" onclick="seleccionarTodasExplotaciones('chk_exp_edit_<?= $u['id_usuario'] ?>')">
+                                                                                <i class="fa-solid fa-check-double me-1"></i> Asignar Todas
+                                                                            </button>
+                                                                            <button type="button" class="btn btn-outline-secondary" onclick="deseleccionarTodasExplotaciones('chk_exp_edit_<?= $u['id_usuario'] ?>')">
+                                                                                <i class="fa-solid fa-ban me-1"></i> Ninguna
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div id="chk_exp_edit_<?= $u['id_usuario'] ?>" class="row g-2" style="max-height: 180px; overflow-y: auto;">
+                                                                        <?php foreach ($explotaciones as $exp): ?>
+                                                                            <?php $isChecked = in_array((int)$exp['id_propietario'], $assignedIds); ?>
+                                                                            <div class="col-md-6">
+                                                                                <div class="form-check p-2 rounded bg-white border">
+                                                                                    <input class="form-check-input ms-0 me-2" type="checkbox" name="explotaciones[]" value="<?= $exp['id_propietario'] ?>" id="exp_edit_<?= $u['id_usuario'] ?>_<?= $exp['id_propietario'] ?>" <?= $isChecked ? 'checked' : '' ?>>
+                                                                                    <label class="form-check-label small fw-semibold text-truncate d-block" for="exp_edit_<?= $u['id_usuario'] ?>_<?= $exp['id_propietario'] ?>" title="<?= htmlspecialchars($exp['nombre_razon_social']) ?>">
+                                                                                        <?= htmlspecialchars($exp['nombre_razon_social']) ?>
+                                                                                    </label>
+                                                                                </div>
+                                                                            </div>
+                                                                        <?php endforeach; ?>
+                                                                    </div>
+                                                                    <div class="form-text small text-muted mt-2">Puedes marcar individualmente una o varias explotaciones, o usar los botones de acción rápida.</div>
+                                                                </div>
                                                             </div>
                                                         <?php endif; ?>
 
@@ -609,5 +722,25 @@ $usuarios = $stmtUsers->fetchAll();
         </div>
     </div>
 </div>
+
+<script>
+function seleccionarTodasExplotaciones(containerId) {
+    var c = document.getElementById(containerId);
+    if (!c) return;
+    var chks = c.querySelectorAll('input[type="checkbox"]');
+    chks.forEach(function(cb) {
+        cb.checked = true;
+    });
+}
+
+function deseleccionarTodasExplotaciones(containerId) {
+    var c = document.getElementById(containerId);
+    if (!c) return;
+    var chks = c.querySelectorAll('input[type="checkbox"]');
+    chks.forEach(function(cb) {
+        cb.checked = false;
+    });
+}
+</script>
 
 <?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>

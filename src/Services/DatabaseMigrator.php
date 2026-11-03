@@ -204,6 +204,48 @@ class DatabaseMigrator {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
+            // 7. Tabla USUARIOS_EXPLOTACIONES (Relación N:M para asignar usuarios a una o varias explotaciones)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS usuarios_explotaciones (
+                    id_usuario INT NOT NULL,
+                    id_propietario INT NOT NULL,
+                    fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id_usuario, id_propietario),
+                    INDEX idx_ue_user (id_usuario),
+                    INDEX idx_ue_prop (id_propietario)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Migrar usuarios existentes que tengan id_propietario asignado a la tabla intermedia
+            $pdo->exec("
+                INSERT IGNORE INTO usuarios_explotaciones (id_usuario, id_propietario)
+                SELECT id_usuario, id_propietario
+                FROM usuarios
+                WHERE id_propietario IS NOT NULL AND id_propietario > 0;
+            ");
+
+            // 8. Tabla LOGS_ACCESOS (Contador de visitas, auditoría y control de accesos al sistema y administración)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS logs_accesos (
+                    id_log BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    ip_address VARCHAR(45) NOT NULL,
+                    user_agent VARCHAR(255) NULL,
+                    metodo VARCHAR(10) NOT NULL DEFAULT 'GET',
+                    url_solicitada VARCHAR(255) NOT NULL,
+                    ruta VARCHAR(100) NULL,
+                    id_usuario INT NULL,
+                    nombre_usuario VARCHAR(150) NULL,
+                    rol_usuario VARCHAR(50) NULL,
+                    id_propietario INT NULL,
+                    es_admin TINYINT(1) NOT NULL DEFAULT 0,
+                    fecha_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_log_fecha (fecha_hora),
+                    INDEX idx_log_ip (ip_address),
+                    INDEX idx_log_admin (es_admin),
+                    INDEX idx_log_user (id_usuario)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }

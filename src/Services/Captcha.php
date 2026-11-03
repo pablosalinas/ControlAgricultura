@@ -86,4 +86,38 @@ class Captcha {
         unset($_SESSION['captcha_code']);
         return $isValid;
     }
+
+    /**
+     * Genera un reto de cálculo matemático sencillo (suma de 2 dígitos)
+     * Fácil y rápido para humanos, bloqueante para robots automáticos
+     */
+    public static function generateMathChallenge() {
+        $n1 = mt_rand(1, 9);
+        $n2 = mt_rand(1, 9);
+        $sum = $n1 + $n2;
+        $_SESSION['captcha_math_sum'] = $sum;
+        return array(
+            'num1' => $n1,
+            'num2' => $n2,
+            'sum'  => $sum,
+            'text' => "¿Cuánto es {$n1} + {$n2}?"
+        );
+    }
+
+    /**
+     * Valida el resultado numérico de la suma del captcha
+     */
+    public static function validateMath($input) {
+        if (!isset($_SESSION['captcha_math_sum']) || trim($input) === '') {
+            return false;
+        }
+
+        $expected = (int)$_SESSION['captcha_math_sum'];
+        $received = (int)trim($input);
+        
+        // Destruir reto de sesión para evitar reutilización
+        unset($_SESSION['captcha_math_sum']);
+
+        return ($received === $expected);
+    }
 }

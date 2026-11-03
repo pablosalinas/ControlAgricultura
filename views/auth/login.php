@@ -34,16 +34,33 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         <label for="email" class="form-label fw-semibold">Correo Electrónico</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light"><i class="fa-solid fa-envelope text-muted"></i></span>
-                            <input type="email" class="form-control" id="email" name="email" required placeholder="tu@email.com" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                            <input type="email" class="form-control" id="email" name="email" required placeholder="tu@email.com" value="<?= htmlspecialchars(isset($_POST['email']) ? $_POST['email'] : '') ?>">
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="password" class="form-label fw-semibold">Contraseña</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light"><i class="fa-solid fa-key text-muted"></i></span>
                             <input type="password" class="form-control" id="password" name="password" required placeholder="••••••••">
                         </div>
+                    </div>
+
+                    <!-- Reto Anti-robot (Captcha Matemático Sencillo) -->
+                    <div class="mb-4 p-3 rounded-3 border bg-light">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <label for="captcha_math" class="form-label fw-semibold small text-primary mb-0">
+                                <i class="fa-solid fa-shield-halved me-1"></i> Control de Seguridad Anti-robot
+                            </label>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle font-monospace px-2 py-1">
+                                <?= htmlspecialchars(isset($mathChallenge['text']) ? $mathChallenge['text'] : '¿Cuánto es 3 + 4?') ?>
+                            </span>
+                        </div>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted fw-bold">=</span>
+                            <input type="number" class="form-control" id="captcha_math" name="captcha_math" required placeholder="Introduce el resultado de la suma" autocomplete="off" min="0" max="30">
+                        </div>
+                        <div class="form-text small text-muted">Resuelve la suma para verificar que eres una persona.</div>
                     </div>
 
                     <button type="submit" class="btn btn-ag w-100 py-2 fw-bold mb-3 shadow-sm">

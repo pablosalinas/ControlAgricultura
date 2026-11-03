@@ -10,11 +10,14 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-    // 1. Conmutar explotación activa (Solo Superadmin)
-    if ($action === 'switch_tenant' && Auth::isSuperAdmin()) {
+    // 1. Conmutar explotación activa (Superadmin o Usuario con acceso a múltiples explotaciones)
+    if ($action === 'switch_tenant') {
         $idSwitch = isset($_POST['id_propietario']) ? $_POST['id_propietario'] : null;
-        Auth::switchTenant($idSwitch);
-        $success = "Has cambiado a la explotación activa: <strong>" . htmlspecialchars($_SESSION['nombre_propietario']) . "</strong>";
+        if (Auth::switchTenant($idSwitch)) {
+            $success = "Has cambiado a la explotación activa: <strong>" . htmlspecialchars($_SESSION['nombre_propietario']) . "</strong>";
+        } else {
+            $error = "No tienes permiso para conmutar a esta explotación.";
+        }
     }
 
     // 2. Crear nueva explotación (Solo Superadmin)
@@ -78,9 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "El nombre de la explotación no puede quedar vacío.";
             } else {
                 try {
-                    $pCom = (float)($_POST['precio_hora_comunitaria'] ?? 12.00);
-                    $pHort = (float)($_POST['precio_hora_hortalizas'] ?? 15.00);
-                    $derr = (float)($_POST['derrama_anual_comunidad'] ?? 150.00);
+                    $pCom = (float)(isset($_POST['precio_hora_comunitaria']) ? $_POST['precio_hora_comunitaria'] : 12.00);
+                    $pHort = (float)(isset($_POST['precio_hora_hortalizas']) ? $_POST['precio_hora_hortalizas'] : 15.00);
+                    $derr = (float)(isset($_POST['derrama_anual_comunidad']) ? $_POST['derrama_anual_comunidad'] : 150.00);
 
                     $stmt = $db->prepare("
                         UPDATE propietarios 
@@ -416,21 +419,21 @@ $currentTenantId = Auth::tenantId();
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Precio Hora Comunitaria</label>
                                                                 <div class="input-group">
-                                                                    <input type="number" step="0.01" name="precio_hora_comunitaria" class="form-control font-monospace fw-bold" value="<?= $exp['precio_hora_comunitaria'] ?? '12.00' ?>">
+                                                                    <input type="number" step="0.01" name="precio_hora_comunitaria" class="form-control font-monospace fw-bold" value="<?= isset($exp['precio_hora_comunitaria']) ? $exp['precio_hora_comunitaria'] : '12.00' ?>">
                                                                     <span class="input-group-text">€/h</span>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Hora Comunitaria HORTALIZAS</label>
                                                                 <div class="input-group">
-                                                                    <input type="number" step="0.01" name="precio_hora_hortalizas" class="form-control font-monospace fw-bold text-success" value="<?= $exp['precio_hora_hortalizas'] ?? '15.00' ?>">
+                                                                    <input type="number" step="0.01" name="precio_hora_hortalizas" class="form-control font-monospace fw-bold text-success" value="<?= isset($exp['precio_hora_hortalizas']) ? $exp['precio_hora_hortalizas'] : '15.00' ?>">
                                                                     <span class="input-group-text">€/h</span>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Derrama Anual Comunidad</label>
                                                                 <div class="input-group">
-                                                                    <input type="number" step="0.01" name="derrama_anual_comunidad" class="form-control font-monospace fw-bold" value="<?= $exp['derrama_anual_comunidad'] ?? '150.00' ?>">
+                                                                    <input type="number" step="0.01" name="derrama_anual_comunidad" class="form-control font-monospace fw-bold" value="<?= isset($exp['derrama_anual_comunidad']) ? $exp['derrama_anual_comunidad'] : '150.00' ?>">
                                                                     <span class="input-group-text">€/año</span>
                                                                 </div>
                                                             </div>

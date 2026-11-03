@@ -57,8 +57,22 @@ class Auth {
         $_SESSION['user_apellidos'] = $user['apellidos'];
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['user_rol'] = $user['rol'];
-        $_SESSION['id_propietario'] = $user['id_propietario'];
-        $_SESSION['nombre_propietario'] = $user['nombre_propietario'];
+        
+        // Cargar explotaciones asignadas al usuario
+        $tenants = self::getUserTenants($user['id_usuario']);
+        $_SESSION['user_tenants'] = array_column($tenants, 'id_propietario');
+
+        // Si no tiene id_propietario definido pero tiene asignaciones, asignar la primera
+        $activePropId = $user['id_propietario'];
+        $activePropNombre = $user['nombre_propietario'];
+
+        if (empty($activePropId) && !empty($tenants)) {
+            $activePropId = $tenants[0]['id_propietario'];
+            $activePropNombre = $tenants[0]['nombre_razon_social'];
+        }
+
+        $_SESSION['id_propietario'] = $activePropId;
+        $_SESSION['nombre_propietario'] = $activePropNombre ?: 'Sin asignar';
 
         return array('success' => true, 'user' => $user);
     }
@@ -159,20 +173,72 @@ class Auth {
     }
 
     /**
-     * Permite al Superadministrador conmutar de explotación activa para ver o gestionar sus datos
+     * Obtiene la lista de explotaciones asignadas a un usuario específico
      */
-    public static function switchTenant($idPropietario) {
-        if (!self::isSuperAdmin()) {
-            return false;
-        }
+    public static function getUserTenants($userId) {
         $db = Database::getConnection();
-        if (empty($idPropietario)) {
-            $_SESSION['id_propietario'] = null;
-            $_SESSION['nombre_propietario'] = 'Vista Global (Todas)';
+        if (!$db || empty($userId)) return array();
+
+        $stmt = $db->prepare("
+            SELECT p.id_propietario, p.nombre_razon_social, p.cif_nif, p.logo, p.municipio
+            FROM usuarios_explotaciones ue
+            INNER JOIN propietarios p ON ue.id_propietario = p.id_propietario
+            WHERE ue.id_usuario = :uid
+            ORDER BY p.nombre_razon_social ASC
+        ");
+        $stmt->execute(array(':uid' => (int)$userId));
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Comprueba si el usuario en sesión tiene acceso a una determinada explotación
+     */
+    public static function canAccessTenant($idPropietario) {
+        if (!self::check()) return false;
+        if (self::isSuperAdmin()) return true;
+        if (empty($idPropietario)) return false;
+
+        $idPropInt = (int)$idPropietario;
+        if (isset($_SESSION['id_propietario']) && (int)$_SESSION['id_propietario'] === $idPropInt) {
             return true;
         }
+
+        if (isset($_SESSION['user_tenants']) && is_array($_SESSION['user_tenants'])) {
+            return in_array($idPropInt, array_map('intval', $_SESSION['user_tenants']));
+        }
+
+        // Consultar DB si no está en sesión
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT 1 FROM usuarios_explotaciones WHERE id_usuario = :uid AND id_propietario = :pid LIMIT 1");
+        $stmt->execute(array(':uid' => (int)$_SESSION['user_id'], ':pid' => $idPropInt));
+        return (bool)$stmt->fetchColumn();
+    }
+
+    /**
+     * Permite conmutar de explotación activa (Superadmin a cualquiera, o usuario a cualquiera de sus asignadas)
+     */
+    public static function switchTenant($idPropietario) {
+        if (!self::check()) {
+            return false;
+        }
+
+        $db = Database::getConnection();
+        if (empty($idPropietario)) {
+            if (self::isSuperAdmin()) {
+                $_SESSION['id_propietario'] = null;
+                $_SESSION['nombre_propietario'] = 'Vista Global (Todas)';
+                return true;
+            }
+            return false;
+        }
+
+        $idPropInt = (int)$idPropietario;
+        if (!self::isSuperAdmin() && !self::canAccessTenant($idPropInt)) {
+            return false;
+        }
+
         $stmt = $db->prepare("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE id_propietario = :id LIMIT 1");
-        $stmt->execute(array(':id' => (int)$idPropietario));
+        $stmt->execute(array(':id' => $idPropInt));
         if ($prop = $stmt->fetch()) {
             $_SESSION['id_propietario'] = (int)$prop['id_propietario'];
             $_SESSION['nombre_propietario'] = $prop['nombre_razon_social'];

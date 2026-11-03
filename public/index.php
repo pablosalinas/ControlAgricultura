@@ -9,6 +9,7 @@ require_once SRC_PATH . '/Services/Auth.php';
 require_once SRC_PATH . '/Services/Captcha.php';
 require_once SRC_PATH . '/Services/Mailer.php';
 require_once SRC_PATH . '/Services/DatabaseMigrator.php';
+require_once SRC_PATH . '/Services/AccessTracker.php';
 
 // Auto-migración y verificación de esquema
 DatabaseMigrator::run();
@@ -16,6 +17,9 @@ DatabaseMigrator::run();
 // Obtener la ruta solicitada
 $route = isset($_GET['route']) ? $_GET['route'] : '';
 $route = trim($route, '/');
+
+// Registro de auditoría y visitas
+AccessTracker::log($route);
 
 // Enrutamiento
 switch ($route) {
@@ -32,17 +36,23 @@ switch ($route) {
         $error = '';
         $info = '';
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = isset($_POST['email']) ? $_POST['email'] : '';
-            $password = isset($_POST['password']) ? $_POST['password'] : '';
-            $result = Auth::attempt($email, $password);
-
-            if ($result['success']) {
-                header("Location: " . APP_URL . "/dashboard");
-                exit;
+            $captchaInput = isset($_POST['captcha_math']) ? $_POST['captcha_math'] : '';
+            if (!Captcha::validateMath($captchaInput)) {
+                $error = 'El control de seguridad anti-robot es incorrecto. Por favor, resuelva la suma matemática.';
             } else {
-                $error = $result['message'];
+                $email = isset($_POST['email']) ? $_POST['email'] : '';
+                $password = isset($_POST['password']) ? $_POST['password'] : '';
+                $result = Auth::attempt($email, $password);
+
+                if ($result['success']) {
+                    header("Location: " . APP_URL . "/dashboard");
+                    exit;
+                } else {
+                    $error = $result['message'];
+                }
             }
         }
+        $mathChallenge = Captcha::generateMathChallenge();
         require_once VIEWS_PATH . '/auth/login.php';
         break;
 
@@ -125,6 +135,15 @@ switch ($route) {
             exit;
         }
         require_once VIEWS_PATH . '/admin/configuracion.php';
+        break;
+
+    case 'admin/accesos':
+    case 'admin/estadisticas':
+        if (!Auth::canManageUsers()) {
+            header("Location: " . APP_URL . "/dashboard");
+            exit;
+        }
+        require_once VIEWS_PATH . '/admin/estadisticas_accesos.php';
         break;
 
     // Rutas para Fincas y Parajes

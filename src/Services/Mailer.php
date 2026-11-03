@@ -87,7 +87,14 @@ class Mailer {
                         if ($decPass) $config['smtp_pass'] = $decPass;
                     }
                     if (!empty($row['email_remitente'])) $config['email_remitente'] = $row['email_remitente'];
-                    if (!empty($row['email_comunidad'])) $config['email_comunidad'] = $row['email_comunidad'];
+                }
+
+                // Extraer el email oficial de la Comunidad de Regantes desde su ficha activa/predeterminada
+                $stmtCom = $db->query("SELECT email_solicitudes FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, id_comunidad ASC LIMIT 1");
+                if ($rowCom = $stmtCom->fetch()) {
+                    if (!empty($rowCom['email_solicitudes'])) {
+                        $config['email_comunidad'] = $rowCom['email_solicitudes'];
+                    }
                 }
             } catch (Exception $e) {}
         }
