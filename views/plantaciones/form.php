@@ -5,9 +5,9 @@ require_once VIEWS_PATH . '/layouts/header.php';
 $db = Database::getConnection();
 $tenantId = Auth::tenantId();
 
-$sqlFincas = "SELECT id_finca, nombre_finca, superficie_ha FROM fincas";
-if ($tenantId && !Auth::isAdmin()) {
-    $sqlFincas .= " WHERE id_propietario = " . (int)$tenantId;
+$sqlFincas = "SELECT id_finca, nombre_finca, superficie_ha FROM fincas WHERE activo = 1";
+if ($tenantId) {
+    $sqlFincas .= " AND id_propietario = " . (int)$tenantId;
 }
 $sqlFincas .= " ORDER BY nombre_finca ASC";
 $fincas = $db->query($sqlFincas)->fetchAll();

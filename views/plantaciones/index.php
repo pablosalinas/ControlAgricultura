@@ -80,7 +80,7 @@ $filtroCampana = isset($_GET['campana']) ? (int)$_GET['campana'] : 0;
 
 // Fincas para el filtro
 $sqlFincas = "SELECT id_finca, nombre_finca FROM fincas WHERE activo = 1";
-if ($tenantId && !$isSuperAdmin) {
+if ($tenantId) {
     $sqlFincas .= " AND id_propietario = " . (int)$tenantId;
 }
 $sqlFincas .= " ORDER BY nombre_finca ASC";
@@ -98,7 +98,7 @@ $sql = "
 ";
 $params = array();
 
-if ($tenantId && !$isSuperAdmin) {
+if ($tenantId) {
     $sql .= " AND f.id_propietario = :tenant";
     $params[':tenant'] = (int)$tenantId;
 }

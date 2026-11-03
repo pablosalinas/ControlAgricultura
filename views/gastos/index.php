@@ -12,7 +12,7 @@ $error = '';
 // Cargar fincas de la explotación activa
 $sqlFincas = "SELECT id_finca, nombre_finca, superficie_ha, poligono, parcela FROM fincas WHERE activo = 1";
 $paramsF = array();
-if ($tenantId && !$isSuperAdmin) {
+if ($tenantId) {
     $sqlFincas .= " AND id_propietario = :prop";
     $paramsF[':prop'] = $tenantId;
 }
@@ -246,7 +246,7 @@ $sqlGastos = "
 ";
 $paramsG = array();
 
-if ($tenantId && !$isSuperAdmin) {
+if ($tenantId) {
     $sqlGastos .= " AND g.id_propietario = :prop";
     $paramsG[':prop'] = $tenantId;
 }

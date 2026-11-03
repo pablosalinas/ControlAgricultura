@@ -221,7 +221,7 @@ $sqlFincas = "
     LEFT JOIN propietarios prop ON f.id_propietario = prop.id_propietario
     WHERE f.activo = 1
 ";
-if ($tenantId && !$isSuperAdmin) {
+if ($tenantId) {
     $sqlFincas .= " AND f.id_propietario = " . (int)$tenantId;
 }
 $sqlFincas .= " ORDER BY f.nombre_finca ASC";

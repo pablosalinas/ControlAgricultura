@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'editar_finca') {
         $idFinca = (int)$_POST['id_finca'];
         $nombreFinca = trim(isset($_POST['nombre_finca']) ? $_POST['nombre_finca'] : '');
+        $idPropietario = !empty($_POST['id_propietario']) ? (int)$_POST['id_propietario'] : ($tenantId ? (int)$tenantId : null);
         $idParaje = !empty($_POST['id_paraje']) ? (int)$_POST['id_paraje'] : null;
         $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
         $superficie = (float)(isset($_POST['superficie_ha']) ? $_POST['superficie_ha'] : 0);
@@ -45,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $stmtUpd = $db->prepare("
                     UPDATE fincas
-                    SET nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
+                    SET id_propietario = :id_prop, nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
                         coste_anual_ibi = :ibi, coste_anual_derrama = :derrama,
                         poligono = :pol, parcela = :parc, referencia_catastral = :ref,
                         zona_riego = :zona, parada = :parada, tablon = :tablon,
@@ -54,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE id_finca = :id
                 ");
                 $stmtUpd->execute(array(
+                    ':id_prop'   => $idPropietario,
                     ':nom'       => $nombreFinca,
                     ':paraje'    => $idParaje,
                     ':comunidad' => $idComunidad,
@@ -100,6 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Parajes para modal de edición
 $parajes = $db->query("SELECT id_paraje, nombre_paraje, termino_municipal FROM parajes ORDER BY nombre_paraje ASC")->fetchAll();
 
+// Explotaciones para selector en modal de edición
+$explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE activo = 1 ORDER BY nombre_razon_social ASC")->fetchAll();
+
 // Cargar equivalencia de Fanegas por Hectárea desde configuración (por defecto 3.00)
 $cfgFan = $db->query("SELECT fanegas_por_hectarea FROM configuracion_web LIMIT 1")->fetch();
 $fanegasPorHa = (!empty($cfgFan['fanegas_por_hectarea'])) ? (float)$cfgFan['fanegas_por_hectarea'] : 3.0000;
@@ -129,16 +134,18 @@ $filtroParaje = isset($_GET['paraje_id']) ? (int)$_GET['paraje_id'] : 0;
 $filtroTxt = isset($_GET['q']) ? trim($_GET['q']) : '';
 
 $sql = "
-    SELECT f.*, p.nombre_paraje, cr.nombre_comunidad AS nombre_comunidad_ref,
+    SELECT f.*, p.nombre_paraje, cr.nombre_comunidad AS nombre_comunidad_ref, prop.nombre_razon_social AS nombre_explotacion,
            (SELECT COUNT(*) FROM plantaciones pl WHERE pl.id_finca = f.id_finca) AS total_plantaciones
     FROM fincas f 
     LEFT JOIN parajes p ON f.id_paraje = p.id_paraje 
     LEFT JOIN comunidades_regantes cr ON f.id_comunidad = cr.id_comunidad
+    LEFT JOIN propietarios prop ON f.id_propietario = prop.id_propietario
     WHERE f.activo = 1
 ";
 $params = array();
 
-if ($tenantId && !$isSuperAdmin) {
+// Las fincas deben estar asociadas a la explotación seleccionada
+if ($tenantId) {
     $sql .= " AND f.id_propietario = :tenant";
     $params[':tenant'] = (int)$tenantId;
 }
@@ -170,6 +177,12 @@ $fincas = $stmtF->fetchAll();
             <div>
                 <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Maestro de Fincas y Parcelas</h2>
                 <p class="text-muted mb-0 small">Control registral, catastral y asignación de derechos de riego por tanda</p>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <span class="badge bg-light text-dark border">
+                        <i class="fa-solid fa-building-wheat text-primary me-1"></i>Explotación: <strong><?= htmlspecialchars(isset($_SESSION['nombre_propietario']) && $_SESSION['nombre_propietario'] ? $_SESSION['nombre_propietario'] : 'Vista Global (Todas)') ?></strong>
+                    </span>
+                    <a href="<?= APP_URL ?>/explotaciones" class="small text-decoration-none"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Cambiar</a>
+                </div>
             </div>
         </div>
         <a href="<?= APP_URL ?>/fincas/nueva" class="btn btn-ag shadow-sm">
@@ -254,6 +267,11 @@ $fincas = $stmtF->fetchAll();
                                         <?= htmlspecialchars($f['nombre_finca']) ?>
                                     </div>
                                     <div class="small text-muted font-monospace">ID #<?= $f['id_finca'] ?></div>
+                                    <?php if (!empty($f['nombre_explotacion'])): ?>
+                                        <div class="small text-primary mt-1" title="Explotación Agraria Asignada">
+                                            <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($f['nombre_explotacion']) ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border">
@@ -349,11 +367,21 @@ $fincas = $stmtF->fetchAll();
                                                     <input type="hidden" name="id_finca" value="<?= $f['id_finca'] ?>">
                                                     <div class="modal-body p-4">
                                                         <div class="row g-3 mb-3">
-                                                            <div class="col-md-6">
+                                                            <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Nombre de la Finca *</label>
                                                                 <input type="text" name="nombre_finca" class="form-control" value="<?= htmlspecialchars($f['nombre_finca']) ?>" required>
                                                             </div>
-                                                            <div class="col-md-6">
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold small">Explotación Agraria *</label>
+                                                                <select name="id_propietario" class="form-select fw-semibold" required>
+                                                                    <?php foreach ($explotaciones as $exp): ?>
+                                                                        <option value="<?= $exp['id_propietario'] ?>" <?= ((int)$f['id_propietario'] === (int)$exp['id_propietario'] || (empty($f['id_propietario']) && (int)$tenantId === (int)$exp['id_propietario'])) ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars($exp['nombre_razon_social']) ?> <?= ((int)$tenantId === (int)$exp['id_propietario']) ? '(Activa)' : '' ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Paraje</label>
                                                                 <select name="id_paraje" class="form-select">
                                                                     <option value="">-- Sin Paraje Asignado --</option>

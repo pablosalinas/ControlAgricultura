@@ -8,6 +8,9 @@ $tenantId = Auth::tenantId();
 // Cargar parajes maestros
 $parajes = $db->query("SELECT * FROM parajes ORDER BY nombre_paraje ASC")->fetchAll();
 
+// Cargar explotaciones agrarias
+$explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE activo = 1 ORDER BY nombre_razon_social ASC")->fetchAll();
+
 // Cargar equivalencia de Fanegas por Hectárea desde configuración (por defecto 3.00)
 $cfgFan = $db->query("SELECT fanegas_por_hectarea FROM configuracion_web LIMIT 1")->fetch();
 $fanegasPorHa = (!empty($cfgFan['fanegas_por_hectarea'])) ? (float)$cfgFan['fanegas_por_hectarea'] : 3.0000;
@@ -68,8 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $zonaRiego = trim($_POST['zona_riego']);
     }
 
-    // Validar propietario
-    $propietarioId = $tenantId;
+    // Validar propietario (explotación)
+    $propietarioId = !empty($_POST['id_propietario']) ? (int)$_POST['id_propietario'] : ($tenantId ? (int)$tenantId : null);
     if (!$propietarioId) {
         $primerProp = $db->query("SELECT id_propietario FROM propietarios WHERE activo = 1 ORDER BY id_propietario ASC LIMIT 1")->fetchColumn();
         $propietarioId = $primerProp ? (int)$primerProp : 1;
@@ -149,11 +152,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fa-solid fa-tag me-2"></i>1. Identificación y Localización
                     </h5>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-7">
+                        <div class="col-md-5">
                             <label class="form-label fw-semibold">Nombre de la Finca / Parcela <span class="text-danger">*</span></label>
                             <input type="text" name="nombre_finca" class="form-control" required placeholder="Ej: Finca Las Moreras - Parcela Norte" value="<?= htmlspecialchars(isset($_POST['nombre_finca']) ? $_POST['nombre_finca'] : '') ?>">
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Explotación Agraria <span class="text-danger">*</span></label>
+                            <select name="id_propietario" class="form-select fw-semibold" required>
+                                <?php foreach ($explotaciones as $exp): ?>
+                                    <option value="<?= $exp['id_propietario'] ?>" <?= ((isset($_POST['id_propietario']) && (int)$_POST['id_propietario'] === (int)$exp['id_propietario']) || (!isset($_POST['id_propietario']) && (int)$tenantId === (int)$exp['id_propietario'])) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($exp['nombre_razon_social']) ?> <?= ((int)$tenantId === (int)$exp['id_propietario']) ? '(Activa)' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold">Paraje</label>
                             <select name="id_paraje" class="form-select">
                                 <option value="">-- Seleccionar Paraje --</option>
