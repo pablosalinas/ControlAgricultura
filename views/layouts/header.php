@@ -338,7 +338,7 @@
                             <i class="fa-solid fa-gear me-1 text-info"></i> Configuración
                         </a>
                         <ul class="dropdown-menu shadow border-0 rounded-3" style="min-width: 250px;">
-                            <?php if (Auth::canManageUsers()): ?>
+                            <?php if (Auth::isAdmin()): ?>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/explotaciones"><i class="fa-solid fa-building-wheat me-2 text-warning"></i>Explotaciones Agrarias</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/gestion-usuarios"><i class="fa-solid fa-id-card-clip me-2 text-primary"></i>Equipo y Usuarios</a></li>
                                 <li><hr class="dropdown-divider my-1"></li>
@@ -357,17 +357,14 @@
                             </li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/gastos/tipos"><i class="fa-solid fa-tags me-2 text-warning"></i>Maestro de Tipos de Gastos/Ingresos</a></li>
 
-                            <?php if (Auth::canManageUsers()): ?>
+                            <?php if (Auth::isAdmin()): ?>
                                 <li><hr class="dropdown-divider my-1"></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/accesos"><i class="fa-solid fa-chart-line me-2 text-info"></i>Estadísticas y Logs de Accesos</a></li>
+                                <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/backup"><i class="fa-solid fa-shield-halved me-2 text-warning"></i>Copias de Seguridad (Backup)</a></li>
                             <?php endif; ?>
                             <?php if (Auth::isSuperAdmin()): ?>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/configuracion"><i class="fa-solid fa-compass-drafting me-2 text-info"></i>Personalizar Portal</a></li>
-                            <?php endif; ?>
-                            <?php if (Auth::canManageUsers() || Auth::isAdmin()): ?>
-                                <li><hr class="dropdown-divider my-1"></li>
-                                <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/backup"><i class="fa-solid fa-shield-halved me-2 text-warning"></i>Copias de Seguridad (Backup)</a></li>
                             <?php endif; ?>
                         </ul>
                     </li>

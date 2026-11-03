@@ -153,19 +153,23 @@ class Auth {
     }
 
     public static function isAdmin() {
-        return self::check() && $_SESSION['user_rol'] === 'superadmin';
+        if (!self::check()) return false;
+        $rol = isset($_SESSION['user_rol']) ? strtolower(trim($_SESSION['user_rol'])) : '';
+        return in_array($rol, array('superadmin', 'administrador', 'admin'));
     }
 
     public static function isSuperAdmin() {
-        return self::isAdmin();
+        if (!self::check()) return false;
+        $rol = isset($_SESSION['user_rol']) ? strtolower(trim($_SESSION['user_rol'])) : '';
+        return ($rol === 'superadmin');
     }
 
     /**
-     * Comprueba si el usuario tiene permiso para gestionar el equipo (Superadmin o Propietario de la explotación)
+     * Comprueba si el usuario tiene permiso para gestionar el equipo (Únicamente Superadmin o Administrador)
+     * Los usuarios regulares (propietarios, técnicos, operarios) NO tienen acceso a la gestión de usuarios ni a administradores
      */
     public static function canManageUsers() {
-        if (!self::check()) return false;
-        return ($_SESSION['user_rol'] === 'superadmin' || $_SESSION['user_rol'] === 'propietario');
+        return self::isAdmin();
     }
 
     public static function tenantId() {

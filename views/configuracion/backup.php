@@ -1,4 +1,10 @@
 <?php
+// Acceso restringido estrictamente a Superusuarios y Administradores
+if (!Auth::isAdmin()) {
+    header("Location: " . APP_URL . "/dashboard");
+    exit;
+}
+
 $pageTitle = "Copias de Seguridad (Backup) - " . APP_NAME;
 
 $db = Database::getConnection();

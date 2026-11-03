@@ -4,21 +4,30 @@ if (!Auth::isAdmin()) {
     exit;
 }
 
-$pageTitle = "Gestión y Aprobación de Usuarios - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
-
 $db = Database::getConnection();
+$currentUser = Auth::user();
+$isSuperAdmin = Auth::isSuperAdmin();
 
-// Procesar aprobación o rechazo
+// Procesar aprobación o rechazo (Antes de enviar cualquier cabecera o HTML)
 $mensaje = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id_usuario'])) {
     $idUser = (int)$_POST['id_usuario'];
     $action = $_POST['action'];
 
-    if ($action === 'aprobar') {
+    // Comprobar rol del usuario destino
+    $chkTarget = $db->prepare("SELECT rol FROM usuarios WHERE id_usuario = :id");
+    $chkTarget->execute(array(':id' => $idUser));
+    $targetRol = $chkTarget->fetchColumn();
+
+    if ($targetRol === 'superadmin' && !$isSuperAdmin) {
+        $mensaje = "Acceso denegado: No tienes permisos para gestionar al Superusuario.";
+    } elseif ($action === 'aprobar') {
         $rol = isset($_POST['rol']) ? $_POST['rol'] : 'propietario';
+        if (!$isSuperAdmin && in_array($rol, array('superadmin', 'administrador', 'admin'))) {
+            $rol = 'propietario';
+        }
         $stmt = $db->prepare("UPDATE usuarios SET estado = 'aprobado', rol = :rol, fecha_aprobacion = NOW(), aprobado_por_id = :admin WHERE id_usuario = :id");
-        $stmt->execute(array(':rol' => $rol, ':admin' => Auth::user()['id'], ':id' => $idUser));
+        $stmt->execute(array(':rol' => $rol, ':admin' => $currentUser['id'], ':id' => $idUser));
         $mensaje = "Usuario aprobado correctamente con rol " . htmlspecialchars($rol) . ".";
     } elseif ($action === 'rechazar') {
         $stmt = $db->prepare("UPDATE usuarios SET estado = 'rechazado' WHERE id_usuario = :id");
@@ -40,14 +49,21 @@ $pendientes = $db->query("
     ORDER BY u.fecha_registro DESC
 ")->fetchAll();
 
-// Obtener usuarios aprobados y otros
-$activos = $db->query("
+// Obtener usuarios aprobados y otros (ocultando superadmin si el usuario no es superadmin)
+$sqlActivos = "
     SELECT u.*, p.nombre_razon_social AS nombre_propietario
     FROM usuarios u
     LEFT JOIN propietarios p ON u.id_propietario = p.id_propietario
     WHERE u.estado != 'pendiente'
-    ORDER BY u.id_usuario DESC
-")->fetchAll();
+";
+if (!$isSuperAdmin) {
+    $sqlActivos .= " AND u.rol != 'superadmin'";
+}
+$sqlActivos .= " ORDER BY u.id_usuario DESC";
+$activos = $db->query($sqlActivos)->fetchAll();
+
+$pageTitle = "Gestión y Aprobación de Usuarios - " . APP_NAME;
+require_once VIEWS_PATH . '/layouts/header.php';
 ?>
 
 <div class="container py-4">

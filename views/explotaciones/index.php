@@ -1,6 +1,5 @@
 <?php
 $pageTitle = "Gestión de Explotaciones Agrarias - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
 
 $db = Database::getConnection();
 $error = '';
@@ -188,6 +187,8 @@ while ($ecRow = $stmtEC->fetch()) {
     $expComunidadesMap[$pid][] = $ecRow['nombre_comunidad'];
     $expComIdsMap[$pid][] = $cid;
 }
+
+require_once VIEWS_PATH . '/layouts/header.php';
 ?>
 
 <div class="container py-4">

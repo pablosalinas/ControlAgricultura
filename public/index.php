@@ -3,6 +3,11 @@
  * Front Controller y Enrutador Principal - AgroDietario
  */
 
+// Iniciar buffer de salida temprano para prevenir fallos de cabeceras en descargas o redirecciones
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once SRC_PATH . '/Services/Auth.php';
@@ -114,7 +119,7 @@ switch ($route) {
         break;
 
     case 'admin/gestion-usuarios':
-        if (!Auth::canManageUsers()) {
+        if (!Auth::isAdmin()) {
             header("Location: " . APP_URL . "/dashboard");
             exit;
         }
@@ -139,7 +144,7 @@ switch ($route) {
 
     case 'admin/accesos':
     case 'admin/estadisticas':
-        if (!Auth::canManageUsers()) {
+        if (!Auth::isAdmin()) {
             header("Location: " . APP_URL . "/dashboard");
             exit;
         }
@@ -310,11 +315,11 @@ switch ($route) {
         require_once VIEWS_PATH . '/gastos/tipos.php';
         break;
 
-    // Copias de Seguridad (Backup)
+    // Copias de Seguridad (Backup) - Acceso exclusivo Administradores y Superusuarios
     case 'backup':
     case 'configuracion/backup':
-        if (!Auth::check()) {
-            header("Location: " . APP_URL . "/login");
+        if (!Auth::isAdmin()) {
+            header("Location: " . APP_URL . "/dashboard");
             exit;
         }
         require_once VIEWS_PATH . '/configuracion/backup.php';

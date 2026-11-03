@@ -40,7 +40,7 @@ class AccessTracker {
                 strpos($url, '/admin') !== false || 
                 strpos($route, 'gestion-usuarios') !== false ||
                 strpos($route, 'configuracion') !== false ||
-                (isset($_SESSION['user_rol']) && $_SESSION['user_rol'] === 'superadmin')
+                (isset($_SESSION['user_rol']) && in_array(strtolower($_SESSION['user_rol']), array('superadmin', 'administrador', 'admin')))
             ) {
                 $esAdmin = 1;
             }

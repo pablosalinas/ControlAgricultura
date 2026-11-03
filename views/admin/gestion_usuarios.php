@@ -1,11 +1,9 @@
 <?php
-if (!Auth::canManageUsers()) {
+// Control Estricto de Acceso: Únicamente Superusuario o Administrador
+if (!Auth::isAdmin()) {
     header("Location: " . APP_URL . "/dashboard");
     exit;
 }
-
-$pageTitle = "Gestión de Usuarios y Equipo - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
 
 $db = Database::getConnection();
 $currentUser = Auth::user();
@@ -15,7 +13,7 @@ $tenantId = Auth::tenantId();
 $mensaje = '';
 $error = '';
 
-// Procesar acciones de formulario
+// Procesar acciones de formulario (DEBE ejecutarse antes de enviar cualquier HTML o cabecera)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
@@ -35,7 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $idProp = !empty($expSeleccionadas) ? $expSeleccionadas[0] : null;
 
-        if (!$isSuperAdmin && $rol === 'superadmin') {
+        // Ningún usuario que no sea superadmin puede crear cuentas de superadmin ni administrador
+        if (!$isSuperAdmin && in_array($rol, array('superadmin', 'administrador', 'admin'))) {
             $rol = 'tecnico';
         }
 
@@ -97,7 +96,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$targetUser) {
             $error = "El usuario seleccionado no existe.";
-        } elseif (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId || $targetUser['rol'] === 'superadmin')) {
+        } elseif ($targetUser['rol'] === 'superadmin' && !$isSuperAdmin) {
+            $error = "Acceso denegado: No tienes permisos para consultar ni modificar la cuenta del Superusuario.";
+        } elseif (in_array($targetUser['rol'], array('administrador', 'admin')) && !$isSuperAdmin && (int)$targetUser['id_usuario'] !== (int)$currentUser['id']) {
+            $error = "Acceso denegado: No tienes permisos para modificar a otro administrador.";
+        } elseif (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId)) {
             $error = "No tienes permiso para modificar este usuario.";
         } else {
             // Verificar si el email ya pertenece a otro usuario
@@ -118,7 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                if (!$isSuperAdmin && $rol === 'superadmin') {
+                // Blindar elevación de privilegios
+                if (!$isSuperAdmin && in_array($rol, array('superadmin', 'administrador', 'admin'))) {
                     $rol = $targetUser['rol'];
                 }
 
@@ -189,7 +193,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetUser = $stmtChk->fetch();
 
         if ($targetUser) {
-            if (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId || $targetUser['rol'] === 'superadmin')) {
+            if ($targetUser['rol'] === 'superadmin' && !$isSuperAdmin) {
+                $error = "Acceso denegado: No tienes permisos para alterar el estado del Superusuario.";
+            } elseif (in_array($targetUser['rol'], array('administrador', 'admin')) && !$isSuperAdmin && (int)$targetUser['id_usuario'] !== (int)$currentUser['id']) {
+                $error = "Acceso denegado: No tienes permisos para alterar el estado de un administrador.";
+            } elseif (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId)) {
                 $error = "No tienes permiso para modificar este usuario.";
             } elseif ($idTarget === (int)$currentUser['id']) {
                 $error = "No puedes suspender o descatalogar tu propia cuenta en sesión.";
@@ -201,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 4. BORRAR / ELIMINAR USUARIO PERMANENTEMENTE
+    // 4. SUSPENDER Y DESCATALOGAR USUARIO (BORRADO LÓGICO PROTEGIDO)
     elseif ($action === 'borrar_usuario') {
         $idTarget = (int)$_POST['id_usuario'];
 
@@ -210,23 +218,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetUser = $stmtChk->fetch();
 
         if (!$targetUser) {
-            $error = "El usuario a eliminar no existe.";
+            $error = "El usuario seleccionado no existe.";
         } elseif ($idTarget === (int)$currentUser['id']) {
-            $error = "No puedes eliminar tu propia cuenta de usuario.";
-        } elseif (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId || $targetUser['rol'] === 'superadmin')) {
-            $error = "No tienes permiso para eliminar a este usuario.";
+            $error = "No puedes suspender tu propia cuenta de usuario.";
+        } elseif ($targetUser['rol'] === 'superadmin' && !$isSuperAdmin) {
+            $error = "Acceso denegado: No se puede eliminar ni suspender al Superusuario.";
+        } elseif (in_array($targetUser['rol'], array('administrador', 'admin')) && !$isSuperAdmin) {
+            $error = "Acceso denegado: No se puede eliminar a un Administrador sin privilegios de Superusuario.";
+        } elseif (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId)) {
+            $error = "No tienes permiso para suspender a este usuario.";
         } else {
             try {
-                $del = $db->prepare("DELETE FROM usuarios WHERE id_usuario = :id");
+                // Borrado lógico estricto conforme a las reglas del proyecto (GEMINI.md)
+                $del = $db->prepare("UPDATE usuarios SET estado = 'suspendido' WHERE id_usuario = :id");
                 $del->execute(array(':id' => $idTarget));
                 $nombreBorrado = htmlspecialchars(trim($targetUser['nombre'] . ' ' . $targetUser['apellidos']));
-                $mensaje = "El usuario <strong>{$nombreBorrado}</strong> ha sido eliminado permanentemente del sistema.";
+                $mensaje = "El usuario <strong>{$nombreBorrado}</strong> ha sido suspendido y descatalogado correctamente.";
             } catch (Exception $e) {
-                $error = "Error al eliminar usuario: " . $e->getMessage();
+                $error = "Error al suspender usuario: " . $e->getMessage();
             }
         }
     }
 }
+
+$pageTitle = "Gestión de Usuarios y Equipo - " . APP_NAME;
+require_once VIEWS_PATH . '/layouts/header.php';
 
 // Cargar todas las explotaciones para asignación
 $explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios ORDER BY nombre_razon_social ASC")->fetchAll();
@@ -263,8 +279,12 @@ $sqlUsers = "
 $params = array();
 
 if (!$isSuperAdmin) {
-    $sqlUsers .= " AND u.id_propietario = :tenant";
-    $params[':tenant'] = (int)$tenantId;
+    // Ningún usuario que no sea superadministrador puede ver cuentas de superadmin
+    $sqlUsers .= " AND u.rol != 'superadmin'";
+    if (!empty($tenantId)) {
+        $sqlUsers .= " AND u.id_propietario = :tenant";
+        $params[':tenant'] = (int)$tenantId;
+    }
 } elseif ($filtroExp > 0) {
     $sqlUsers .= " AND u.id_propietario = :exp";
     $params[':exp'] = $filtroExp;
@@ -588,14 +608,16 @@ $usuarios = $stmtUsers->fetchAll();
                                                 <?php endif; ?>
                                             </form>
 
-                                            <!-- Botón Borrar / Eliminar permanentemente -->
-                                            <form action="<?= APP_URL ?>/admin/gestion-usuarios" method="POST" class="d-inline" onsubmit="return confirm('ATENCIÓN: ¿Seguro que deseas ELIMINAR PERMANENTEMENTE al usuario \'<?= htmlspecialchars(addslashes($u['nombre'])) ?>\'?\nEsta acción no se puede deshacer.');">
-                                                <input type="hidden" name="action" value="borrar_usuario">
-                                                <input type="hidden" name="id_usuario" value="<?= $u['id_usuario'] ?>">
-                                                <button type="submit" class="btn btn-outline-danger" title="Eliminar permanentemente">
-                                                    <i class="fa-solid fa-trash-can"></i>
-                                                </button>
-                                            </form>
+                                            <!-- Botón Suspender / Descatalogar (Borrado Lógico) -->
+                                            <?php if (($u['rol'] !== 'superadmin' || $isSuperAdmin) && (!in_array($u['rol'], array('administrador', 'admin')) || $isSuperAdmin)): ?>
+                                                <form action="<?= APP_URL ?>/admin/gestion-usuarios" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas suspender y descatalogar la cuenta del usuario seleccionado?');">
+                                                    <input type="hidden" name="action" value="borrar_usuario">
+                                                    <input type="hidden" name="id_usuario" value="<?= $u['id_usuario'] ?>">
+                                                    <button type="submit" class="btn btn-outline-danger" title="Suspender y descatalogar (borrado lógico)">
+                                                        <i class="fa-solid fa-user-slash"></i>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
 
@@ -643,7 +665,8 @@ $usuarios = $stmtUsers->fetchAll();
                                                                     <option value="propietario" <?= $u['rol'] === 'propietario' ? 'selected' : '' ?>>Gestor de Explotación</option>
                                                                     <option value="lector" <?= $u['rol'] === 'lector' ? 'selected' : '' ?>>Lector / Auditor</option>
                                                                     <?php if ($isSuperAdmin): ?>
-                                                                        <option value="superadmin" <?= $u['rol'] === 'superadmin' ? 'selected' : '' ?> class="text-danger fw-bold">Administrador General</option>
+                                                                        <option value="administrador" <?= in_array($u['rol'], array('administrador', 'admin')) ? 'selected' : '' ?> class="text-primary fw-bold">Administrador</option>
+                                                                        <option value="superadmin" <?= $u['rol'] === 'superadmin' ? 'selected' : '' ?> class="text-danger fw-bold">Administrador General (Superusuario)</option>
                                                                     <?php endif; ?>
                                                                 </select>
                                                             </div>
