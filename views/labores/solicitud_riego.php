@@ -343,7 +343,7 @@ if ($solicitudCargada) {
     $tieneTandaInicial = ($horasTandaSocioInicial > 0);
     $defCesNom1 = $tieneTandaInicial ? $defNombre : '';
     $defCesNum1 = $tieneTandaInicial ? $defNumRegante : '';
-    $defCesH1 = $tieneTandaInicial ? ($horasTandaSocioInicial >= 2.0 ? '2.0' : number_format($horasTandaSocioInicial, 1, '.', '')) : '';
+    $defCesH1 = $tieneTandaInicial ? number_format($horasTandaSocioInicial, 1, '.', '') : '';
 }
 ?>
 
@@ -889,13 +889,35 @@ if ($solicitudCargada) {
                 </div>
 
                 <!-- Rejilla Oficial de 6 Filas de Cesiones -->
+                <?php
+                // Preparar filas iniciales para el documento
+                $filasDocIniciales = [];
+                for ($k = 1; $k <= 6; $k++) {
+                    $filasDocIniciales[$k] = [
+                        'h'   => ($k === 1) ? $defCesH1 : '',
+                        'nom' => ($k === 1) ? $defCesNom1 : '',
+                        'num' => ($k === 1) ? $defCesNum1 : ''
+                    ];
+                }
+                // Si la primera línea está en blanco, no ponerla en el documento y añadir una vacía al final
+                if (empty($filasDocIniciales[1]['nom']) && empty($filasDocIniciales[1]['h'])) {
+                    $docFilas = [];
+                    for ($k = 2; $k <= 6; $k++) {
+                        $docFilas[] = $filasDocIniciales[$k];
+                    }
+                    $docFilas[] = ['h' => '', 'nom' => '', 'num' => ''];
+                } else {
+                    $docFilas = array_values($filasDocIniciales);
+                }
+                ?>
                 <table class="tabla-cesiones-tanda w-100 mb-2">
                     <?php for ($k = 1; $k <= 6; $k++): ?>
+                        <?php $fDoc = isset($docFilas[$k - 1]) ? $docFilas[$k - 1] : ['h' => '', 'nom' => '', 'num' => '']; ?>
                         <tr>
-                            <td class="celda-horas font-monospace text-center fw-bold" id="grid_h_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defCesH1) : '' ?></td>
+                            <td class="celda-horas font-monospace text-center fw-bold" id="grid_h_<?= $k ?>"><?= htmlspecialchars($fDoc['h']) ?></td>
                             <td class="celda-unidad text-center font-monospace">Hor</td>
-                            <td class="celda-nombre ps-2 fw-semibold" id="grid_nom_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defCesNom1) : '' ?></td>
-                            <td class="celda-num font-monospace text-center fw-bold" id="grid_num_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defCesNum1) : '' ?></td>
+                            <td class="celda-nombre ps-2 fw-semibold" id="grid_nom_<?= $k ?>"><?= htmlspecialchars($fDoc['nom']) ?></td>
+                            <td class="celda-num font-monospace text-center fw-bold" id="grid_num_<?= $k ?>"><?= htmlspecialchars($fDoc['num']) ?></td>
                         </tr>
                     <?php endfor; ?>
                 </table>
@@ -1241,9 +1263,7 @@ function cargarDatosRegante() {
     if (horasTanda > 0) {
         document.getElementById('ces_nom_1').value = opt.getAttribute('data-nom') || '';
         document.getElementById('ces_num_1').value = opt.getAttribute('data-num') || '';
-        if (!document.getElementById('ces_h_1').value || parseFloat(document.getElementById('ces_h_1').value) === 0) {
-            document.getElementById('ces_h_1').value = (horasTanda >= 2 ? '2.0' : horasTanda.toFixed(1));
-        }
+        document.getElementById('ces_h_1').value = horasTanda.toFixed(1);
         if (badgeEstadoTitular) {
             badgeEstadoTitular.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle small"><i class="fa-solid fa-circle-check me-1"></i>${horasTanda.toFixed(1)}h tanda</span>`;
         }
@@ -1290,9 +1310,7 @@ function cargarDatosFinca() {
     if (horasTandaFinca > 0) {
         document.getElementById('ces_nom_1').value = opt.getAttribute('data-titular') || '';
         document.getElementById('ces_num_1').value = opt.getAttribute('data-socio') || '';
-        if (!document.getElementById('ces_h_1').value || parseFloat(document.getElementById('ces_h_1').value) === 0) {
-            document.getElementById('ces_h_1').value = (horasTandaFinca >= 2 ? '2.0' : horasTandaFinca.toFixed(1));
-        }
+        document.getElementById('ces_h_1').value = horasTandaFinca.toFixed(1);
         if (badgeEstadoTitular) {
             badgeEstadoTitular.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle small"><i class="fa-solid fa-circle-check me-1"></i>${horasTandaFinca.toFixed(1)}h tanda finca</span>`;
         }
@@ -1396,28 +1414,64 @@ function seleccionarCedente(filaIndex, selectEl) {
 
     document.getElementById('ces_num_' + filaIndex).value = opt.value;
     document.getElementById('ces_nom_' + filaIndex).value = opt.getAttribute('data-nom') || '';
-    if (!document.getElementById('ces_h_' + filaIndex).value || parseFloat(document.getElementById('ces_h_' + filaIndex).value) === 0) {
-        document.getElementById('ces_h_' + filaIndex).value = (ht >= 1 ? '1.0' : ht.toFixed(1));
-    }
+    // Poner por defecto en la columna de horas el total de horas disponibles que tenga el socio
+    document.getElementById('ces_h_' + filaIndex).value = ht.toFixed(1);
     actualizarCesiones();
 }
 
 function actualizarCesiones() {
     let totalH = 0;
+    const filasForm = [];
+
     for (let i = 1; i <= 6; i++) {
         const hInp = document.getElementById('ces_h_' + i);
         const nomInp = document.getElementById('ces_nom_' + i);
         const numInp = document.getElementById('ces_num_' + i);
 
-        const valH = parseFloat(hInp.value) || 0;
-        const valNom = nomInp.value.trim().toUpperCase();
-        const valNum = numInp.value.trim().toUpperCase();
+        const valH = hInp ? (parseFloat(hInp.value) || 0) : 0;
+        const valNom = nomInp ? nomInp.value.trim().toUpperCase() : '';
+        const valNum = numInp ? numInp.value.trim().toUpperCase() : '';
 
         if (valH > 0) totalH += valH;
 
-        document.getElementById('grid_h_' + i).innerText = (valH > 0) ? valH.toFixed(1) : '';
-        document.getElementById('grid_nom_' + i).innerText = valNom;
-        document.getElementById('grid_num_' + i).innerText = valNum;
+        filasForm.push({
+            h: (valH > 0) ? valH.toFixed(1) : '',
+            nom: valNom,
+            num: valNum
+        });
+    }
+
+    // Regla de documento:
+    // Si la primera línea está en blanco (el socio solicitante no tiene agua en tanda):
+    // - NO poner la primera línea en blanco en el documento.
+    // - Desplazar las líneas siguientes hacia arriba (filas 2..6 pasan a 1..5).
+    // - Respetar los huecos que haya entre las demás líneas.
+    // - Añadir una línea vacía al final (posición 6 en blanco).
+    let filasDoc = [];
+    const primeraEnBlanco = (!filasForm[0].nom && !filasForm[0].num && !filasForm[0].h);
+
+    if (primeraEnBlanco) {
+        // Desplazar a partir de la fila 2 (índice 1)
+        for (let i = 1; i < filasForm.length; i++) {
+            filasDoc.push(filasForm[i]);
+        }
+        // Añadir una línea vacía al final de la plantilla de 6 líneas
+        filasDoc.push({ h: '', nom: '', num: '' });
+    } else {
+        // La primera línea no está en blanco: mantener orden y respetar todos los huecos
+        filasDoc = filasForm;
+    }
+
+    // Renderizar en las 6 filas del documento oficial
+    for (let k = 1; k <= 6; k++) {
+        const row = filasDoc[k - 1] || { h: '', nom: '', num: '' };
+        const elH = document.getElementById('grid_h_' + k);
+        const elNom = document.getElementById('grid_nom_' + k);
+        const elNum = document.getElementById('grid_num_' + k);
+
+        if (elH) elH.innerText = row.h;
+        if (elNom) elNom.innerText = row.nom;
+        if (elNum) elNum.innerText = row.num;
     }
 
     if (document.getElementById('in_tipo_riego').value === 'tanda') {
