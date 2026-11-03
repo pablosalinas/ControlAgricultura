@@ -74,11 +74,16 @@ $filtroDesde = isset($_GET['desde']) ? trim($_GET['desde']) : '';
 $filtroHasta = isset($_GET['hasta']) ? trim($_GET['hasta']) : '';
 
 // Consultar fincas asociadas a la explotación del usuario actual
-$sqlFincas = "SELECT id_finca, nombre_finca, nombre_paraje, superficie_ha FROM fincas WHERE activo = 1";
+$sqlFincas = "
+    SELECT f.id_finca, f.nombre_finca, f.superficie_ha, par.nombre_paraje
+    FROM fincas f
+    LEFT JOIN parajes par ON f.id_paraje = par.id_paraje
+    WHERE f.activo = 1
+";
 if ($tenantId && !$isSuperAdmin) {
-    $sqlFincas .= " AND id_propietario = " . (int)$tenantId;
+    $sqlFincas .= " AND f.id_propietario = " . (int)$tenantId;
 }
-$sqlFincas .= " ORDER BY nombre_finca ASC";
+$sqlFincas .= " ORDER BY f.nombre_finca ASC";
 $fincasExplotacion = $db->query($sqlFincas)->fetchAll();
 
 // Consultar plantaciones de la explotación
@@ -214,7 +219,7 @@ foreach ($labores as $lb) {
                             <option value="">-- Seleccionar Finca --</option>
                             <?php foreach ($fincasExplotacion as $fe): ?>
                                 <option value="<?= $fe['id_finca'] ?>">
-                                    <?= htmlspecialchars($fe['nombre_finca']) ?> (<?= htmlspecialchars($fe['nombre_paraje'] ?: 'Paraje') ?> - <?= number_format($fe['superficie_ha'], 2) ?> ha)
+                                    <?= htmlspecialchars($fe['nombre_finca']) ?> (<?= htmlspecialchars(!empty($fe['nombre_paraje']) ? $fe['nombre_paraje'] : 'Paraje') ?> - <?= number_format($fe['superficie_ha'], 2) ?> ha)
                                 </option>
                             <?php endforeach; ?>
                         </select>
