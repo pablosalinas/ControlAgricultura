@@ -95,6 +95,11 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'podas_talas', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::addColumnIfNotExists($pdo, 'recolecciones', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
 
+            // 2g. Columnas en PLANTACIONES (Soft delete y notas)
+            self::addColumnIfNotExists($pdo, 'plantaciones', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+            self::addColumnIfNotExists($pdo, 'plantaciones', 'notas', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'plantaciones', 'notas_cuaderno', 'TEXT NULL');
+
             // 3. Columnas en PROPIETARIOS (Explotaciones)
             self::addColumnIfNotExists($pdo, 'propietarios', 'logo', 'VARCHAR(255) NULL');
             self::addColumnIfNotExists($pdo, 'propietarios', 'fanegas_por_hectarea', 'DECIMAL(8,4) NOT NULL DEFAULT 3.0000');

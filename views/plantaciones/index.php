@@ -13,9 +13,11 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-    // EDITAR PLANTACIÓN
+    // EDITAR PLANTACIÓN (Permite modificar finca, cultivo y todos los parámetros)
     if ($action === 'editar_plantacion') {
         $idPlantacion = (int)$_POST['id_plantacion'];
+        $idFinca = (int)(isset($_POST['id_finca']) ? $_POST['id_finca'] : 0);
+        $idCultivo = (int)(isset($_POST['id_cultivo']) ? $_POST['id_cultivo'] : 0);
         $cuadro = trim(isset($_POST['identificador_cuadro']) ? $_POST['identificador_cuadro'] : '');
         $campana = (int)(isset($_POST['campana_ano']) ? $_POST['campana_ano'] : date('Y'));
         $superficie = (float)(isset($_POST['superficie_ocupada_ha']) ? $_POST['superficie_ocupada_ha'] : 0);
@@ -25,22 +27,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $transplante = !empty($_POST['fecha_transplante']) ? $_POST['fecha_transplante'] : null;
         $fin = !empty($_POST['fecha_estimada_fin']) ? $_POST['fecha_estimada_fin'] : null;
         $estado = isset($_POST['estado']) ? $_POST['estado'] : 'en_crecimiento';
-        $notas = trim(isset($_POST['notas_cuaderno']) ? $_POST['notas_cuaderno'] : '');
+        $notas = trim(isset($_POST['notas']) ? $_POST['notas'] : (isset($_POST['notas_cuaderno']) ? $_POST['notas_cuaderno'] : ''));
 
-        if (empty($cuadro) || $superficie <= 0) {
-            $error = "El identificador de cuadro y una superficie válida son obligatorios.";
+        if (empty($idFinca) || empty($idCultivo) || empty($cuadro) || $superficie <= 0) {
+            $error = "La finca, el cultivo, el identificador de cuadro y una superficie válida son obligatorios.";
         } else {
             try {
+                // Actualizar plantación con finca, cultivo y campos técnicos
                 $stmtUpd = $db->prepare("
                     UPDATE plantaciones
-                    SET identificador_cuadro = :cuadro, campana_ano = :camp,
+                    SET id_finca = :finca, id_cultivo = :cultivo, identificador_cuadro = :cuadro, campana_ano = :camp,
                         superficie_ocupada_ha = :sup, num_arboles_o_plantas = :arb,
                         marco_plantacion = :marco, fecha_siembra = :siembra,
                         fecha_transplante = :transp, fecha_estimada_fin = :fin,
-                        estado = :est, notas_cuaderno = :notas
+                        estado = :est, notas = :notas
                     WHERE id_plantacion = :id
                 ");
                 $stmtUpd->execute(array(
+                    ':finca'   => $idFinca,
+                    ':cultivo' => $idCultivo,
                     ':cuadro'  => $cuadro,
                     ':camp'    => $campana,
                     ':sup'     => $superficie,
@@ -53,20 +58,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':notas'   => $notas ?: null,
                     ':id'      => $idPlantacion
                 ));
-                $mensaje = "Plantación del cuadro <strong>" . htmlspecialchars($cuadro) . "</strong> actualizada correctamente.";
+
+                // Sincronizar también notas_cuaderno si la columna existe en la tabla
+                try {
+                    $db->prepare("UPDATE plantaciones SET notas_cuaderno = :notas WHERE id_plantacion = :id")->execute(array(
+                        ':notas' => $notas ?: null,
+                        ':id'    => $idPlantacion
+                    ));
+                } catch (Exception $eCol) {}
+
+                $mensaje = "Plantación del cuadro <strong>" . htmlspecialchars($cuadro) . "</strong> actualizada correctamente con su finca y cultivo.";
             } catch (Exception $e) {
                 $error = "Error al actualizar plantación: " . $e->getMessage();
             }
         }
     }
 
-    // BORRAR PLANTACIÓN
+    // BORRAR PLANTACIÓN (Borrado lógico seguro GEMINI.md)
     elseif ($action === 'borrar_plantacion') {
         $idPlantacion = (int)$_POST['id_plantacion'];
         try {
-            $stmtDel = $db->prepare("DELETE FROM plantaciones WHERE id_plantacion = :id");
+            $stmtDel = $db->prepare("UPDATE plantaciones SET activo = 0 WHERE id_plantacion = :id");
             $stmtDel->execute(array(':id' => $idPlantacion));
-            $mensaje = "Plantación eliminada correctamente del registro.";
+            $mensaje = "Plantación dada de baja y archivada correctamente (borrado lógico seguro).";
         } catch (Exception $e) {
             $error = "Error al eliminar plantación: " . $e->getMessage();
         }
@@ -78,13 +92,16 @@ $filtroFinca = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : 0;
 $filtroEstado = isset($_GET['estado']) ? trim($_GET['estado']) : '';
 $filtroCampana = isset($_GET['campana']) ? (int)$_GET['campana'] : 0;
 
-// Fincas para el filtro
-$sqlFincas = "SELECT id_finca, nombre_finca FROM fincas WHERE activo = 1";
+// Fincas para el filtro y selector de edición
+$sqlFincas = "SELECT id_finca, nombre_finca, superficie_ha FROM fincas WHERE activo = 1";
 if ($tenantId) {
     $sqlFincas .= " AND (id_propietario = " . (int)$tenantId . " OR id_propietario IS NULL)";
 }
 $sqlFincas .= " ORDER BY nombre_finca ASC";
 $fincasList = $db->query($sqlFincas)->fetchAll();
+
+// Catálogo de cultivos activos para el selector de edición
+$cultivosList = $db->query("SELECT id_cultivo, nombre_comun, nombre_cientifico, variedad FROM cultivos WHERE activo = 1 ORDER BY nombre_comun ASC")->fetchAll();
 
 // Listado de plantaciones con filtros
 $sql = "
@@ -94,7 +111,7 @@ $sql = "
     FROM plantaciones p
     JOIN fincas f ON p.id_finca = f.id_finca
     JOIN cultivos c ON p.id_cultivo = c.id_cultivo
-    WHERE 1=1
+    WHERE (p.activo = 1 OR p.activo IS NULL)
 ";
 $params = array();
 
@@ -307,14 +324,40 @@ $plantaciones = $stmtPl->fetchAll();
                                                     <div class="modal-body p-4">
                                                         <div class="row g-3 mb-3">
                                                             <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Finca</label>
-                                                                <input type="text" class="form-control bg-light" readonly value="<?= htmlspecialchars($pl['nombre_finca']) ?>">
+                                                                <label class="form-label fw-semibold small text-primary">
+                                                                    <i class="fa-solid fa-draw-polygon me-1"></i>Finca de Destino *
+                                                                </label>
+                                                                <select name="id_finca" class="form-select fw-semibold" required>
+                                                                    <?php foreach ($fincasList as $f): ?>
+                                                                        <option value="<?= $f['id_finca'] ?>" <?= ($f['id_finca'] == $pl['id_finca']) ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars($f['nombre_finca']) ?> (<?= number_format($f['superficie_ha'], 2) ?> ha)
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
                                                             </div>
                                                             <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Cultivo</label>
-                                                                <input type="text" class="form-control bg-light" readonly value="<?= htmlspecialchars($pl['nombre_comun'] . ' (' . ($pl['variedad'] ?: 'Estándar') . ')') ?>">
+                                                                <label class="form-label fw-semibold small text-success">
+                                                                    <i class="fa-solid fa-seedling me-1"></i>Cultivo / Especie *
+                                                                </label>
+                                                                <select name="id_cultivo" class="form-select fw-semibold" required>
+                                                                    <?php foreach ($cultivosList as $cl): ?>
+                                                                        <option value="<?= $cl['id_cultivo'] ?>" <?= ($cl['id_cultivo'] == $pl['id_cultivo']) ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars($cl['nombre_comun'] . ($cl['variedad'] ? ' (' . $cl['variedad'] . ')' : '')) ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
                                                             </div>
                                                         </div>
+
+                                                        <?php
+                                                        $numArbVal = !empty($pl['num_arboles_o_plantas']) ? $pl['num_arboles_o_plantas'] : '';
+                                                        $marcoVal = !empty($pl['marco_plantacion']) ? $pl['marco_plantacion'] : '';
+                                                        $siembraVal = !empty($pl['fecha_siembra']) ? $pl['fecha_siembra'] : '';
+                                                        $transpVal = !empty($pl['fecha_transplante']) ? $pl['fecha_transplante'] : '';
+                                                        $finVal = !empty($pl['fecha_estimada_fin']) ? $pl['fecha_estimada_fin'] : '';
+                                                        $estadoVal = isset($pl['estado']) ? $pl['estado'] : 'en_crecimiento';
+                                                        $notasVal = !empty($pl['notas']) ? $pl['notas'] : (!empty($pl['notas_cuaderno']) ? $pl['notas_cuaderno'] : '');
+                                                        ?>
 
                                                         <div class="row g-3 mb-3">
                                                             <div class="col-md-6">
@@ -334,26 +377,26 @@ $plantaciones = $stmtPl->fetchAll();
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Nº Árboles / Plantas</label>
-                                                                <input type="number" name="num_arboles_o_plantas" class="form-control font-monospace" value="<?= $pl['num_arboles_o_plantas'] ?: '' ?>">
+                                                                <input type="number" name="num_arboles_o_plantas" class="form-control font-monospace" value="<?= htmlspecialchars((string)$numArbVal) ?>">
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Marco de Plantación</label>
-                                                                <input type="text" name="marco_plantacion" class="form-control font-monospace" value="<?= htmlspecialchars($pl['marco_plantacion'] ?: '') ?>" placeholder="Ej: 6 x 4 m">
+                                                                <input type="text" name="marco_plantacion" class="form-control font-monospace" value="<?= htmlspecialchars((string)$marcoVal) ?>" placeholder="Ej: 6 x 4 m">
                                                             </div>
                                                         </div>
 
                                                         <div class="row g-3 mb-3">
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Fecha Siembra</label>
-                                                                <input type="date" name="fecha_siembra" class="form-control" value="<?= $pl['fecha_siembra'] ?: '' ?>">
+                                                                <input type="date" name="fecha_siembra" class="form-control" value="<?= htmlspecialchars((string)$siembraVal) ?>">
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Fecha Trasplante</label>
-                                                                <input type="date" name="fecha_transplante" class="form-control" value="<?= $pl['fecha_transplante'] ?: '' ?>">
+                                                                <input type="date" name="fecha_transplante" class="form-control" value="<?= htmlspecialchars((string)$transpVal) ?>">
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label fw-semibold small">Fecha Estimada Fin</label>
-                                                                <input type="date" name="fecha_estimada_fin" class="form-control" value="<?= $pl['fecha_estimada_fin'] ?: '' ?>">
+                                                                <input type="date" name="fecha_estimada_fin" class="form-control" value="<?= htmlspecialchars((string)$finVal) ?>">
                                                             </div>
                                                         </div>
 
@@ -361,15 +404,15 @@ $plantaciones = $stmtPl->fetchAll();
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Estado del Cuadro *</label>
                                                                 <select name="estado" class="form-select" required>
-                                                                    <option value="produccion" <?= $pl['estado'] === 'produccion' ? 'selected' : '' ?>>En Producción</option>
-                                                                    <option value="en_crecimiento" <?= $pl['estado'] === 'en_crecimiento' ? 'selected' : '' ?>>En Crecimiento</option>
-                                                                    <option value="en_descanso" <?= $pl['estado'] === 'en_descanso' ? 'selected' : '' ?>>En Descanso</option>
-                                                                    <option value="arrancado" <?= $pl['estado'] === 'arrancado' ? 'selected' : '' ?>>Arrancado</option>
+                                                                    <option value="produccion" <?= $estadoVal === 'produccion' ? 'selected' : '' ?>>En Producción</option>
+                                                                    <option value="en_crecimiento" <?= $estadoVal === 'en_crecimiento' ? 'selected' : '' ?>>En Crecimiento</option>
+                                                                    <option value="en_descanso" <?= $estadoVal === 'en_descanso' ? 'selected' : '' ?>>En Descanso</option>
+                                                                    <option value="arrancado" <?= $estadoVal === 'arrancado' ? 'selected' : '' ?>>Arrancado</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Notas de Seguimiento</label>
-                                                                <input type="text" name="notas_cuaderno" class="form-control" value="<?= htmlspecialchars($pl['notas_cuaderno'] ?: '') ?>">
+                                                                <input type="text" name="notas" class="form-control" value="<?= htmlspecialchars((string)$notasVal) ?>" placeholder="Observaciones de seguimiento">
                                                             </div>
                                                         </div>
                                                     </div>
