@@ -80,19 +80,28 @@ class DatabaseMigrator {
             // 2c. Columnas y borrado lógico en TRATAMIENTOS
             self::addColumnIfNotExists($pdo, 'tratamientos', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::addColumnIfNotExists($pdo, 'tratamientos', 'modo_accion', 'VARCHAR(150) NULL');
+            self::addColumnIfNotExists($pdo, 'tratamientos', 'id_herramienta', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'tratamientos', 'maquinaria_empleada', 'VARCHAR(150) NULL');
 
             // 2d. Columnas en RIEGOS (Comunidad vs Depósito Goteo y soft delete)
             self::addColumnIfNotExists($pdo, 'riegos', 'origen_agua', "VARCHAR(50) NOT NULL DEFAULT 'comunidad'");
             self::addColumnIfNotExists($pdo, 'riegos', 'id_deposito', 'INT NULL');
             self::addColumnIfNotExists($pdo, 'riegos', 'litros_consumidos', 'DECIMAL(12,2) NULL');
+            self::addColumnIfNotExists($pdo, 'riegos', 'id_herramienta', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'riegos', 'equipo_empleado', 'VARCHAR(150) NULL');
             self::addColumnIfNotExists($pdo, 'riegos', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
 
             // 2e. Columnas en LABORES_SUELO (Asociación a Finca y soft delete)
             self::addColumnIfNotExists($pdo, 'labores_suelo', 'id_finca', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'labores_suelo', 'id_herramienta', 'INT NULL');
             self::addColumnIfNotExists($pdo, 'labores_suelo', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
 
-            // 2f. Columnas en PODAS_TALAS y RECOLECCIONES (Soft delete)
+            // 2f. Columnas en PODAS_TALAS y RECOLECCIONES (Soft delete y herramientas)
+            self::addColumnIfNotExists($pdo, 'podas_talas', 'id_herramienta', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'podas_talas', 'herramienta_usada', 'VARCHAR(150) NULL');
             self::addColumnIfNotExists($pdo, 'podas_talas', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+            self::addColumnIfNotExists($pdo, 'recolecciones', 'id_herramienta', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'recolecciones', 'herramientas_transporte', 'VARCHAR(150) NULL');
             self::addColumnIfNotExists($pdo, 'recolecciones', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
 
             // 2g. Columnas en PLANTACIONES (Soft delete y notas)
@@ -434,9 +443,99 @@ class DatabaseMigrator {
 
             self::seedParadasOficiales($pdo);
 
+            // 14. TABLA DE MAQUINARIA Y HERRAMIENTAS (Manuales y Mecánicas)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS maquinaria_herramientas (
+                    id_herramienta INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NOT NULL,
+                    nombre VARCHAR(150) NOT NULL,
+                    tipo VARCHAR(50) NOT NULL DEFAULT 'mecanica',
+                    categoria VARCHAR(80) NULL,
+                    marca VARCHAR(100) NULL,
+                    modelo VARCHAR(100) NULL,
+                    matricula_o_serie VARCHAR(100) NULL,
+                    ano_adquisicion INT NULL,
+                    estado VARCHAR(50) NOT NULL DEFAULT 'operativa',
+                    fecha_revision DATE NULL,
+                    horas_o_km_uso DECIMAL(10,2) NULL DEFAULT 0.00,
+                    observaciones TEXT NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_mh_prop (id_propietario),
+                    INDEX idx_mh_tipo (tipo),
+                    INDEX idx_mh_activo (activo)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            self::seedMaquinariaHerramientas($pdo);
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }
+    }
+
+    private static function seedMaquinariaHerramientas($pdo) {
+        try {
+            $count = $pdo->query("SELECT COUNT(*) FROM maquinaria_herramientas")->fetchColumn();
+            if ($count > 0) {
+                return;
+            }
+
+            $stmtProp = $pdo->query("SELECT id_propietario FROM propietarios WHERE activo = 1");
+            $props = $stmtProp ? $stmtProp->fetchAll(PDO::FETCH_COLUMN) : array();
+            if (empty($props)) {
+                $props = array(1);
+            }
+
+            $equipos = array(
+                // Maquinaria Mecánica y Tractores
+                array('Tractor Frutero John Deere 5075E', 'tractor', 'Tractor Agrícola', 'John Deere', '5075E 4WD', 'E-4819-BHG', 2021, 'operativa', 'ITV en vigor. Mantenimiento de aceite y filtros cada 250h. Doble tracción.'),
+                array('Atomizador arrastrado 2000L Fitosa', 'mecanica', 'Tratamientos Fitosanitarios', 'Fitosa', 'Agro-2000 Turbo', 'ITEAF-30/2025', 2020, 'operativa', 'Turbina doble de 900mm con boquillas cerámicas antigota. ITEAF aprobada.'),
+                array('Pulverizador suspendido 600L con barras', 'mecanica', 'Tratamientos Fitosanitarios', 'Gaysa', 'Titan 600', 'SN-GY600-44', 2019, 'operativa', 'Barras hidráulicas de 10 metros para hortalizas y aplicación de herbicida en suelo.'),
+                array('Desbrozadora de gasolina Stihl FS 460', 'mecanica', 'Desbroce y Limpieza', 'Stihl', 'FS 460 C-EM', 'SN-STH-4609', 2022, 'operativa', 'Cabezal de hilo AutoCut y disco de 3 puntas para matorral y bordeado de parcelas.'),
+                array('Motocultor Pasquali 14CV con Rotovator', 'mecanica', 'Laboreo de Huerta', 'Pasquali', 'Especial 14CV', 'SN-PAS-1402', 2018, 'operativa', 'Fresadora de 80 cm para preparación de camas de siembra y cuadros de hortalizas.'),
+                array('Motosierra de poda con espada carving', 'mecanica', 'Podas y Talas', 'Stihl', 'MS 194 T', 'SN-STH-1941', 2023, 'operativa', 'Ligera (3.3 kg), ideal para poda en altura y desrame fino de frutales y olivos.'),
+
+                // Aperos e Implementos de Tractor
+                array('Cultivador agrícola 7 brazos con muelles', 'apero', 'Laboreo del Suelo', 'Noli', 'C-7B Reforzado', NULL, 2018, 'operativa', 'Rejas con golondrinas nuevas. Chasis tubular reforzado de alta resistencia.'),
+                array('Trituradora de sarmientos y poda Serrat', 'apero', 'Podas y Reciclaje Biomasa', 'Serrat', 'Agri-180', 'SN-SRT-180', 2021, 'operativa', 'Martillos reversibles para triturado fino e incorporación in situ de restos vegetales.'),
+                array('Remolque basculante agrícola 4500kg', 'apero', 'Transporte y Cosecha', 'Beguer', 'R-4500B', 'R-1982-BCR', 2017, 'operativa', 'Laterales suplementados desmontables para recolección de fruta y transporte de abono.'),
+
+                // Herramientas Manuales
+                array('Tijeras de poda dos manos con multiplicador', 'manual', 'Podas y Talas', 'Bellota', 'Pro Cut 800', NULL, 2023, 'operativa', 'Mangos ligeros de aluminio elíptico y hojas de acero templado reafilables.'),
+                array('Tijeras de recolección y vendimia curva', 'manual', 'Recolección', 'Kamikaze', 'KM-1', NULL, 2024, 'operativa', 'Hoja corta curva con punta redondeada para cortar el pedúnculo sin dañar el fruto.'),
+                array('Mochila pulverizadora manual Matabi 16L', 'manual', 'Tratamientos Fitosanitarios', 'Matabi', 'Super Agro 16', NULL, 2023, 'operativa', 'Regulador de presión a 1.5 y 3 bar. Tratamientos focalizados y respetuosos.'),
+                array('Azada y legón forjado de ojo redondo', 'manual', 'Laboreo y Huertos', 'Bellota', 'Ref. 120-B', NULL, 2022, 'operativa', 'Acero forjado de una sola pieza. Para caballones, regueras y limpieza de alcorques.'),
+                array('Carretilla manual reforzada 100L', 'manual', 'Transporte y Cosecha', 'Theca', 'C1-100', NULL, 2023, 'operativa', 'Bandeja embutida de chapa galvanizada y rueda neumática con llanta de acero.')
+            );
+
+            $stmtIns = $pdo->prepare("
+                INSERT INTO maquinaria_herramientas (
+                    id_propietario, nombre, tipo, categoria, marca, modelo,
+                    matricula_o_serie, ano_adquisicion, estado, observaciones, activo
+                ) VALUES (
+                    :prop, :nom, :tipo, :cat, :marca, :mod,
+                    :serie, :ano, :est, :obs, 1
+                )
+            ");
+
+            foreach ($props as $propId) {
+                foreach ($equipos as $eq) {
+                    $stmtIns->execute(array(
+                        ':prop'  => (int)$propId,
+                        ':nom'   => $eq[0],
+                        ':tipo'  => $eq[1],
+                        ':cat'   => $eq[2],
+                        ':marca' => $eq[3],
+                        ':mod'   => $eq[4],
+                        ':serie' => $eq[5],
+                        ':ano'   => $eq[6],
+                        ':est'   => $eq[7],
+                        ':obs'   => $eq[8]
+                    ));
+                }
+            }
+        } catch (Exception $e) {}
     }
 
     private static function seedParadasOficiales($pdo) {

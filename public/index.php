@@ -296,6 +296,28 @@ switch ($route) {
         require_once VIEWS_PATH . '/labores/diario.php';
         break;
 
+    // Rutas para Inventario de Maquinaria y Herramientas (Manuales y Mecánicas)
+    case 'maquinaria':
+    case 'herramientas':
+    case 'maquinaria/nueva':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/maquinaria/index.php';
+        break;
+
+    // Rutas para Plan Oficial de Labores y Recomendaciones Agronómicas
+    case 'plan-labores':
+    case 'plan-tratamientos':
+    case 'recomendaciones-labores':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/labores/plan_recomendaciones.php';
+        break;
+
     // Rutas para Gastos, Costes y Tipos de Gasto/Ingreso
     case 'gastos':
     case 'gastos/nuevo':

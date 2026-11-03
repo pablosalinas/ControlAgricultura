@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $idFinca = (int)$_POST['id_finca'];
             $idPlantacion = !empty($_POST['id_plantacion']) ? (int)$_POST['id_plantacion'] : null;
+            $idHerramienta = !empty($_POST['id_herramienta']) ? (int)$_POST['id_herramienta'] : null;
             $fecha = $_POST['fecha_labor'];
             $tipo = $_POST['tipo_labor'];
             $apero = trim(isset($_POST['apero_maquinaria']) ? $_POST['apero_maquinaria'] : '');
@@ -36,19 +37,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stmt = $db->prepare("
-                INSERT INTO labores_suelo (id_finca, id_plantacion, fecha_labor, tipo_labor, apero_maquinaria, horas_trabajo, operario, observaciones, creado_por_id, activo)
-                VALUES (:finca, :plant, :fecha, :tipo, :apero, :horas, :operario, :obs, :user, 1)
+                INSERT INTO labores_suelo (id_finca, id_plantacion, id_herramienta, fecha_labor, tipo_labor, apero_maquinaria, horas_trabajo, operario, observaciones, creado_por_id, activo)
+                VALUES (:finca, :plant, :herramienta, :fecha, :tipo, :apero, :horas, :operario, :obs, :user, 1)
             ");
             $stmt->execute(array(
-                ':finca'    => $idFinca,
-                ':plant'    => $idPlantacion,
-                ':fecha'    => $fecha,
-                ':tipo'     => $tipo,
-                ':apero'    => $apero,
-                ':horas'    => $horas,
-                ':operario' => $operario,
-                ':obs'      => $obs,
-                ':user'     => $currentUser['id']
+                ':finca'       => $idFinca,
+                ':plant'       => $idPlantacion,
+                ':herramienta' => $idHerramienta,
+                ':fecha'       => $fecha,
+                ':tipo'        => $tipo,
+                ':apero'       => $apero,
+                ':horas'       => $horas,
+                ':operario'    => $operario,
+                ':obs'         => $obs,
+                ':user'        => $currentUser['id']
             ));
             $mensaje = "Labor de suelo / desbroce registrada correctamente en el cuaderno.";
         } catch (Exception $e) {
@@ -103,17 +105,27 @@ foreach ($plantaciones as $p) {
     );
 }
 
+// Cargar catálogo de herramientas y maquinaria activa de la explotación
+$sqlMaq = "SELECT id_herramienta, nombre, tipo, categoria, marca, modelo FROM maquinaria_herramientas WHERE activo = 1";
+if ($tenantId && !$isSuperAdmin) {
+    $sqlMaq .= " AND (id_propietario = " . (int)$tenantId . " OR id_propietario IS NULL)";
+}
+$sqlMaq .= " ORDER BY tipo ASC, nombre ASC";
+$maquinariaList = $db->query($sqlMaq)->fetchAll();
+
 // Consultar labores con filtros contextuales para el informe A4
 $sqlLabores = "
     SELECT l.*, 
            COALESCE(f.nombre_finca, f2.nombre_finca) AS nombre_finca,
            COALESCE(f.id_finca, f2.id_finca) AS id_finca,
-           c.nombre_comun, p.identificador_cuadro
+           c.nombre_comun, p.identificador_cuadro,
+           mh.nombre AS nombre_herramienta
     FROM labores_suelo l
     LEFT JOIN plantaciones p ON l.id_plantacion = p.id_plantacion
     LEFT JOIN fincas f ON l.id_finca = f.id_finca
     LEFT JOIN fincas f2 ON p.id_finca = f2.id_finca
     LEFT JOIN cultivos c ON p.id_cultivo = c.id_cultivo
+    LEFT JOIN maquinaria_herramientas mh ON l.id_herramienta = mh.id_herramienta
     WHERE (l.activo = 1 OR l.activo IS NULL)
 ";
 $params = array();
@@ -239,8 +251,18 @@ foreach ($labores as $lb) {
                         </select>
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label fw-semibold small">Apero / Tractor Empleado</label>
-                        <input type="text" name="apero_maquinaria" class="form-control" placeholder="Ej: Tractor John Deere 120CV con desbrozadora de martillos...">
+                        <label class="form-label fw-semibold small text-primary"><i class="fa-solid fa-wrench me-1"></i>Apero / Maquinaria Empleada</label>
+                        <div class="input-group">
+                            <select name="id_herramienta" class="form-select" onchange="if(this.value && this.options[this.selectedIndex].text != '-- Seleccionar de Inventario --'){ document.getElementById('inputAperoSuelo').value = this.options[this.selectedIndex].getAttribute('data-nombre'); }">
+                                <option value="">-- Seleccionar de Inventario --</option>
+                                <?php foreach ($maquinariaList as $eq): ?>
+                                    <option value="<?= $eq['id_herramienta'] ?>" data-nombre="<?= htmlspecialchars($eq['nombre']) ?>">
+                                        <?= htmlspecialchars($eq['nombre'] . ($eq['marca'] ? ' (' . $eq['marca'] . ')' : '')) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" name="apero_maquinaria" id="inputAperoSuelo" class="form-control" placeholder="O escribe apero...">
+                        </div>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold small">Horas de Trabajo</label>

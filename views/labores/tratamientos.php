@@ -61,35 +61,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $obs = trim($notaModo . ($obs ? " - " . $obs : ""));
             }
 
+            $idHerramienta = !empty($_POST['id_herramienta']) ? (int)$_POST['id_herramienta'] : null;
+            $maquinaria = trim(isset($_POST['maquinaria_empleada']) ? $_POST['maquinaria_empleada'] : '');
+
             $stmt = $db->prepare("
                 INSERT INTO tratamientos (
-                    id_plantacion, fecha_tratamiento, es_ecologico, nombre_comercial_producto,
+                    id_plantacion, id_herramienta, maquinaria_empleada, fecha_tratamiento, es_ecologico, nombre_comercial_producto,
                     materia_activa, num_registro_oficial, dosis_por_hectarea, unidad_dosis,
                     caldo_total_litros, plazo_seguridad_dias, fecha_fin_plazo_seguridad,
                     plaga_o_enfermedad_objetivo, aplicador_responsable, observaciones, creado_por_id
                 ) VALUES (
-                    :plantacion, :fecha, :eco, :prod,
+                    :plantacion, :herramienta, :maquinaria, :fecha, :eco, :prod,
                     :mat, :reg, :dosis, :unidad,
                     :caldo, :plazo, :finplazo,
                     :plaga, :aplicador, :obs, :user
                 )
             ");
             $stmt->execute(array(
-                ':plantacion' => $idPlantacion,
-                ':fecha'      => $fecha,
-                ':eco'        => $esEco,
-                ':prod'       => $producto,
-                ':mat'        => $materiaActiva,
-                ':reg'        => $registro,
-                ':dosis'      => $dosisHaCalculada,
-                ':unidad'     => $unidadFinal,
-                ':caldo'      => $caldoTotal,
-                ':plazo'      => $plazo,
-                ':finplazo'   => $fechaFinPlazo,
-                ':plaga'      => $plaga,
-                ':aplicador'  => $aplicador,
-                ':obs'        => $obs,
-                ':user'       => $currentUser['id']
+                ':plantacion'  => $idPlantacion,
+                ':herramienta' => $idHerramienta,
+                ':maquinaria'  => $maquinaria ?: null,
+                ':fecha'       => $fecha,
+                ':eco'         => $esEco,
+                ':prod'        => $producto,
+                ':mat'         => $materiaActiva,
+                ':reg'         => $registro,
+                ':dosis'       => $dosisHaCalculada,
+                ':unidad'      => $unidadFinal,
+                ':caldo'       => $caldoTotal,
+                ':plazo'       => $plazo,
+                ':finplazo'    => $fechaFinPlazo,
+                ':plaga'       => $plaga,
+                ':aplicador'   => $aplicador,
+                ':obs'         => $obs,
+                ':user'        => $currentUser['id']
             ));
             $mensaje = "Tratamiento registrado correctamente con cálculo de dosis y caldo.";
         } catch (Exception $e) {
@@ -186,13 +191,23 @@ if ($tenantId && !$isSuperAdmin) {
 $sqlFincas .= " ORDER BY nombre_finca ASC";
 $fincasList = $db->query($sqlFincas)->fetchAll();
 
+// Cargar catálogo de herramientas y maquinaria activa de la explotación
+$sqlMaq = "SELECT id_herramienta, nombre, tipo, categoria, marca, modelo FROM maquinaria_herramientas WHERE activo = 1";
+if ($tenantId && !$isSuperAdmin) {
+    $sqlMaq .= " AND (id_propietario = " . (int)$tenantId . " OR id_propietario IS NULL)";
+}
+$sqlMaq .= " ORDER BY tipo ASC, nombre ASC";
+$maquinariaList = $db->query($sqlMaq)->fetchAll();
+
 // Histórico de tratamientos con filtros
 $sqlTrat = "
-    SELECT t.*, f.id_finca, f.nombre_finca, c.nombre_comun, p.identificador_cuadro, p.superficie_ocupada_ha
+    SELECT t.*, f.id_finca, f.nombre_finca, c.nombre_comun, p.identificador_cuadro, p.superficie_ocupada_ha,
+           mh.nombre AS nombre_herramienta
     FROM tratamientos t
     JOIN plantaciones p ON t.id_plantacion = p.id_plantacion
     JOIN fincas f ON p.id_finca = f.id_finca
     JOIN cultivos c ON p.id_cultivo = c.id_cultivo
+    LEFT JOIN maquinaria_herramientas mh ON t.id_herramienta = mh.id_herramienta
     WHERE (t.activo = 1 OR t.activo IS NULL)
 ";
 $params = array();
@@ -466,18 +481,29 @@ $tratamientos = $stmtTrat->fetchAll();
                 </div>
 
                 <div class="row g-3 mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold small">Plazo de Seguridad (Días) <span class="text-danger">*</span></label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold small">Plazo Seguridad (Días) <span class="text-danger">*</span></label>
                         <input type="number" name="plazo_seguridad_dias" class="form-control" value="0" required>
-                        <div class="form-text small">Indicar 0 si está exento de plazo.</div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold small">Plaga o Enfermedad Objetivo</label>
-                        <input type="text" name="plaga_o_enfermedad_objetivo" class="form-control" placeholder="Ej: Oídio, Mosca de la fruta, Pulgón...">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold small">Plaga o Enfermedad</label>
+                        <input type="text" name="plaga_o_enfermedad_objetivo" class="form-control" placeholder="Ej: Oídio, Mosca fruta...">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold small">Aplicador / Responsable</label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold small">Aplicador Responsable</label>
                         <input type="text" name="aplicador_responsable" class="form-control" value="<?= htmlspecialchars($currentUser['nombre_completo']) ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold small text-primary"><i class="fa-solid fa-wrench me-1"></i>Maquinaria Empleada</label>
+                        <select name="id_herramienta" class="form-select" onchange="if(this.value){ document.getElementById('inputMaqTrat').value = this.options[this.selectedIndex].getAttribute('data-nombre'); }">
+                            <option value="">-- De Inventario (Opcional) --</option>
+                            <?php foreach ($maquinariaList as $eq): ?>
+                                <option value="<?= $eq['id_herramienta'] ?>" data-nombre="<?= htmlspecialchars($eq['nombre']) ?>">
+                                    <?= htmlspecialchars($eq['nombre'] . ($eq['marca'] ? ' (' . $eq['marca'] . ')' : '')) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <input type="hidden" name="maquinaria_empleada" id="inputMaqTrat" value="">
                     </div>
                 </div>
 
@@ -625,7 +651,12 @@ $tratamientos = $stmtTrat->fetchAll();
                                         <span class="badge bg-light text-muted border">0 días (Exento)</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="small text-muted"><?= htmlspecialchars($t['aplicador_responsable'] ?: '-') ?></td>
+                                <td class="small text-muted">
+                                    <div><?= htmlspecialchars($t['aplicador_responsable'] ?: '-') ?></div>
+                                    <?php if (!empty($t['maquinaria_empleada']) || !empty($t['nombre_herramienta'])): ?>
+                                        <div class="small text-primary"><i class="fa-solid fa-wrench me-1"></i><?= htmlspecialchars($t['maquinaria_empleada'] ?: $t['nombre_herramienta']) ?></div>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">
                                         <!-- Modificar -->

@@ -331,6 +331,7 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones"><i class="fa-solid fa-cubes-stacked me-2 text-info"></i>Plantaciones Activas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones/nueva"><i class="fa-solid fa-plus me-2 text-info"></i>Nueva Plantación</a></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2 fw-semibold text-success" href="<?= APP_URL ?>/plan-labores"><i class="fa-solid fa-clipboard-list me-2"></i>Plan de Tratamientos y Labores</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/diario"><i class="fa-solid fa-camera-retro me-2 text-warning"></i>Diario y Fotos</a></li>
                         </ul>
                     </li>
@@ -341,6 +342,9 @@
                             <i class="fa-solid fa-sliders me-1 text-info"></i> Labores de Campo
                         </a>
                         <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/plan-labores"><i class="fa-solid fa-clipboard-list me-2 text-primary"></i>Plan de Tratamientos y Labores (A4)</a></li>
+                            <li><a class="dropdown-item py-2 fw-semibold text-dark" href="<?= APP_URL ?>/maquinaria"><i class="fa-solid fa-tractor me-2 text-warning"></i>Inventario de Maquinaria y Herramientas</a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/tratamientos"><i class="fa-solid fa-shield-virus me-2 text-danger"></i>Tratamientos (Eco/Conv)</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/labores"><i class="fa-solid fa-mountain-sun me-2 text-secondary"></i>Laboreo y Desbroce</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/podas"><i class="fa-solid fa-arrows-spin me-2 text-success"></i>Podas y Reciclaje</a></li>
