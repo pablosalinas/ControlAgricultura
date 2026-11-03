@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $horasProp = (float)(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : 0);
     $horasDisp = (float)(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : 0);
     $datosRegistrales = trim(isset($_POST['datos_registrales']) ? $_POST['datos_registrales'] : '');
-    $observaciones = trim(isset($_POST['observaciones']) ? $_POST['observaciones'] : '');
+    $observaciones = trim(isset($_POST['descripcion']) ? $_POST['descripcion'] : (isset($_POST['observaciones']) ? $_POST['observaciones'] : ''));
 
     // Extraer el nombre de la comunidad para retrocompatibilidad con zona_riego
     $zonaRiego = '';
@@ -83,37 +83,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Debes indicar una superficie válida mayor que cero en hectáreas o fanegas.';
     } else {
         try {
-            $stmt = $db->prepare("
-                INSERT INTO fincas (
-                    id_propietario, id_paraje, id_comunidad, nombre_finca, referencia_catastral, poligono, parcela,
-                    superficie_ha, coste_anual_ibi, coste_anual_derrama, zona_riego, parada, tablon, num_socio_comunidad,
-                    horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones, activo
-                ) VALUES (
-                    :prop, :paraje, :comunidad, :nombre, :catastro, :pol, :parc,
-                    :sup, :ibi, :derrama, :zona, :parada, :tablon, :socio,
-                    :hprop, :hdisp, :reg, :obs, 1
-                )
-            ");
-            $stmt->execute(array(
-                ':prop'      => $propietarioId,
-                ':paraje'    => $idParaje,
-                ':comunidad' => $idComunidad,
-                ':nombre'    => $nombre,
-                ':catastro'  => $refCatastral ?: null,
-                ':pol'       => $poligono ?: null,
-                ':parc'      => $parcela ?: null,
-                ':sup'       => $superficie,
-                ':ibi'       => $costeIbi,
-                ':derrama'   => $costeDerrama,
-                ':zona'      => $zonaRiego ?: null,
-                ':parada'    => $parada ?: null,
-                ':tablon'    => $tablon ?: null,
-                ':socio'     => $numSocio ?: null,
-                ':hprop'     => $horasProp,
-                ':hdisp'     => $horasDisp,
-                ':reg'       => $datosRegistrales ?: null,
-                ':obs'       => $observaciones ?: null
-            ));
+            // Verificar si la columna descripcion existe
+            $colsFincas = $db->query("SHOW COLUMNS FROM fincas LIKE 'descripcion'")->fetchAll();
+            $hasColDesc = !empty($colsFincas);
+
+            if ($hasColDesc) {
+                $stmt = $db->prepare("
+                    INSERT INTO fincas (
+                        id_propietario, id_paraje, id_comunidad, nombre_finca, referencia_catastral, poligono, parcela,
+                        superficie_ha, coste_anual_ibi, coste_anual_derrama, zona_riego, parada, tablon, num_socio_comunidad,
+                        horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones, descripcion, activo
+                    ) VALUES (
+                        :prop, :paraje, :comunidad, :nombre, :catastro, :pol, :parc,
+                        :sup, :ibi, :derrama, :zona, :parada, :tablon, :socio,
+                        :hprop, :hdisp, :reg, :obs, :desc, 1
+                    )
+                ");
+                $paramsIns = array(
+                    ':prop'      => $propietarioId,
+                    ':paraje'    => $idParaje,
+                    ':comunidad' => $idComunidad,
+                    ':nombre'    => $nombre,
+                    ':catastro'  => $refCatastral ?: null,
+                    ':pol'       => $poligono ?: null,
+                    ':parc'      => $parcela ?: null,
+                    ':sup'       => $superficie,
+                    ':ibi'       => $costeIbi,
+                    ':derrama'   => $costeDerrama,
+                    ':zona'      => $zonaRiego ?: null,
+                    ':parada'    => $parada ?: null,
+                    ':tablon'    => $tablon ?: null,
+                    ':socio'     => $numSocio ?: null,
+                    ':hprop'     => $horasProp,
+                    ':hdisp'     => $horasDisp,
+                    ':reg'       => $datosRegistrales ?: null,
+                    ':obs'       => $observaciones ?: null,
+                    ':desc'      => $observaciones ?: null
+                );
+            } else {
+                $stmt = $db->prepare("
+                    INSERT INTO fincas (
+                        id_propietario, id_paraje, id_comunidad, nombre_finca, referencia_catastral, poligono, parcela,
+                        superficie_ha, coste_anual_ibi, coste_anual_derrama, zona_riego, parada, tablon, num_socio_comunidad,
+                        horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones, activo
+                    ) VALUES (
+                        :prop, :paraje, :comunidad, :nombre, :catastro, :pol, :parc,
+                        :sup, :ibi, :derrama, :zona, :parada, :tablon, :socio,
+                        :hprop, :hdisp, :reg, :obs, 1
+                    )
+                ");
+                $paramsIns = array(
+                    ':prop'      => $propietarioId,
+                    ':paraje'    => $idParaje,
+                    ':comunidad' => $idComunidad,
+                    ':nombre'    => $nombre,
+                    ':catastro'  => $refCatastral ?: null,
+                    ':pol'       => $poligono ?: null,
+                    ':parc'      => $parcela ?: null,
+                    ':sup'       => $superficie,
+                    ':ibi'       => $costeIbi,
+                    ':derrama'   => $costeDerrama,
+                    ':zona'      => $zonaRiego ?: null,
+                    ':parada'    => $parada ?: null,
+                    ':tablon'    => $tablon ?: null,
+                    ':socio'     => $numSocio ?: null,
+                    ':hprop'     => $horasProp,
+                    ':hdisp'     => $horasDisp,
+                    ':reg'       => $datosRegistrales ?: null,
+                    ':obs'       => $observaciones ?: null
+                );
+            }
+            $stmt->execute($paramsIns);
 
             if (!headers_sent()) {
                 header("Location: " . APP_URL . "/fincas");
@@ -321,8 +361,8 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Observaciones o notas</label>
-                        <textarea name="observaciones" class="form-control" rows="2" placeholder="Accesos, lindes, peculiaridades del terreno..."><?= htmlspecialchars(isset($_POST['observaciones']) ? $_POST['observaciones'] : '') ?></textarea>
+                        <label class="form-label fw-semibold">Descripción / Observaciones o notas de la Finca</label>
+                        <textarea name="descripcion" class="form-control" rows="3" placeholder="Descripción general de la finca, accesos, lindes, peculiaridades del terreno..."><?= htmlspecialchars(isset($_POST['descripcion']) ? $_POST['descripcion'] : (isset($_POST['observaciones']) ? $_POST['observaciones'] : '')) ?></textarea>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">

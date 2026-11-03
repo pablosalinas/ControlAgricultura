@@ -185,17 +185,32 @@
         }
 
         /* Reglas Universales de Impresión Oficial */
+        /* ==========================================
+           ESTILOS OFICIALES PARA IMPRESIÓN Y A4
+           ========================================== */
+        @page {
+            size: A4 landscape;
+            margin: 8mm;
+        }
+
         @media print {
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
-                font-size: 10pt !important;
+                font-size: 8.5pt !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
             .navbar, .no-print, [data-report-toolbar], .btn, .btn-group, .pagination,
             .alert, .modal, form:not(.imprimible), .dropdown, footer, header {
                 display: none !important;
+            }
+            .table-responsive {
+                overflow: visible !important;
+                display: block !important;
+                width: 100% !important;
             }
             .container, .container-fluid {
                 width: 100% !important;
@@ -207,28 +222,52 @@
                 border: none !important;
                 box-shadow: none !important;
                 margin-bottom: 0 !important;
+                padding: 0 !important;
             }
             .card-header {
                 background: #ffffff !important;
                 color: #000000 !important;
-                border-bottom: 2px solid #000000 !important;
-                padding: 8px 0 !important;
+                border-bottom: 2px solid #091e3a !important;
+                padding: 6px 0 !important;
             }
             .table {
                 width: 100% !important;
                 border-collapse: collapse !important;
-                font-size: 9pt !important;
+                font-size: 8.5pt !important;
                 color: #000000 !important;
+                table-layout: auto !important;
+                margin-bottom: 0 !important;
             }
-            .table th, .table td {
-                border: 1px solid #cccccc !important;
+            .table thead {
+                display: table-header-group !important;
+            }
+            .table tr {
+                page-break-inside: avoid !important;
+            }
+            .table th {
+                background-color: #f1f5f9 !important;
+                border: 1px solid #94a3b8 !important;
+                padding: 4px 6px !important;
+                font-weight: 700 !important;
+                color: #0f172a !important;
+            }
+            .table td {
+                border: 1px solid #cbd5e1 !important;
                 padding: 4px 6px !important;
                 color: #000000 !important;
+                vertical-align: middle !important;
+            }
+            /* Ocultar columna de acciones en impresión */
+            .table th:last-child,
+            .table td:last-child {
+                display: none !important;
             }
             .badge {
-                border: 1px solid #777777 !important;
+                border: 1px solid #64748b !important;
                 color: #000000 !important;
                 background: transparent !important;
+                font-weight: 600 !important;
+                padding: 1px 4px !important;
             }
             a {
                 text-decoration: none !important;

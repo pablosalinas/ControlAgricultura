@@ -32,6 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $numSocio = trim(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '');
         $horasProp = (float)(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : 0);
         $horasDisp = (float)(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : 0);
+        $datosRegistrales = trim(isset($_POST['datos_registrales']) ? $_POST['datos_registrales'] : '');
+        $descripcion = trim(isset($_POST['descripcion']) ? $_POST['descripcion'] : (isset($_POST['observaciones']) ? $_POST['observaciones'] : ''));
 
         if ($idComunidad) {
             $nomCom = $db->query("SELECT nombre_comunidad FROM comunidades_regantes WHERE id_comunidad = " . (int)$idComunidad)->fetchColumn();
@@ -44,35 +46,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "El nombre de la finca y una superficie mayor a cero son obligatorios.";
         } else {
             try {
-                $stmtUpd = $db->prepare("
-                    UPDATE fincas
-                    SET id_propietario = :id_prop, nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
-                        coste_anual_ibi = :ibi, coste_anual_derrama = :derrama,
-                        poligono = :pol, parcela = :parc, referencia_catastral = :ref,
-                        zona_riego = :zona, parada = :parada, tablon = :tablon,
-                        num_socio_comunidad = :socio, horas_propiedad_tanda = :hprop,
-                        horas_disponibles_tanda = :hdisp
-                    WHERE id_finca = :id
-                ");
-                $stmtUpd->execute(array(
-                    ':id_prop'   => $idPropietario,
-                    ':nom'       => $nombreFinca,
-                    ':paraje'    => $idParaje,
-                    ':comunidad' => $idComunidad,
-                    ':sup'       => $superficie,
-                    ':ibi'       => $costeIbi,
-                    ':derrama'   => $costeDerrama,
-                    ':pol'       => $poligono ?: null,
-                    ':parc'      => $parcela ?: null,
-                    ':ref'       => $refCatastral ?: null,
-                    ':zona'      => $zonaRiego ?: null,
-                    ':parada'    => $parada ?: null,
-                    ':tablon'    => $tablon ?: null,
-                    ':socio'     => $numSocio ?: null,
-                    ':hprop'     => $horasProp,
-                    ':hdisp'     => $horasDisp,
-                    ':id'        => $idFinca
-                ));
+                // Verificar si existe la columna descripcion en la tabla fincas
+                $colsF = $db->query("SHOW COLUMNS FROM fincas LIKE 'descripcion'")->fetchAll();
+                $hasColDesc = !empty($colsF);
+
+                if ($hasColDesc) {
+                    $stmtUpd = $db->prepare("
+                        UPDATE fincas
+                        SET id_propietario = :id_prop, nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
+                            coste_anual_ibi = :ibi, coste_anual_derrama = :derrama,
+                            poligono = :pol, parcela = :parc, referencia_catastral = :ref,
+                            zona_riego = :zona, parada = :parada, tablon = :tablon,
+                            num_socio_comunidad = :socio, horas_propiedad_tanda = :hprop,
+                            horas_disponibles_tanda = :hdisp,
+                            datos_registrales = :reg,
+                            observaciones = :obs,
+                            descripcion = :desc
+                        WHERE id_finca = :id
+                    ");
+                    $paramsUpd = array(
+                        ':id_prop'   => $idPropietario,
+                        ':nom'       => $nombreFinca,
+                        ':paraje'    => $idParaje,
+                        ':comunidad' => $idComunidad,
+                        ':sup'       => $superficie,
+                        ':ibi'       => $costeIbi,
+                        ':derrama'   => $costeDerrama,
+                        ':pol'       => $poligono ?: null,
+                        ':parc'      => $parcela ?: null,
+                        ':ref'       => $refCatastral ?: null,
+                        ':zona'      => $zonaRiego ?: null,
+                        ':parada'    => $parada ?: null,
+                        ':tablon'    => $tablon ?: null,
+                        ':socio'     => $numSocio ?: null,
+                        ':hprop'     => $horasProp,
+                        ':hdisp'     => $horasDisp,
+                        ':reg'       => $datosRegistrales ?: null,
+                        ':obs'       => $descripcion ?: null,
+                        ':desc'      => $descripcion ?: null,
+                        ':id'        => $idFinca
+                    );
+                } else {
+                    $stmtUpd = $db->prepare("
+                        UPDATE fincas
+                        SET id_propietario = :id_prop, nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
+                            coste_anual_ibi = :ibi, coste_anual_derrama = :derrama,
+                            poligono = :pol, parcela = :parc, referencia_catastral = :ref,
+                            zona_riego = :zona, parada = :parada, tablon = :tablon,
+                            num_socio_comunidad = :socio, horas_propiedad_tanda = :hprop,
+                            horas_disponibles_tanda = :hdisp,
+                            datos_registrales = :reg,
+                            observaciones = :obs
+                        WHERE id_finca = :id
+                    ");
+                    $paramsUpd = array(
+                        ':id_prop'   => $idPropietario,
+                        ':nom'       => $nombreFinca,
+                        ':paraje'    => $idParaje,
+                        ':comunidad' => $idComunidad,
+                        ':sup'       => $superficie,
+                        ':ibi'       => $costeIbi,
+                        ':derrama'   => $costeDerrama,
+                        ':pol'       => $poligono ?: null,
+                        ':parc'      => $parcela ?: null,
+                        ':ref'       => $refCatastral ?: null,
+                        ':zona'      => $zonaRiego ?: null,
+                        ':parada'    => $parada ?: null,
+                        ':tablon'    => $tablon ?: null,
+                        ':socio'     => $numSocio ?: null,
+                        ':hprop'     => $horasProp,
+                        ':hdisp'     => $horasDisp,
+                        ':reg'       => $datosRegistrales ?: null,
+                        ':obs'       => $descripcion ?: null,
+                        ':id'        => $idFinca
+                    );
+                }
+                $stmtUpd->execute($paramsUpd);
                 $mensaje = "Finca <strong>" . htmlspecialchars($nombreFinca) . "</strong> actualizada correctamente.";
             } catch (Exception $e) {
                 $error = "Error al actualizar finca: " . $e->getMessage();
@@ -320,6 +369,16 @@ $fincas = $stmtF->fetchAll();
                                     <?php else: ?>
                                         <span class="small text-muted font-monospace">Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> / Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?></span>
                                     <?php endif; ?>
+                                    <div class="mt-1 d-flex gap-1 flex-wrap">
+                                        <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="badge bg-success bg-opacity-10 text-success border border-success-subtle text-decoration-none py-1 px-2" title="Localizar en Visor SIGPAC (FEGA) - Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> / Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?>">
+                                            <i class="fa-solid fa-map-location-dot me-1"></i>SIGPAC
+                                        </a>
+                                        <?php if (!empty($f['referencia_catastral'])): ?>
+                                            <a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=<?= urlencode($f['referencia_catastral']) ?>" target="_blank" class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle text-decoration-none py-1 px-2" title="Ortofoto Satelital Directa del Catastro">
+                                                <i class="fa-solid fa-layer-group me-1"></i>Catastro
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="small fw-semibold text-primary">
@@ -357,6 +416,40 @@ $fincas = $stmtF->fetchAll();
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">
+                                        <!-- Botón Localizar en Mapa / SIGPAC -->
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="btn btn-outline-success" title="Localizar en Visor SIGPAC (FEGA) - Pol: <?= htmlspecialchars($f['poligono'] ?: '-') ?> Parc: <?= htmlspecialchars($f['parcela'] ?: '-') ?>">
+                                                <i class="fa-solid fa-map-location-dot"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones de mapa y satélite">
+                                                <span class="visually-hidden">Mapas</span>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 small">
+                                                <li><h6 class="dropdown-header text-uppercase text-muted fw-bold py-1" style="font-size:0.7rem;"><i class="fa-solid fa-satellite me-1 text-success"></i>Visores Cartográficos</h6></li>
+                                                <li>
+                                                    <a class="dropdown-item py-2" href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank">
+                                                        <i class="fa-solid fa-map-location-dot me-2 text-success"></i><strong>Visor SIGPAC Oficial (FEGA)</strong>
+                                                        <div class="small text-muted ps-4">Pol: <?= htmlspecialchars($f['poligono'] ?: '-') ?> &bull; Parc: <?= htmlspecialchars($f['parcela'] ?: '-') ?></div>
+                                                    </a>
+                                                </li>
+                                                <?php if (!empty($f['referencia_catastral'])): ?>
+                                                    <li>
+                                                        <a class="dropdown-item py-2" href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=<?= urlencode($f['referencia_catastral']) ?>" target="_blank">
+                                                            <i class="fa-solid fa-layer-group me-2 text-primary"></i><strong>Catastro (Ortofoto Satelital)</strong>
+                                                            <div class="small text-muted ps-4">Ref: <?= htmlspecialchars($f['referencia_catastral']) ?></div>
+                                                        </a>
+                                                    </li>
+                                                <?php endif; ?>
+                                                <li><hr class="dropdown-divider my-1"></li>
+                                                <li>
+                                                    <a class="dropdown-item py-2" href="https://www.google.com/maps/search/?api=1&query=<?= urlencode(($f['poligono'] ? 'Polígono ' . $f['poligono'] . ' ' : '') . ($f['parcela'] ? 'Parcela ' . $f['parcela'] . ' ' : '') . ($f['nombre_paraje'] ? $f['nombre_paraje'] . ' ' : '') . ($f['nombre_finca'] ? $f['nombre_finca'] . ' ' : '') . 'Moratalla Murcia España') ?>" target="_blank">
+                                                        <i class="fa-brands fa-google me-2 text-danger"></i><strong>Google Maps (Satélite)</strong>
+                                                        <div class="small text-muted ps-4">Vista aérea y navegación</div>
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+
                                         <!-- Ver Gastos -->
                                         <a href="<?= APP_URL ?>/gastos?finca_id=<?= $f['id_finca'] ?>" class="btn btn-outline-warning" title="Ver o imputar gastos a esta finca">
                                             <i class="fa-solid fa-coins"></i>
@@ -506,6 +599,20 @@ $fincas = $stmtF->fetchAll();
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Agua disponible Comunitaria</label>
                                                                 <input type="number" step="0.01" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= $f['horas_disponibles_tanda'] ?>">
+                                                            </div>
+                                                        </div>
+
+                                                        <h6 class="fw-bold text-secondary border-top pt-3 mt-3">
+                                                            <i class="fa-solid fa-file-lines me-1 text-primary"></i>Descripción y Datos Registrales
+                                                        </h6>
+                                                        <div class="row g-3 mb-2">
+                                                            <div class="col-12">
+                                                                <label class="form-label fw-semibold small">Descripción / Observaciones de la Finca</label>
+                                                                <textarea name="descripcion" class="form-control" rows="3" placeholder="Descripción general de la finca, accesos, lindes, peculiaridades del terreno, notas..."><?= htmlspecialchars(!empty($f['descripcion']) ? $f['descripcion'] : (!empty($f['observaciones']) ? $f['observaciones'] : '')) ?></textarea>
+                                                            </div>
+                                                            <div class="col-12">
+                                                                <label class="form-label fw-semibold small">Datos Registrales</label>
+                                                                <input type="text" name="datos_registrales" class="form-control" placeholder="Registro de la Propiedad, Tomo, Libro, Folio, Finca registral nº..." value="<?= htmlspecialchars(!empty($f['datos_registrales']) ? $f['datos_registrales'] : '') ?>">
                                                             </div>
                                                         </div>
                                                     </div>

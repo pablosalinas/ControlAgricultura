@@ -1,17 +1,34 @@
 /**
- * ReportExport - Gestor Universal de Impresión, Exportación a PDF y Envío por Email
+ * ReportExport - Gestor Universal de Impresión, Visualización, Exportación a PDF y Envío por Email
+ * Optimizado para formato A4 (aprovechando al máximo el espacio y mostrando toda la información disponible)
  * AgroDietario
  */
 
 const ReportExport = (function() {
 
-    function getPdfConfig(filename) {
+    /**
+     * Determina automáticamente si el contenido es ancho (>= 5 columnas) para usar orientación A4 horizontal (Landscape)
+     */
+    function isLandscapeRecommended(targetElement) {
+        if (!targetElement) return true;
+        const tables = targetElement.querySelectorAll('table');
+        for (let i = 0; i < tables.length; i++) {
+            const thCount = tables[i].querySelectorAll('thead tr:first-child th').length;
+            if (thCount >= 5) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Opciones para html2pdf ajustadas milimétricamente para estándar A4
+     */
+    function getPdfConfig(filename, isLandscape) {
         return {
-            margin: [10, 10, 10, 10],
+            margin: [8, 8, 8, 8],
             filename: filename || 'informe.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' },
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
     }
@@ -29,29 +46,109 @@ const ReportExport = (function() {
         return Promise.resolve();
     }
 
+    /**
+     * Clona el elemento destino y lo maqueta estrictamente para formato de impresión A4
+     */
     function createPrintableClone(targetId, title) {
         const source = document.getElementById(targetId);
         if (!source) return null;
 
         const clone = source.cloneNode(true);
-        // Ocultar botones y acciones dentro del clon
-        clone.querySelectorAll('.no-print, .btn, .btn-group, [data-report-toolbar]').forEach(el => el.remove());
 
-        // Crear contenedor imprimible con cabecera corporativa
+        // 1. Ocultar botones, modales, formularios de filtrado y barras de herramientas
+        clone.querySelectorAll('.no-print, [data-report-toolbar], .btn, .btn-group, .pagination, .dropdown, form:not(.imprimible), .modal').forEach(el => el.remove());
+
+        // 2. Limpieza de tablas: suprimir columnas de "Acciones" para aprovechar el 100% del ancho del A4
+        clone.querySelectorAll('table').forEach(table => {
+            let actionColIndex = -1;
+            const headerRow = table.querySelector('thead tr');
+            if (headerRow) {
+                const headers = headerRow.querySelectorAll('th');
+                headers.forEach((th, idx) => {
+                    const txt = th.textContent.trim().toLowerCase();
+                    if (txt === 'acciones' || txt === 'acción' || th.classList.contains('text-end')) {
+                        actionColIndex = idx;
+                        th.remove();
+                    }
+                });
+            }
+
+            if (actionColIndex >= 0) {
+                table.querySelectorAll('tbody tr').forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length > actionColIndex) {
+                        cells[actionColIndex].remove();
+                    }
+                });
+            }
+
+            // Aplicar estilos ultracompactos y legibles para A4
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.fontSize = '8pt';
+            table.style.color = '#000000';
+            table.style.tableLayout = 'auto';
+            table.style.margin = '0 0 10px 0';
+
+            table.querySelectorAll('th').forEach(th => {
+                th.style.backgroundColor = '#f1f5f9';
+                th.style.color = '#0f172a';
+                th.style.border = '1px solid #94a3b8';
+                th.style.padding = '4px 6px';
+                th.style.fontWeight = 'bold';
+                th.style.fontSize = '8pt';
+                th.style.textAlign = 'left';
+            });
+
+            table.querySelectorAll('td').forEach(td => {
+                td.style.border = '1px solid #cbd5e1';
+                td.style.padding = '4px 6px';
+                td.style.fontSize = '8pt';
+                td.style.verticalAlign = 'middle';
+            });
+        });
+
+        // 3. Normalizar badges para que sean nítidos en papel y PDF
+        clone.querySelectorAll('.badge').forEach(b => {
+            b.style.border = '1px solid #94a3b8';
+            b.style.color = '#0f172a';
+            b.style.backgroundColor = '#f8fafc';
+            b.style.padding = '2px 4px';
+            b.style.fontSize = '7.5pt';
+            b.style.fontWeight = '600';
+            b.style.borderRadius = '3px';
+        });
+
+        // 4. Normalizar enlaces para que no salgan azules ni subrayados
+        clone.querySelectorAll('a').forEach(a => {
+            a.style.color = '#000000';
+            a.style.textDecoration = 'none';
+        });
+
+        // 5. Envolver en contenedor oficial A4 con membrete
         const container = document.createElement('div');
-        container.style.padding = '15px';
-        container.style.background = '#ffffff';
-        container.style.color = '#111827';
-        container.style.fontFamily = 'Segoe UI, Arial, sans-serif';
+        container.className = 'a4-document-container';
+        container.style.padding = '8mm';
+        container.style.backgroundColor = '#ffffff';
+        container.style.color = '#000000';
+        container.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+        container.style.boxSizing = 'border-box';
+        container.style.width = '100%';
+
+        const fechaEmision = new Date().toLocaleDateString('es-ES', { 
+            day: '2-digit', month: '2-digit', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit' 
+        });
 
         const headerHtml = `
-            <div style="border-bottom: 2px solid #091e3a; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div style="border-bottom: 2.5px solid #091e3a; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end;">
                 <div>
-                    <h3 style="margin: 0; color: #091e3a; font-weight: bold; font-size: 18px;">${title || 'AgroDietario - Informe Oficial'}</h3>
-                    <p style="margin: 3px 0 0; color: #6b7280; font-size: 12px;">Control agronómico y gestión de explotaciones agrícolas</p>
+                    <div style="font-size: 16pt; font-weight: 800; color: #091e3a; letter-spacing: -0.02em;">AgroDietario</div>
+                    <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; margin-top: 2px;">${title || 'Listado Oficial Agronómico'}</div>
                 </div>
-                <div style="text-align: right; font-size: 11px; color: #6b7280;">
-                    <div>Fecha de emisión: <strong>${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></div>
+                <div style="text-align: right; font-size: 8pt; color: #475569; line-height: 1.3;">
+                    <div>Fecha de emisión: <strong>${fechaEmision}</strong></div>
+                    <div>Plataforma Oficial de Gestión Agrícola</div>
                 </div>
             </div>
         `;
@@ -59,8 +156,9 @@ const ReportExport = (function() {
         container.appendChild(clone);
 
         const footerHtml = `
-            <div style="border-top: 1px solid #e5e7eb; margin-top: 20px; padding-top: 8px; font-size: 10px; color: #9ca3af; text-align: center;">
-                Documento oficial generado electrónicamente por AgroDietario • Plataforma de Control Agrícola
+            <div style="border-top: 1px solid #cbd5e1; margin-top: 15px; padding-top: 6px; font-size: 7.5pt; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+                <span>Documento oficial generado electrónicamente por <strong>AgroDietario</strong></span>
+                <span>Página generada para formato estándar A4</span>
             </div>
         `;
         const footerDiv = document.createElement('div');
@@ -82,7 +180,7 @@ const ReportExport = (function() {
             container.style.position = 'fixed';
             container.style.top = '20px';
             container.style.right = '20px';
-            container.style.zIndex = '9999';
+            container.style.zIndex = '99999';
             document.body.appendChild(container);
         }
 
@@ -103,24 +201,96 @@ const ReportExport = (function() {
 
     return {
         /**
-         * Imprime el informe o listado
+         * 1. VISUALIZAR: Muestra en pantalla el documento maquetado tal y como saldrá en la hoja A4
+         */
+        preview: function(targetId, title, filename, userEmail) {
+            const printable = createPrintableClone(targetId, title);
+            if (!printable) {
+                alert('No se encontró el elemento a visualizar.');
+                return;
+            }
+
+            const isLandscape = isLandscapeRecommended(document.getElementById(targetId));
+
+            // Eliminar modal previo si existiera
+            const oldModal = document.getElementById('modalReportPreview');
+            if (oldModal) oldModal.remove();
+
+            const modalHtml = `
+                <div class="modal fade" id="modalReportPreview" tabindex="-1" aria-labelledby="modalReportPreviewLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-fullscreen">
+                        <div class="modal-content" style="background-color: #334155;">
+                            <!-- Barra superior de acciones de la vista previa -->
+                            <div class="modal-header py-2 px-3 text-white border-0" style="background-color: #0f172a;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-warning text-dark font-monospace fw-bold"><i class="fa-solid fa-file-contract me-1"></i>VISTA PREVIA A4</span>
+                                    <h6 class="modal-title mb-0 fw-bold">${title || 'Informe Oficial'}</h6>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-light" onclick="ReportExport.print('${targetId}')">
+                                        <i class="fa-solid fa-print me-1"></i> Imprimir
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="ReportExport.downloadPdf('${targetId}', '${filename}', '${title}')">
+                                        <i class="fa-solid fa-file-pdf me-1"></i> Descargar PDF
+                                    </button>
+                                    ${userEmail ? `
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="ReportExport.sendEmail('${targetId}', '${title}', '${filename}', '${userEmail}', this)">
+                                            <i class="fa-solid fa-envelope me-1"></i> Enviar a mi Email
+                                        </button>
+                                    ` : ''}
+                                    <button type="button" class="btn btn-sm btn-secondary ms-2" data-bs-dismiss="modal">
+                                        <i class="fa-solid fa-xmark"></i> Cerrar
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Área de visualización estilo hoja A4 -->
+                            <div class="modal-body p-4" style="overflow-y: auto;">
+                                <div id="previewA4Sheet" style="
+                                    background: #ffffff;
+                                    color: #000000;
+                                    width: 100%;
+                                    max-width: ${isLandscape ? '1120px' : '820px'};
+                                    margin: 0 auto;
+                                    box-shadow: 0 10px 35px rgba(0,0,0,0.4);
+                                    border-radius: 4px;
+                                    min-height: 600px;
+                                ">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.getElementById('previewA4Sheet').appendChild(printable);
+
+            const bsModal = new bootstrap.Modal(document.getElementById('modalReportPreview'));
+            bsModal.show();
+        },
+
+        /**
+         * 2. IMPRIMIR: Abre el cuadro de diálogo de impresión directa en formato A4
          */
         print: function(targetId) {
             window.print();
         },
 
         /**
-         * Descarga el informe en formato PDF
+         * 3. DESCARGAR PDF: Genera el archivo en tamaño A4 aprovechando todo el ancho
          */
         downloadPdf: async function(targetId, filename, title) {
             try {
                 await ensureHtml2Pdf();
+                const sourceEl = document.getElementById(targetId);
+                const isLandscape = isLandscapeRecommended(sourceEl);
                 const printable = createPrintableClone(targetId, title);
                 if (!printable) {
                     alert('No se encontró el contenido a exportar.');
                     return;
                 }
-                const opt = getPdfConfig(filename);
+                const opt = getPdfConfig(filename, isLandscape);
+                showToast('Generando documento PDF optimizado en A4...', 'success');
                 html2pdf().set(opt).from(printable).save();
             } catch (err) {
                 alert('Error al generar PDF: ' + err.message);
@@ -128,7 +298,7 @@ const ReportExport = (function() {
         },
 
         /**
-         * Envía el informe por email al usuario autenticado
+         * 4. ENVIAR POR EMAIL: Genera el PDF A4 y lo remite al correo del usuario autenticado
          */
         sendEmail: async function(targetId, title, filename, userEmail, btnElement) {
             if (!userEmail) {
@@ -140,16 +310,18 @@ const ReportExport = (function() {
             if (btnElement) {
                 originalHtml = btnElement.innerHTML;
                 btnElement.disabled = true;
-                btnElement.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Generando PDF y enviando...';
+                btnElement.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Generando PDF A4 y enviando...';
             }
 
             try {
                 await ensureHtml2Pdf();
+                const sourceEl = document.getElementById(targetId);
+                const isLandscape = isLandscapeRecommended(sourceEl);
                 const printable = createPrintableClone(targetId, title);
                 if (!printable) throw new Error('No se pudo capturar el contenido del informe.');
 
-                // Generar PDF en Base64
-                const opt = getPdfConfig(filename);
+                // Generar PDF en Base64 con dimensiones exactas A4
+                const opt = getPdfConfig(filename, isLandscape);
                 const pdfBase64 = await html2pdf().set(opt).from(printable).outputPdf('datauristring');
 
                 // Enviar al backend vía API
@@ -176,7 +348,7 @@ const ReportExport = (function() {
                 }
 
                 if (json.success) {
-                    showToast(json.message || `Informe enviado con éxito a ${userEmail}`, 'success');
+                    showToast(json.message || `Informe oficial A4 enviado con éxito a ${userEmail}`, 'success');
                 } else {
                     showToast(json.message || 'Error al enviar el correo.', 'danger');
                 }

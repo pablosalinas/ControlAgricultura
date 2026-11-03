@@ -66,6 +66,7 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_ibi', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_derrama', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             self::addColumnIfNotExists($pdo, 'fincas', 'id_comunidad', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'fincas', 'descripcion', 'TEXT NULL');
 
             // 3. Columnas en PROPIETARIOS (Explotaciones)
             self::addColumnIfNotExists($pdo, 'propietarios', 'logo', 'VARCHAR(255) NULL');

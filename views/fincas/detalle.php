@@ -73,6 +73,9 @@ $ultimosRiegos = $stmtRiegos->fetchAll();
             </h2>
         </div>
         <div class="d-flex gap-2 mt-3 mt-md-0">
+            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="btn btn-outline-success" title="Localizar en Visor SIGPAC (FEGA)">
+                <i class="fa-solid fa-map-location-dot me-1"></i> Ver en SIGPAC
+            </a>
             <a href="<?= APP_URL ?>/fincas" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-arrow-left me-1"></i> Volver
             </a>
@@ -112,9 +115,34 @@ $ultimosRiegos = $stmtRiegos->fetchAll();
                         <span class="text-muted">Paraje / Término:</span>
                         <span><?= htmlspecialchars($finca['nombre_paraje'] ?: '-') ?> (<?= htmlspecialchars($finca['termino_municipal'] ?: '-') ?>)</span>
                     </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Localización en Mapa:</span>
+                        <div class="d-flex gap-1">
+                            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="badge bg-success text-decoration-none py-1 px-2" title="Visor Oficial SIGPAC (FEGA)">
+                                <i class="fa-solid fa-map-location-dot me-1"></i>SIGPAC
+                            </a>
+                            <?php if ($finca['referencia_catastral']): ?>
+                                <a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=<?= urlencode($finca['referencia_catastral']) ?>" target="_blank" class="badge bg-primary text-decoration-none py-1 px-2" title="Ortofoto Oficial Catastro">
+                                    <i class="fa-solid fa-layer-group me-1"></i>Catastro
+                                </a>
+                            <?php endif; ?>
+                            <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode(($finca['poligono'] ? 'Polígono ' . $finca['poligono'] . ' ' : '') . ($finca['parcela'] ? 'Parcela ' . $finca['parcela'] . ' ' : '') . ($finca['nombre_paraje'] ? $finca['nombre_paraje'] . ' ' : '') . ($finca['nombre_finca'] ? $finca['nombre_finca'] . ' ' : '') . 'Moratalla Murcia España') ?>" target="_blank" class="badge bg-danger text-decoration-none py-1 px-2" title="Google Maps Satélite">
+                                <i class="fa-brands fa-google me-1"></i>Google
+                            </a>
+                        </div>
+                    </li>
+                    <?php 
+                    $fincaDesc = !empty($finca['descripcion']) ? $finca['descripcion'] : (!empty($finca['observaciones']) ? $finca['observaciones'] : '');
+                    if ($fincaDesc): 
+                    ?>
+                        <li class="list-group-item px-0">
+                            <span class="text-muted d-block small mb-1 fw-bold"><i class="fa-solid fa-align-left text-primary me-1"></i>Descripción de la Finca:</span>
+                            <div class="small bg-light p-2 rounded border text-dark"><?= nl2br(htmlspecialchars($fincaDesc)) ?></div>
+                        </li>
+                    <?php endif; ?>
                     <?php if ($finca['datos_registrales']): ?>
                         <li class="list-group-item px-0">
-                            <span class="text-muted d-block small mb-1">Datos Registrales (Registro de la Propiedad):</span>
+                            <span class="text-muted d-block small mb-1 fw-bold"><i class="fa-solid fa-book-bookmark text-success me-1"></i>Datos Registrales (Registro de la Propiedad):</span>
                             <div class="small bg-light p-2 rounded border"><?= nl2br(htmlspecialchars($finca['datos_registrales'])) ?></div>
                         </li>
                     <?php endif; ?>
