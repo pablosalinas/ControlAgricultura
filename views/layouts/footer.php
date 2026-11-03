@@ -33,19 +33,19 @@ $contadorVisitas = class_exists('AccessTracker') ? AccessTracker::getTotalVisits
         <div class="row align-items-center g-3">
             <!-- Título y Logotipo Oficial / Explotación -->
             <div class="col-lg-6 text-center text-lg-start">
-                <div class="d-inline-flex align-items-center gap-2 mb-2 mb-lg-0">
-                    <img src="<?= htmlspecialchars($footerLogo) ?>" alt="<?= htmlspecialchars($footerTitle) ?>" class="rounded-3 shadow-sm border border-info border-opacity-25" style="height: 34px; width: 34px; object-fit: cover;">
+                <div class="d-inline-flex align-items-center gap-2 mb-2">
+                    <img src="<?= htmlspecialchars($footerLogo) ?>" alt="<?= htmlspecialchars($footerTitle) ?>" class="rounded-3 shadow-sm border border-info border-opacity-25" style="height: 36px; width: 36px; object-fit: cover;">
                     <span class="fw-bold text-white fs-5"><?= htmlspecialchars($footerTitle) ?></span>
                 </div>
-                <div class="text-muted small mt-1">
-                    &copy; <?= $copyrightPeriodo ?> AgroDietario &bull; Plataforma de Gestión Agrícola y Cuaderno de Explotación
+                <div class="small" style="color: #cbd5e1;">
+                    <strong class="text-white">Copyright &copy; <?= $copyrightPeriodo ?> AgroDietario.</strong> Todos los derechos reservados &bull; Plataforma de Gestión Agrícola y Cuaderno de Explotación
                 </div>
             </div>
 
             <!-- Contador de Visitas, Entorno y Seguridad -->
             <div class="col-lg-6 text-center text-lg-end">
                 <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-end gap-2">
-                    <!-- Contador de Visitas Web -->
+                    <!-- Contador de Visitas Web (Visible para todos los usuarios y visitantes) -->
                     <span class="badge bg-dark bg-opacity-75 border border-info border-opacity-30 text-info px-3 py-2 small" title="Total de visitas registradas en la plataforma">
                         <i class="fa-solid fa-chart-line me-1 text-cyan"></i> Visitas: <strong class="text-white"><?= number_format($contadorVisitas, 0, ',', '.') ?></strong>
                     </span>
@@ -54,7 +54,7 @@ $contadorVisitas = class_exists('AccessTracker') ? AccessTracker::getTotalVisits
                         <?= strtoupper(APP_ENV) ?>
                     </span>
 
-                    <span class="text-muted small ms-1">
+                    <span class="small ms-1" style="color: #94a3b8;">
                         <i class="fa-solid fa-shield-halved text-info me-1"></i>SSL Seguro
                     </span>
 

@@ -266,11 +266,21 @@
                     <?php if (Auth::canManageUsers()): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-people-roof me-1 text-info"></i> Configuración
+                            <i class="fa-solid fa-gear me-1 text-info"></i> Configuración
                         </a>
-                        <ul class="dropdown-menu shadow border-0 rounded-3">
+                        <ul class="dropdown-menu shadow border-0 rounded-3" style="min-width: 250px;">
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/explotaciones"><i class="fa-solid fa-building-wheat me-2 text-warning"></i>Explotaciones Agrarias</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/gestion-usuarios"><i class="fa-solid fa-id-card-clip me-2 text-primary"></i>Equipo y Usuarios</a></li>
+
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <!-- Apartado: Comunidades de Regantes y sus Socios -->
+                            <li class="dropdown-header text-uppercase text-muted fw-bold small py-1" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                                <i class="fa-solid fa-water me-1 text-primary"></i> Comunidades y Riego
+                            </li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/comunidades-regantes"><i class="fa-solid fa-droplet me-2 text-primary"></i>Comunidades de Regantes</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/regantes"><i class="fa-solid fa-address-book me-2 text-info"></i>Socios Regantes (Censo)</a></li>
+
+                            <li><hr class="dropdown-divider my-1"></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/accesos"><i class="fa-solid fa-chart-line me-2 text-info"></i>Estadísticas y Logs de Accesos</a></li>
                             <?php if (Auth::isSuperAdmin()): ?>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>

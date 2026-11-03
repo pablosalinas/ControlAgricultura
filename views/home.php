@@ -107,7 +107,7 @@ try {
                     <h5 class="fw-bold mb-0 text-white">Arquitectura Multi-Explotación con Aislamiento Estricto</h5>
                 </div>
                 <p class="text-light opacity-75 mb-0 small">
-                    Cada titular agrícola gestiona con total privacidad sus parcelas y equipo técnico. Las nuevas solicitudes son verificadas mediante Captcha y requieren validación previa del Superadministrador antes de operar.
+                    Cada titular agrícola gestiona con total privacidad sus parcelas y equipo técnico. Las nuevas solicitudes son verificadas mediante control de seguridad y requieren validación previa antes de operar.
                 </p>
             </div>
             <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">

@@ -16,17 +16,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id_
     $action = $_POST['action'];
 
     if ($action === 'aprobar') {
-        $rol = $_POST['rol'] ?? 'propietario';
+        $rol = isset($_POST['rol']) ? $_POST['rol'] : 'propietario';
         $stmt = $db->prepare("UPDATE usuarios SET estado = 'aprobado', rol = :rol, fecha_aprobacion = NOW(), aprobado_por_id = :admin WHERE id_usuario = :id");
-        $stmt->execute([':rol' => $rol, ':admin' => Auth::user()['id'], ':id' => $idUser]);
+        $stmt->execute(array(':rol' => $rol, ':admin' => Auth::user()['id'], ':id' => $idUser));
         $mensaje = "Usuario aprobado correctamente con rol " . htmlspecialchars($rol) . ".";
     } elseif ($action === 'rechazar') {
         $stmt = $db->prepare("UPDATE usuarios SET estado = 'rechazado' WHERE id_usuario = :id");
-        $stmt->execute([':id' => $idUser]);
+        $stmt->execute(array(':id' => $idUser));
         $mensaje = "Solicitud rechazada.";
     } elseif ($action === 'suspender') {
         $stmt = $db->prepare("UPDATE usuarios SET estado = 'suspendido' WHERE id_usuario = :id");
-        $stmt->execute([':id' => $idUser]);
+        $stmt->execute(array(':id' => $idUser));
         $mensaje = "Usuario suspendido.";
     }
 }
@@ -100,14 +100,14 @@ $activos = $db->query("
                                 <td class="fw-bold text-dark"><?= htmlspecialchars($p['nombre'] . ' ' . $p['apellidos']) ?></td>
                                 <td>
                                     <div><i class="fa-solid fa-envelope text-muted me-1"></i><?= htmlspecialchars($p['email']) ?></div>
-                                    <div class="small text-muted"><i class="fa-solid fa-phone me-1"></i><?= htmlspecialchars($p['telefono'] ?? '-') ?></div>
+                                    <div class="small text-muted"><i class="fa-solid fa-phone me-1"></i><?= htmlspecialchars(isset($p['telefono']) ? $p['telefono'] : '-') ?></div>
                                 </td>
                                 <td>
                                     <span class="badge bg-success bg-opacity-10 text-success fw-bold">
-                                        <?= htmlspecialchars($p['nombre_propietario'] ?? 'Nuevo Propietario') ?>
+                                        <?= htmlspecialchars(isset($p['nombre_propietario']) ? $p['nombre_propietario'] : 'Nuevo Propietario') ?>
                                     </span>
                                 </td>
-                                <td class="small text-muted" style="max-width:200px;"><?= htmlspecialchars($p['motivo_solicitud'] ?? '-') ?></td>
+                                <td class="small text-muted" style="max-width:200px;"><?= htmlspecialchars(isset($p['motivo_solicitud']) ? $p['motivo_solicitud'] : '-') ?></td>
                                 <td>
                                     <form action="<?= APP_URL ?>/admin/usuarios" method="POST" id="form-aprobar-<?= $p['id_usuario'] ?>">
                                         <input type="hidden" name="id_usuario" value="<?= $p['id_usuario'] ?>">
@@ -116,7 +116,7 @@ $activos = $db->query("
                                             <option value="propietario" selected>Propietario</option>
                                             <option value="tecnico">Técnico / Encargado</option>
                                             <option value="lector">Lector / Auditor</option>
-                                            <option value="superadmin">Superadministrador</option>
+                                            <option value="superadmin">Administrador General</option>
                                         </select>
                                     </form>
                                 </td>
@@ -164,7 +164,7 @@ $activos = $db->query("
                             <td>#<?= $u['id_usuario'] ?></td>
                             <td class="fw-bold"><?= htmlspecialchars($u['nombre'] . ' ' . $u['apellidos']) ?></td>
                             <td><?= htmlspecialchars($u['email']) ?></td>
-                            <td><?= htmlspecialchars($u['nombre_propietario'] ?? 'Todas (Admin)') ?></td>
+                            <td><?= htmlspecialchars(isset($u['nombre_propietario']) ? $u['nombre_propietario'] : 'Todas (Admin)') ?></td>
                             <td>
                                 <span class="badge bg-secondary text-capitalize"><?= htmlspecialchars($u['rol']) ?></span>
                             </td>

@@ -298,7 +298,7 @@ $usuarios = $stmtUsers->fetchAll();
                 <h2 class="fw-bold mb-0 text-primary" style="letter-spacing: -0.02em;">Gestión de Usuarios y Equipo</h2>
                 <p class="text-muted mb-0 small">
                     <?php if ($isSuperAdmin): ?>
-                        <span class="badge bg-warning text-dark me-1">Superadministrador</span> Control técnico total: modificar, dar de baja, descatalogar y reasignar usuarios
+                        <span class="badge bg-warning text-dark me-1">Administración</span> Control técnico: modificar, dar de baja, descatalogar y reasignar usuarios
                     <?php else: ?>
                         <span class="badge bg-primary me-1">Gestor</span> Equipo de trabajo de tu explotación: <strong><?= htmlspecialchars($currentUser['nombre_propietario']) ?></strong>
                     <?php endif; ?>
@@ -365,7 +365,7 @@ $usuarios = $stmtUsers->fetchAll();
                             <option value="propietario">Gestor de Explotación (Control total de la finca)</option>
                             <option value="lector">Lector / Auditor (Solo consulta de cuadernos)</option>
                             <?php if ($isSuperAdmin): ?>
-                                <option value="superadmin" class="text-danger fw-bold">Superadministrador (Técnico Global)</option>
+                                <option value="superadmin" class="text-danger fw-bold">Administrador General</option>
                             <?php endif; ?>
                         </select>
                     </div>
@@ -540,7 +540,7 @@ $usuarios = $stmtUsers->fetchAll();
                                 </td>
                                 <td>
                                     <?php if ($u['rol'] === 'superadmin'): ?>
-                                        <span class="badge bg-warning text-dark"><i class="fa-solid fa-shield-halved me-1"></i>Superadmin</span>
+                                        <span class="badge bg-warning text-dark"><i class="fa-solid fa-shield-halved me-1"></i>Administrador</span>
                                     <?php elseif ($u['rol'] === 'propietario'): ?>
                                         <span class="badge bg-primary"><i class="fa-solid fa-user-tie me-1"></i>Gestor Explotación</span>
                                     <?php elseif ($u['rol'] === 'tecnico'): ?>
@@ -643,7 +643,7 @@ $usuarios = $stmtUsers->fetchAll();
                                                                     <option value="propietario" <?= $u['rol'] === 'propietario' ? 'selected' : '' ?>>Gestor de Explotación</option>
                                                                     <option value="lector" <?= $u['rol'] === 'lector' ? 'selected' : '' ?>>Lector / Auditor</option>
                                                                     <?php if ($isSuperAdmin): ?>
-                                                                        <option value="superadmin" <?= $u['rol'] === 'superadmin' ? 'selected' : '' ?> class="text-danger fw-bold">Superadministrador</option>
+                                                                        <option value="superadmin" <?= $u['rol'] === 'superadmin' ? 'selected' : '' ?> class="text-danger fw-bold">Administrador General</option>
                                                                     <?php endif; ?>
                                                                 </select>
                                                             </div>
