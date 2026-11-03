@@ -18,3 +18,7 @@ Desktop.ini
 # Logs
 *.log
 logs/
+
+# Antigravity y recursos locales
+.gemini/
+00 recursos/

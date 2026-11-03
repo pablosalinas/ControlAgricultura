@@ -26,7 +26,7 @@ try {
 <div class="text-white py-5 position-relative overflow-hidden" style="background: linear-gradient(135deg, #091e3a 0%, #0e3863 50%, #1d4ed8 100%); border-bottom: 2px solid rgba(56, 189, 248, 0.3);">
     <div class="container py-4 text-center position-relative" style="z-index: 2;">
         <span class="badge bg-info bg-opacity-25 text-info px-3 py-2 rounded-pill fw-bold mb-3 border border-info border-opacity-50">
-            <i class="fa-solid fa-satellite me-1"></i> Plataforma Agronómica Multi-Explotación
+            <i class="fa-solid fa-satellite me-1"></i> Plataforma Agronómica Multi-Explotación &bull; <a href="https://www.moratalla-murcia.com" target="_blank" rel="noopener noreferrer" class="text-warning text-decoration-none"><i class="fa-solid fa-arrow-up-right-from-square ms-1 me-1"></i>www.moratalla-murcia.com</a>
         </span>
         <h1 class="display-4 fw-bold mb-3" style="letter-spacing: -0.03em;"><?= htmlspecialchars($config['titulo']) ?></h1>
         <p class="lead col-lg-8 mx-auto text-light opacity-90 mb-4"><?= htmlspecialchars($config['subtitulo']) ?></p>

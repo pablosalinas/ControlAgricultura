@@ -146,13 +146,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 3. ELIMINAR / BORRAR TRATAMIENTO
+    // 3. ELIMINAR / BORRAR TRATAMIENTO (Borrado lógico estricto GEMINI.md)
     elseif ($action === 'borrar_tratamiento') {
         try {
             $idTrat = (int)$_POST['id_tratamiento'];
-            $stmtDel = $db->prepare("DELETE FROM tratamientos WHERE id_tratamiento = :id");
+            $stmtDel = $db->prepare("UPDATE tratamientos SET activo = 0 WHERE id_tratamiento = :id");
             $stmtDel->execute(array(':id' => $idTrat));
-            $mensaje = "Tratamiento eliminado correctamente del cuaderno.";
+            $mensaje = "Tratamiento archivado y descatalogado correctamente (borrado lógico seguro).";
         } catch (Exception $e) {
             $error = "Error al eliminar tratamiento: " . $e->getMessage();
         }
@@ -193,7 +193,7 @@ $sqlTrat = "
     JOIN plantaciones p ON t.id_plantacion = p.id_plantacion
     JOIN fincas f ON p.id_finca = f.id_finca
     JOIN cultivos c ON p.id_cultivo = c.id_cultivo
-    WHERE 1=1
+    WHERE (t.activo = 1 OR t.activo IS NULL)
 ";
 $params = array();
 
@@ -289,18 +289,101 @@ $tratamientos = $stmtTrat->fetchAll();
                     </div>
                 </div>
 
+                <!-- ASISTENTE INTELIGENTE IA: LOCALIZADOR DE PRODUCTOS FITOSANITARIOS Y REGISTRO OFICIAL -->
+                <div class="card mb-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%); border-left: 4px solid #0284c7 !important;">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary p-2 rounded-circle"><i class="fa-solid fa-wand-magic-sparkles text-warning fs-6"></i></span>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-primary">Localizador Inteligente de Fitosanitarios (IA & Registro MAPA)</h6>
+                                    <span class="text-muted small">Busca cualquier producto comercial, materia activa o plaga para obtener su funcionalidad oficial y autocompletar la ficha</span>
+                                </div>
+                            </div>
+                            <span class="badge bg-white text-primary border border-primary-subtle px-3 py-1 rounded-pill small">
+                                <i class="fa-solid fa-shield-halved me-1 text-success"></i>Registro Oficial UE / España
+                            </span>
+                        </div>
+
+                        <div class="row g-2 align-items-center mb-2">
+                            <div class="col-md-9">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                                    <input type="text" id="ia_producto_busqueda" class="form-control border-start-0" placeholder="Escribe el nombre del producto (ej: Nordox, Spintor, Cobre, Bacillus, Karate, Score, Roundup...) o plaga (ej: Repilo, Oídio, Pulgón)..." autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" id="btnConsultarIaProducto" class="btn btn-primary fw-bold w-100 shadow-sm" onclick="consultarProductoIa()">
+                                    <i class="fa-solid fa-bolt me-1 text-warning"></i> Consultar con IA
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Píldoras de búsqueda rápida -->
+                        <div class="d-flex flex-wrap align-items-center gap-1 mt-2">
+                            <span class="small text-muted me-1 fw-semibold"><i class="fa-solid fa-tags me-1"></i>Frecuentes:</span>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Nordox 75 WG')">🌿 Nordox 75 (Cobre Bio)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Spintor 480 SC')">🐛 Spintor (Spinosad Bio)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Bacillus thuringiensis')">🌱 Bacillus (Orugas Bio)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Kumulus DF')">🌾 Kumulus (Azufre Bio)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Jabón Potásico')">🧼 Jabón Potásico (Bio)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Karate Zeon')">⚡ Karate Zeon (Piretroide)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Score 25 EC')">🔬 Score (Difenoconazol)</button>
+                            <button type="button" class="btn btn-sm btn-white bg-white border py-0 px-2 rounded-pill small" onclick="seleccionarPildora('Roundup Ultra')">🚜 Roundup (Glifosato)</button>
+                        </div>
+
+                        <!-- Indicador de carga -->
+                        <div id="ia_producto_spinner" class="mt-3 text-center py-2 d-none">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <span class="text-primary fw-semibold small">Consultando Registro Oficial Fitosanitario y analizando ficha técnica...</span>
+                        </div>
+
+                        <!-- Tarjeta con Resultado Encontrado y Botón de Relleno Automático -->
+                        <div id="ia_producto_resultado" class="mt-3 card border-success bg-white shadow-sm p-3 rounded-3 d-none">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-2 gap-2">
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-circle-check text-success"></i>
+                                        <span id="res_ia_nombre" class="text-primary"></span>
+                                        <span id="res_ia_badge_eco"></span>
+                                    </h6>
+                                    <span id="res_ia_fuente" class="text-muted" style="font-size: 0.75rem;"></span>
+                                </div>
+                                <button type="button" class="btn btn-success fw-bold btn-sm shadow-sm px-3" onclick="aplicarDatosIaEnFormulario()">
+                                    <i class="fa-solid fa-file-circle-check me-1"></i> Rellenar Ficha Automáticamente
+                                </button>
+                            </div>
+                            <div class="row g-2 small">
+                                <div class="col-md-6">
+                                    <div><strong>Materia Activa:</strong> <span id="res_ia_materia" class="text-dark"></span></div>
+                                    <div><strong>Nº Registro MAPA:</strong> <span id="res_ia_registro" class="badge bg-light text-dark border font-monospace"></span></div>
+                                    <div><strong>Funcionalidad:</strong> <span id="res_ia_tipo" class="text-primary fw-semibold"></span></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div><strong>Plaga / Diana:</strong> <span id="res_ia_plaga" class="text-dark"></span></div>
+                                    <div><strong>Dosis Recomendada:</strong> <span id="res_ia_dosis" class="fw-bold text-success font-monospace"></span></div>
+                                    <div><strong>Plazo Seguridad:</strong> <span id="res_ia_plazo" class="fw-bold text-danger"></span> días</div>
+                                </div>
+                                <div class="col-12 mt-2 pt-2 border-top">
+                                    <div class="text-muted" style="font-size:0.8rem;"><i class="fa-solid fa-circle-info text-info me-1"></i><span id="res_ia_obs"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold small">Nombre Comercial del Producto <span class="text-danger">*</span></label>
-                        <input type="text" name="nombre_comercial_producto" class="form-control" required placeholder="Ej: Cobre Nordox, Spintor 480, Bacillus thuringiensis...">
+                        <input type="text" name="nombre_comercial_producto" id="nombre_comercial_producto" class="form-control" required placeholder="Ej: Cobre Nordox, Spintor 480, Bacillus thuringiensis...">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold small">Materia Activa</label>
-                        <input type="text" name="materia_activa" class="form-control" placeholder="Ej: Óxido cuproso 75%, Spinosad...">
+                        <input type="text" name="materia_activa" id="materia_activa" class="form-control" placeholder="Ej: Óxido cuproso 75%, Spinosad...">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold small">Nº Registro Oficial (MAPA)</label>
-                        <input type="text" name="num_registro_oficial" class="form-control" placeholder="Ej: 22.145">
+                        <input type="text" name="num_registro_oficial" id="num_registro_oficial" class="form-control" placeholder="Ej: 22.145">
                     </div>
                 </div>
 
@@ -445,28 +528,54 @@ $tratamientos = $stmtTrat->fetchAll();
         </form>
     </div>
 
-    <!-- Histórico de Tratamientos Registrados (CRUD) -->
-    <div class="card card-ag shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
-            <h6 class="fw-bold mb-0 text-primary">
-                <i class="fa-solid fa-book-bookmark me-2"></i>Tratamientos Registrados en el Cuaderno (<?= count($tratamientos) ?>)
-            </h6>
+    <!-- Histórico de Tratamientos Registrados (ÁREA DE INFORME MAQUETADA PARA A4) -->
+    <div class="card card-ag shadow-sm border-0 mb-4" id="area-informe-tratamientos">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2 d-print-none">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-file-shield text-danger fs-5"></i>
+                <h6 class="fw-bold mb-0 text-primary">Informe Oficial de Tratamientos Fitosanitarios (<?= count($tratamientos) ?> aplicaciones)</h6>
+            </div>
+            <div>
+                <?php 
+                    $reportTitle = "Informe Oficial de Tratamientos Fitosanitarios y Ecologicos";
+                    $reportFileName = "informe_tratamientos_fitosanitarios_" . date('Ymd_His');
+                    $reportContainerId = "area-informe-tratamientos";
+                    require VIEWS_PATH . '/layouts/toolbar_informes.php';
+                ?>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light small text-muted text-uppercase">
-                    <tr>
-                        <th class="ps-4">Fecha</th>
-                        <th>Finca / Cuadro</th>
-                        <th>Tipo</th>
-                        <th>Producto / Materia Activa</th>
-                        <th>Dosis y Caldo</th>
-                        <th>Plaga Objetivo</th>
-                        <th>Plazo Seg. (Fin)</th>
-                        <th>Aplicador</th>
-                        <th class="text-end pe-4">Acciones</th>
-                    </tr>
-                </thead>
+
+        <div class="card-body p-4">
+            <!-- Encabezado A4 Oficial -->
+            <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
+                <div>
+                    <h4 class="fw-bold text-primary mb-1">
+                        <i class="fa-solid fa-shield-virus me-2 text-danger"></i><?= htmlspecialchars(Auth::user()['nombre_propietario'] ?: APP_NAME) ?>
+                    </h4>
+                    <div class="small text-muted">Cuaderno de Explotación Agraria - Registro Oficial de Tratamientos Fitosanitarios y Ecológicos</div>
+                    <div class="small text-secondary">Fecha de emisión: <strong><?= date('d/m/Y H:i') ?></strong> | Responsable: <?= htmlspecialchars($currentUser['nombre_completo']) ?></div>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-danger px-3 py-2 fs-6 rounded-pill">SANIDAD VEGETAL</span>
+                    <div class="small text-muted mt-1 font-monospace">Real Decreto 1311/2012 / Uso Sostenible</div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0" style="font-size: 0.88rem;">
+                    <thead class="table-light small text-uppercase fw-bold text-secondary">
+                        <tr>
+                            <th class="ps-3">Fecha</th>
+                            <th>Finca / Parcela</th>
+                            <th>Manejo</th>
+                            <th>Producto / Materia Activa / Reg. MAPA</th>
+                            <th class="text-center">Dosis y Caldo</th>
+                            <th>Plaga Objetivo</th>
+                            <th class="text-center">Plazo Seg.</th>
+                            <th>Aplicador</th>
+                            <th class="text-end pe-3 d-print-none">Acciones</th>
+                        </tr>
+                    </thead>
                 <tbody>
                     <?php if (empty($tratamientos)): ?>
                         <tr>
@@ -774,9 +883,146 @@ function calcularCaldoYDosis() {
     selUnidadFinal.value = unidadFinal;
 }
 
+// ASISTENTE INTELIGENTE IA PARA FITOSANITARIOS
+let datosIaCargados = null;
+
+function seleccionarPildora(nombre) {
+    const inp = document.getElementById('ia_producto_busqueda');
+    if (inp) {
+        inp.value = nombre;
+        consultarProductoIa();
+    }
+}
+
+function consultarProductoIa() {
+    const qInp = document.getElementById('ia_producto_busqueda');
+    if (!qInp) return;
+    const q = qInp.value.trim();
+    if (!q) {
+        alert("Por favor, introduce el nombre del producto, materia activa o plaga a consultar.");
+        return;
+    }
+
+    const spinner = document.getElementById('ia_producto_spinner');
+    const resBox = document.getElementById('ia_producto_resultado');
+    const btn = document.getElementById('btnConsultarIaProducto');
+
+    spinner.classList.remove('d-none');
+    resBox.classList.add('d-none');
+    btn.disabled = true;
+
+    fetch('<?= APP_URL ?>/api/fitosanitarios/consultar-ia?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(res => {
+            spinner.classList.add('d-none');
+            btn.disabled = false;
+
+            if (res.success && res.data) {
+                const d = res.data;
+                datosIaCargados = d;
+
+                document.getElementById('res_ia_nombre').textContent = d.nombre_comercial_producto || q;
+                const badgeEco = document.getElementById('res_ia_badge_eco');
+                if (d.es_ecologico) {
+                    badgeEco.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill';
+                    badgeEco.innerHTML = '<i class="fa-solid fa-leaf me-1"></i>Apto Ecológico (Bio)';
+                } else {
+                    badgeEco.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill';
+                    badgeEco.innerHTML = '<i class="fa-solid fa-flask me-1"></i>Convencional';
+                }
+
+                document.getElementById('res_ia_fuente').textContent = d.fuente || 'Registro Fitosanitario';
+                document.getElementById('res_ia_materia').textContent = d.materia_activa || 'No especificada';
+                document.getElementById('res_ia_registro').textContent = d.num_registro_oficial || 'En trámite / Básico';
+                document.getElementById('res_ia_tipo').textContent = d.tipo_producto || '-';
+                document.getElementById('res_ia_plaga').textContent = d.plaga_o_enfermedad_objetivo || '-';
+                document.getElementById('res_ia_dosis').textContent = (d.dosis_recomendada_ha || '1.5') + ' ' + (d.unidad_dosis || 'l/ha');
+                document.getElementById('res_ia_plazo').textContent = (d.plazo_seguridad_dias !== undefined) ? d.plazo_seguridad_dias : '0';
+                document.getElementById('res_ia_obs').textContent = d.observaciones_tecnicas || (d.modo_accion || '');
+
+                resBox.classList.remove('d-none');
+            } else {
+                alert(res.message || "No se obtuvieron resultados para el producto indicado.");
+            }
+        })
+        .catch(err => {
+            spinner.classList.add('d-none');
+            btn.disabled = false;
+            console.error(err);
+            alert("Error al conectar con el asistente de fitosanitarios.");
+        });
+}
+
+function aplicarDatosIaEnFormulario() {
+    if (!datosIaCargados) return;
+    const d = datosIaCargados;
+
+    if (document.getElementById('nombre_comercial_producto')) {
+        document.getElementById('nombre_comercial_producto').value = d.nombre_comercial_producto || '';
+    }
+    if (document.getElementById('materia_activa')) {
+        document.getElementById('materia_activa').value = d.materia_activa || '';
+    }
+    if (document.getElementById('num_registro_oficial')) {
+        document.getElementById('num_registro_oficial').value = d.num_registro_oficial || '';
+    }
+    if (document.getElementById('es_ecologico')) {
+        document.getElementById('es_ecologico').checked = (d.es_ecologico == 1);
+    }
+    if (document.querySelector('input[name="plazo_seguridad_dias"]')) {
+        document.querySelector('input[name="plazo_seguridad_dias"]').value = d.plazo_seguridad_dias !== undefined ? d.plazo_seguridad_dias : 0;
+    }
+    if (document.querySelector('input[name="plaga_o_enfermedad_objetivo"]')) {
+        document.querySelector('input[name="plaga_o_enfermedad_objetivo"]').value = d.plaga_o_enfermedad_objetivo || '';
+    }
+    if (document.querySelector('textarea[name="observaciones"]')) {
+        const obsAct = document.querySelector('textarea[name="observaciones"]').value;
+        const textoIa = (d.modo_accion ? '[' + d.modo_accion + '] ' : '') + (d.observaciones_tecnicas || '');
+        document.querySelector('textarea[name="observaciones"]').value = obsAct ? (obsAct + ' | ' + textoIa) : textoIa;
+    }
+
+    // Dosis
+    if (document.getElementById('dosis_entrada') && d.dosis_recomendada_ha) {
+        document.getElementById('dosis_entrada').value = d.dosis_recomendada_ha;
+        if (document.getElementById('unidad_entrada') && d.unidad_dosis) {
+            // Verificar si la unidad existe en el select
+            const uSelect = document.getElementById('unidad_entrada');
+            let found = false;
+            for (let i = 0; i < uSelect.options.length; i++) {
+                if (uSelect.options[i].value === d.unidad_dosis) {
+                    uSelect.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                uSelect.value = d.unidad_dosis.includes('kg') ? 'kg/ha' : 'l/ha';
+            }
+        }
+        calcularCaldoYDosis();
+    }
+
+    // Scroll suave hacia los campos
+    const targetEl = document.getElementById('nombre_comercial_producto');
+    if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetEl.focus();
+    }
+}
+
 // Inicializar al cargar
 document.addEventListener('DOMContentLoaded', function() {
     cambiarModoDosificacion();
+
+    const busqInp = document.getElementById('ia_producto_busqueda');
+    if (busqInp) {
+        busqInp.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                consultarProductoIa();
+            }
+        });
+    }
 });
 </script>
 

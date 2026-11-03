@@ -68,6 +68,33 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'fincas', 'id_comunidad', 'INT NULL');
             self::addColumnIfNotExists($pdo, 'fincas', 'descripcion', 'TEXT NULL');
 
+            // 2b. Columnas agronómicas e IA en CULTIVOS
+            self::addColumnIfNotExists($pdo, 'cultivos', 'descripcion', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'cultivos', 'formato_siembra', 'VARCHAR(255) NULL');
+            self::addColumnIfNotExists($pdo, 'cultivos', 'epoca_siembra', 'VARCHAR(255) NULL');
+            self::addColumnIfNotExists($pdo, 'cultivos', 'epoca_trasplante', 'VARCHAR(255) NULL');
+            self::addColumnIfNotExists($pdo, 'cultivos', 'epoca_recoleccion', 'VARCHAR(255) NULL');
+            self::addColumnIfNotExists($pdo, 'cultivos', 'tratamientos_recomendados', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'cultivos', 'es_ecologico', 'TINYINT(1) NOT NULL DEFAULT 0');
+
+            // 2c. Columnas y borrado lógico en TRATAMIENTOS
+            self::addColumnIfNotExists($pdo, 'tratamientos', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+            self::addColumnIfNotExists($pdo, 'tratamientos', 'modo_accion', 'VARCHAR(150) NULL');
+
+            // 2d. Columnas en RIEGOS (Comunidad vs Depósito Goteo y soft delete)
+            self::addColumnIfNotExists($pdo, 'riegos', 'origen_agua', "VARCHAR(50) NOT NULL DEFAULT 'comunidad'");
+            self::addColumnIfNotExists($pdo, 'riegos', 'id_deposito', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'riegos', 'litros_consumidos', 'DECIMAL(12,2) NULL');
+            self::addColumnIfNotExists($pdo, 'riegos', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+
+            // 2e. Columnas en LABORES_SUELO (Asociación a Finca y soft delete)
+            self::addColumnIfNotExists($pdo, 'labores_suelo', 'id_finca', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'labores_suelo', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+
+            // 2f. Columnas en PODAS_TALAS y RECOLECCIONES (Soft delete)
+            self::addColumnIfNotExists($pdo, 'podas_talas', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+            self::addColumnIfNotExists($pdo, 'recolecciones', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+
             // 3. Columnas en PROPIETARIOS (Explotaciones)
             self::addColumnIfNotExists($pdo, 'propietarios', 'logo', 'VARCHAR(255) NULL');
             self::addColumnIfNotExists($pdo, 'propietarios', 'fanegas_por_hectarea', 'DECIMAL(8,4) NOT NULL DEFAULT 3.0000');
@@ -356,6 +383,43 @@ class DatabaseMigrator {
                     INDEX idx_ge_confirmado (confirmado),
                     INDEX idx_ge_tipo (id_tipo),
                     INDEX idx_ge_mov (tipo_movimiento)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // 11. TABLA DE DEPÓSITOS Y BALSAS DE AGUA PARA RIEGO POR GOTEO
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS depositos_agua (
+                    id_deposito INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NOT NULL,
+                    id_finca INT NULL,
+                    nombre_deposito VARCHAR(150) NOT NULL,
+                    capacidad_litros DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                    litros_actuales DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                    tipo_deposito VARCHAR(50) DEFAULT 'deposito',
+                    ubicacion VARCHAR(255) NULL,
+                    observaciones TEXT NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_dep_prop (id_propietario),
+                    INDEX idx_dep_finca (id_finca)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // 12. TABLA DE REGISTROS DE LLENADO DE DEPÓSITOS
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS depositos_llenados (
+                    id_llenado INT AUTO_INCREMENT PRIMARY KEY,
+                    id_deposito INT NOT NULL,
+                    fecha_llenado DATE NOT NULL,
+                    litros_llenados DECIMAL(12, 2) NOT NULL,
+                    procedencia_agua VARCHAR(150) NOT NULL,
+                    coste_llenado DECIMAL(10, 2) NULL DEFAULT 0.00,
+                    observaciones TEXT NULL,
+                    creado_por_id INT NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_llen_dep (id_deposito),
+                    INDEX idx_llen_fecha (fecha_llenado)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 

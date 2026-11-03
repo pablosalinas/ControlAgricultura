@@ -325,9 +325,38 @@ switch ($route) {
         require_once VIEWS_PATH . '/configuracion/backup.php';
         break;
 
+    case 'backup/descargar':
+        if (!Auth::isAdmin()) {
+            header("Location: " . APP_URL . "/dashboard");
+            exit;
+        }
+        require_once SRC_PATH . '/Services/BackupService.php';
+        $res = BackupService::createBackup(BackupService::DEFAULT_PASSWORD);
+        if ($res['success']) {
+            BackupService::streamDownload($res['zipPath'], $res['filename']);
+        } else {
+            $_SESSION['backup_error'] = $res['message'];
+            header("Location: " . APP_URL . "/backup");
+            exit;
+        }
+        break;
+
     // API Universal para Enviar Informes y Listados por Correo Electrónico
     case 'api/informe/enviar-email':
         require_once ROOT_PATH . '/controllers/api_informe_email.php';
+        break;
+
+    // API Asistente IA para Búsqueda y Autocompletado de Cultivos
+    case 'api/cultivos/ia':
+    case 'api/cultivos/consultar-ia':
+        require_once ROOT_PATH . '/controllers/api_cultivos_ia.php';
+        break;
+
+    // API Asistente IA para Localización de Productos Fitosanitarios y Registro MAPA
+    case 'api/fitosanitarios/ia':
+    case 'api/fitosanitarios/consultar-ia':
+    case 'api/tratamientos/consultar-producto-ia':
+        require_once ROOT_PATH . '/controllers/api_fitosanitarios_ia.php';
         break;
 
     default:

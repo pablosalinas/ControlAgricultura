@@ -38,7 +38,7 @@ $contadorVisitas = class_exists('AccessTracker') ? AccessTracker::getTotalVisits
                     <span class="fw-bold text-white fs-5"><?= htmlspecialchars($footerTitle) ?></span>
                 </div>
                 <div class="small" style="color: #cbd5e1;">
-                    <strong class="text-white">Copyright &copy; <?= $copyrightPeriodo ?> AgroDietario.</strong> Todos los derechos reservados &bull; Plataforma de Gestión Agrícola y Cuaderno de Explotación
+                    <strong class="text-white">Copyright &copy; <?= $copyrightPeriodo ?> AgroDietario.</strong> Todos los derechos reservados &bull; <a href="https://www.moratalla-murcia.com" target="_blank" rel="noopener noreferrer" class="text-warning text-decoration-none fw-semibold"><i class="fa-solid fa-globe me-1"></i>www.moratalla-murcia.com</a> &bull; Plataforma de Gestión Agrícola y Cuaderno de Explotación
                 </div>
             </div>
 

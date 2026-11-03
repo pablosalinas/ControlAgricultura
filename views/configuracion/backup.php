@@ -11,7 +11,12 @@ $db = Database::getConnection();
 $error = '';
 $mensaje = '';
 
-// Procesar descarga de copia de seguridad (DEBE ejecutarse antes de enviar cualquier HTML)
+if (isset($_SESSION['backup_error'])) {
+    $error = $_SESSION['backup_error'];
+    unset($_SESSION['backup_error']);
+}
+
+// Fallback por si se envía directamente a esta vista
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'generar_backup') {
     require_once SRC_PATH . '/Services/BackupService.php';
     $res = BackupService::createBackup(BackupService::DEFAULT_PASSWORD);
@@ -91,7 +96,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     </div>
 
                     <!-- Botón de Acción Principal -->
-                    <form action="<?= APP_URL ?>/backup" method="POST" id="formBackup">
+                    <form action="<?= APP_URL ?>/backup/descargar" method="POST" id="formBackup">
                         <input type="hidden" name="action" value="generar_backup">
                         <div class="d-grid gap-2">
                             <button type="submit" id="btnDescargar" class="btn btn-primary btn-lg fw-bold shadow py-3">

@@ -214,15 +214,17 @@ class BackupService {
             ob_end_clean();
         }
 
-        if (!headers_sent()) {
-            header('Content-Description: File Transfer');
-            header('Content-Type: application/zip');
-            header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-            header('Pragma: public');
-            header('Content-Length: ' . filesize($zipFilePath));
+        if (headers_sent($file, $line)) {
+            die("Error: No se puede enviar el archivo ZIP porque ya se envió contenido previo en {$file} línea {$line}.");
         }
+
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($zipFilePath));
 
         readfile($zipFilePath);
         @unlink($zipFilePath);

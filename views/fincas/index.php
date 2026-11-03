@@ -361,6 +361,13 @@ $fincas = $stmtF->fetchAll();
                                     </div>
                                 </td>
                                 <td>
+                                    <?php 
+                                        $refDirectaCatastro = !empty($f['referencia_catastral']) ? trim($f['referencia_catastral']) : '';
+                                        if (empty($refDirectaCatastro) && !empty($f['poligono']) && !empty($f['parcela'])) {
+                                            $refDirectaCatastro = '30028A' . str_pad($f['poligono'], 3, '0', STR_PAD_LEFT) . str_pad($f['parcela'], 5, '0', STR_PAD_LEFT);
+                                        }
+                                        $urlMapaCatastro = !empty($refDirectaCatastro) ? "https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=" . urlencode($refDirectaCatastro) : "https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx";
+                                    ?>
                                     <?php if ($f['referencia_catastral']): ?>
                                         <a href="https://www1.sedecatastro.gob.es/CYGConsultaInformacionCatastral/CYGCampanyas.aspx?refcat=<?= urlencode($f['referencia_catastral']) ?>" target="_blank" class="text-decoration-none small text-primary fw-semibold" title="Sede Electrónica del Catastro">
                                             <?= htmlspecialchars($f['referencia_catastral']) ?> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.65rem;"></i>
@@ -370,14 +377,13 @@ $fincas = $stmtF->fetchAll();
                                         <span class="small text-muted font-monospace">Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> / Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?></span>
                                     <?php endif; ?>
                                     <div class="mt-1 d-flex gap-1 flex-wrap">
-                                        <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="badge bg-success bg-opacity-10 text-success border border-success-subtle text-decoration-none py-1 px-2" title="Localizar en Visor SIGPAC (FEGA) - Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> / Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?>">
+                                        <!-- Enlace Directo a Catastro con Zoom a Parcela -->
+                                        <a href="<?= $urlMapaCatastro ?>" target="_blank" class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle text-decoration-none py-1 px-2" title="Localizar Parcela Directamente en Catastro (Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?>)">
+                                            <i class="fa-solid fa-layer-group me-1"></i>Ver Parcela (Catastro)
+                                        </a>
+                                        <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="badge bg-success bg-opacity-10 text-success border border-success-subtle text-decoration-none py-1 px-2" title="Visor SIGPAC FEGA (Prov: 30 Murcia, Mun: 028 Moratalla, Pol: <?= htmlspecialchars($f['poligono'] ?: '-') ?>, Parc: <?= htmlspecialchars($f['parcela'] ?: '-') ?>)">
                                             <i class="fa-solid fa-map-location-dot me-1"></i>SIGPAC
                                         </a>
-                                        <?php if (!empty($f['referencia_catastral'])): ?>
-                                            <a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=<?= urlencode($f['referencia_catastral']) ?>" target="_blank" class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle text-decoration-none py-1 px-2" title="Ortofoto Satelital Directa del Catastro">
-                                                <i class="fa-solid fa-layer-group me-1"></i>Catastro
-                                            </a>
-                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td>
@@ -416,35 +422,33 @@ $fincas = $stmtF->fetchAll();
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">
-                                        <!-- Botón Localizar en Mapa / SIGPAC -->
+                                        <!-- Botón Localizar en Mapa / Catastro / SIGPAC -->
                                         <div class="btn-group btn-group-sm">
-                                            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="btn btn-outline-success" title="Localizar en Visor SIGPAC (FEGA) - Pol: <?= htmlspecialchars($f['poligono'] ?: '-') ?> Parc: <?= htmlspecialchars($f['parcela'] ?: '-') ?>">
-                                                <i class="fa-solid fa-map-location-dot"></i>
+                                            <a href="<?= $urlMapaCatastro ?>" target="_blank" class="btn btn-outline-primary" title="Localizar Parcela en Catastro (Zoom directo a Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?>)">
+                                                <i class="fa-solid fa-layer-group"></i>
                                             </a>
-                                            <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones de mapa y satélite">
+                                            <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones de mapa y satélite">
                                                 <span class="visually-hidden">Mapas</span>
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 small">
-                                                <li><h6 class="dropdown-header text-uppercase text-muted fw-bold py-1" style="font-size:0.7rem;"><i class="fa-solid fa-satellite me-1 text-success"></i>Visores Cartográficos</h6></li>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 small" style="min-width: 260px;">
+                                                <li><h6 class="dropdown-header text-uppercase text-muted fw-bold py-1" style="font-size:0.7rem;"><i class="fa-solid fa-satellite me-1 text-primary"></i>Visores Cartográficos Oficiales</h6></li>
+                                                <li>
+                                                    <a class="dropdown-item py-2" href="<?= $urlMapaCatastro ?>" target="_blank">
+                                                        <i class="fa-solid fa-layer-group me-2 text-primary"></i><strong>Catastro (Ortofoto y Delimitación)</strong>
+                                                        <div class="small text-muted ps-4">Pol: <?= htmlspecialchars($f['poligono'] ?: '-') ?> &bull; Parc: <?= htmlspecialchars($f['parcela'] ?: '-') ?> (Directo)</div>
+                                                    </a>
+                                                </li>
                                                 <li>
                                                     <a class="dropdown-item py-2" href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank">
                                                         <i class="fa-solid fa-map-location-dot me-2 text-success"></i><strong>Visor SIGPAC Oficial (FEGA)</strong>
-                                                        <div class="small text-muted ps-4">Pol: <?= htmlspecialchars($f['poligono'] ?: '-') ?> &bull; Parc: <?= htmlspecialchars($f['parcela'] ?: '-') ?></div>
+                                                        <div class="small text-muted ps-4">Buscar: Prov 30 &bull; Mun 028 &bull; Pol <?= htmlspecialchars($f['poligono'] ?: '-') ?> &bull; Parc <?= htmlspecialchars($f['parcela'] ?: '-') ?></div>
                                                     </a>
                                                 </li>
-                                                <?php if (!empty($f['referencia_catastral'])): ?>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=<?= urlencode($f['referencia_catastral']) ?>" target="_blank">
-                                                            <i class="fa-solid fa-layer-group me-2 text-primary"></i><strong>Catastro (Ortofoto Satelital)</strong>
-                                                            <div class="small text-muted ps-4">Ref: <?= htmlspecialchars($f['referencia_catastral']) ?></div>
-                                                        </a>
-                                                    </li>
-                                                <?php endif; ?>
                                                 <li><hr class="dropdown-divider my-1"></li>
                                                 <li>
                                                     <a class="dropdown-item py-2" href="https://www.google.com/maps/search/?api=1&query=<?= urlencode(($f['poligono'] ? 'Polígono ' . $f['poligono'] . ' ' : '') . ($f['parcela'] ? 'Parcela ' . $f['parcela'] . ' ' : '') . ($f['nombre_paraje'] ? $f['nombre_paraje'] . ' ' : '') . ($f['nombre_finca'] ? $f['nombre_finca'] . ' ' : '') . 'Moratalla Murcia España') ?>" target="_blank">
                                                         <i class="fa-brands fa-google me-2 text-danger"></i><strong>Google Maps (Satélite)</strong>
-                                                        <div class="small text-muted ps-4">Vista aérea y navegación</div>
+                                                        <div class="small text-muted ps-4">Vista aérea y navegación GPS</div>
                                                     </a>
                                                 </li>
                                             </ul>

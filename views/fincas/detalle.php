@@ -72,9 +72,19 @@ $ultimosRiegos = $stmtRiegos->fetchAll();
                 <i class="fa-solid fa-draw-polygon text-success me-2"></i><?= htmlspecialchars($finca['nombre_finca']) ?>
             </h2>
         </div>
+        <?php
+            $refDirectaCatastro = !empty($finca['referencia_catastral']) ? trim($finca['referencia_catastral']) : '';
+            if (empty($refDirectaCatastro) && !empty($finca['poligono']) && !empty($finca['parcela'])) {
+                $refDirectaCatastro = '30028A' . str_pad($finca['poligono'], 3, '0', STR_PAD_LEFT) . str_pad($finca['parcela'], 5, '0', STR_PAD_LEFT);
+            }
+            $urlMapaCatastro = !empty($refDirectaCatastro) ? "https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=" . urlencode($refDirectaCatastro) : "https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx";
+        ?>
         <div class="d-flex gap-2 mt-3 mt-md-0">
-            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="btn btn-outline-success" title="Localizar en Visor SIGPAC (FEGA)">
-                <i class="fa-solid fa-map-location-dot me-1"></i> Ver en SIGPAC
+            <a href="<?= $urlMapaCatastro ?>" target="_blank" class="btn btn-outline-primary" title="Localización Directa en Catastro (Pol <?= htmlspecialchars($finca['poligono'] ?: '-') ?> Parc <?= htmlspecialchars($finca['parcela'] ?: '-') ?>)">
+                <i class="fa-solid fa-layer-group me-1"></i> Ver Parcela en Catastro
+            </a>
+            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="btn btn-outline-success" title="Visor SIGPAC Oficial (FEGA)">
+                <i class="fa-solid fa-map-location-dot me-1"></i> SIGPAC (FEGA)
             </a>
             <a href="<?= APP_URL ?>/fincas" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-arrow-left me-1"></i> Volver
@@ -118,14 +128,12 @@ $ultimosRiegos = $stmtRiegos->fetchAll();
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                         <span class="text-muted">Localización en Mapa:</span>
                         <div class="d-flex gap-1">
-                            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="badge bg-success text-decoration-none py-1 px-2" title="Visor Oficial SIGPAC (FEGA)">
+                            <a href="<?= $urlMapaCatastro ?>" target="_blank" class="badge bg-primary text-decoration-none py-1 px-2" title="Ortofoto y Delimitación Directa de la Parcela en Catastro">
+                                <i class="fa-solid fa-layer-group me-1"></i>Catastro Directo
+                            </a>
+                            <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="badge bg-success text-decoration-none py-1 px-2" title="Visor Oficial SIGPAC (FEGA) - Prov: 30, Mun: 028, Pol: <?= htmlspecialchars($finca['poligono'] ?: '-') ?>, Parc: <?= htmlspecialchars($finca['parcela'] ?: '-') ?>)">
                                 <i class="fa-solid fa-map-location-dot me-1"></i>SIGPAC
                             </a>
-                            <?php if ($finca['referencia_catastral']): ?>
-                                <a href="https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=<?= urlencode($finca['referencia_catastral']) ?>" target="_blank" class="badge bg-primary text-decoration-none py-1 px-2" title="Ortofoto Oficial Catastro">
-                                    <i class="fa-solid fa-layer-group me-1"></i>Catastro
-                                </a>
-                            <?php endif; ?>
                             <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode(($finca['poligono'] ? 'Polígono ' . $finca['poligono'] . ' ' : '') . ($finca['parcela'] ? 'Parcela ' . $finca['parcela'] . ' ' : '') . ($finca['nombre_paraje'] ? $finca['nombre_paraje'] . ' ' : '') . ($finca['nombre_finca'] ? $finca['nombre_finca'] . ' ' : '') . 'Moratalla Murcia España') ?>" target="_blank" class="badge bg-danger text-decoration-none py-1 px-2" title="Google Maps Satélite">
                                 <i class="fa-brands fa-google me-1"></i>Google
                             </a>
