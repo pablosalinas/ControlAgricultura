@@ -219,8 +219,6 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-draw-polygon me-2 text-primary"></i>Mis Fincas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus-circle me-2 text-primary"></i>Nueva Finca</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/regantes"><i class="fa-solid fa-address-book me-2 text-primary"></i>Socios Regantes (C.R. Alhárabe)</a></li>
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/comunidades-regantes"><i class="fa-solid fa-water me-2 text-primary"></i>Comunidades de Regantes</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes</a></li>
                         </ul>
                     </li>
@@ -262,17 +260,18 @@
                         </a>
                     </li>
 
-                    <!-- Configuración y Equipo -->
-                    <?php if (Auth::canManageUsers()): ?>
+                    <!-- Configuración y Riego -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fa-solid fa-gear me-1 text-info"></i> Configuración
                         </a>
                         <ul class="dropdown-menu shadow border-0 rounded-3" style="min-width: 250px;">
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/explotaciones"><i class="fa-solid fa-building-wheat me-2 text-warning"></i>Explotaciones Agrarias</a></li>
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/gestion-usuarios"><i class="fa-solid fa-id-card-clip me-2 text-primary"></i>Equipo y Usuarios</a></li>
+                            <?php if (Auth::canManageUsers()): ?>
+                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/explotaciones"><i class="fa-solid fa-building-wheat me-2 text-warning"></i>Explotaciones Agrarias</a></li>
+                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/gestion-usuarios"><i class="fa-solid fa-id-card-clip me-2 text-primary"></i>Equipo y Usuarios</a></li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                            <?php endif; ?>
 
-                            <li><hr class="dropdown-divider my-1"></li>
                             <!-- Apartado: Comunidades de Regantes y sus Socios -->
                             <li class="dropdown-header text-uppercase text-muted fw-bold small py-1" style="font-size: 0.72rem; letter-spacing: 0.05em;">
                                 <i class="fa-solid fa-water me-1 text-primary"></i> Comunidades y Riego
@@ -280,15 +279,16 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/comunidades-regantes"><i class="fa-solid fa-droplet me-2 text-primary"></i>Comunidades de Regantes</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/regantes"><i class="fa-solid fa-address-book me-2 text-info"></i>Socios Regantes (Censo)</a></li>
 
-                            <li><hr class="dropdown-divider my-1"></li>
-                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/accesos"><i class="fa-solid fa-chart-line me-2 text-info"></i>Estadísticas y Logs de Accesos</a></li>
+                            <?php if (Auth::canManageUsers()): ?>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/accesos"><i class="fa-solid fa-chart-line me-2 text-info"></i>Estadísticas y Logs de Accesos</a></li>
+                            <?php endif; ?>
                             <?php if (Auth::isSuperAdmin()): ?>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/configuracion"><i class="fa-solid fa-compass-drafting me-2 text-info"></i>Personalizar Portal</a></li>
                             <?php endif; ?>
                         </ul>
                     </li>
-                    <?php endif; ?>
                 <?php endif; ?>
             </ul>
 
