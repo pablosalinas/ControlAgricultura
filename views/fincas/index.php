@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $idFinca = (int)$_POST['id_finca'];
         $nombreFinca = trim(isset($_POST['nombre_finca']) ? $_POST['nombre_finca'] : '');
         $idParaje = !empty($_POST['id_paraje']) ? (int)$_POST['id_paraje'] : null;
+        $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
         $superficie = (float)(isset($_POST['superficie_ha']) ? $_POST['superficie_ha'] : 0);
         $costeIbi = (float)(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : 0);
         $poligono = trim(isset($_POST['poligono']) ? $_POST['poligono'] : '');
@@ -30,13 +31,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $horasProp = (float)(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : 0);
         $horasDisp = (float)(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : 0);
 
+        if ($idComunidad) {
+            $nomCom = $db->query("SELECT nombre_comunidad FROM comunidades_regantes WHERE id_comunidad = " . (int)$idComunidad)->fetchColumn();
+            if ($nomCom) {
+                $zonaRiego = $nomCom;
+            }
+        }
+
         if (empty($nombreFinca) || $superficie <= 0) {
             $error = "El nombre de la finca y una superficie mayor a cero son obligatorios.";
         } else {
             try {
                 $stmtUpd = $db->prepare("
                     UPDATE fincas
-                    SET nombre_finca = :nom, id_paraje = :paraje, superficie_ha = :sup,
+                    SET nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
                         coste_anual_ibi = :ibi,
                         poligono = :pol, parcela = :parc, referencia_catastral = :ref,
                         zona_riego = :zona, parada = :parada, tablon = :tablon,
@@ -45,20 +53,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE id_finca = :id
                 ");
                 $stmtUpd->execute(array(
-                    ':nom'    => $nombreFinca,
-                    ':paraje' => $idParaje,
-                    ':sup'    => $superficie,
-                    ':ibi'    => $costeIbi,
-                    ':pol'    => $poligono ?: null,
-                    ':parc'   => $parcela ?: null,
-                    ':ref'    => $refCatastral ?: null,
-                    ':zona'   => $zonaRiego ?: null,
-                    ':parada' => $parada ?: null,
-                    ':tablon' => $tablon ?: null,
-                    ':socio'  => $numSocio ?: null,
-                    ':hprop'  => $horasProp,
-                    ':hdisp'  => $horasDisp,
-                    ':id'     => $idFinca
+                    ':nom'       => $nombreFinca,
+                    ':paraje'    => $idParaje,
+                    ':comunidad' => $idComunidad,
+                    ':sup'       => $superficie,
+                    ':ibi'       => $costeIbi,
+                    ':pol'       => $poligono ?: null,
+                    ':parc'      => $parcela ?: null,
+                    ':ref'       => $refCatastral ?: null,
+                    ':zona'      => $zonaRiego ?: null,
+                    ':parada'    => $parada ?: null,
+                    ':tablon'    => $tablon ?: null,
+                    ':socio'     => $numSocio ?: null,
+                    ':hprop'     => $horasProp,
+                    ':hdisp'     => $horasDisp,
+                    ':id'        => $idFinca
                 ));
                 $mensaje = "Finca <strong>" . htmlspecialchars($nombreFinca) . "</strong> actualizada correctamente.";
             } catch (Exception $e) {
@@ -89,15 +98,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Parajes para modal de edición
 $parajes = $db->query("SELECT id_paraje, nombre_paraje, termino_municipal FROM parajes ORDER BY nombre_paraje ASC")->fetchAll();
 
+// Cargar equivalencia de Fanegas por Hectárea desde configuración (por defecto 3.00)
+$cfgFan = $db->query("SELECT fanegas_por_hectarea FROM configuracion_web LIMIT 1")->fetch();
+$fanegasPorHa = (!empty($cfgFan['fanegas_por_hectarea'])) ? (float)$cfgFan['fanegas_por_hectarea'] : 3.0000;
+if ($fanegasPorHa <= 0) {
+    $fanegasPorHa = 3.0000;
+}
+
+// Cargar comunidades vinculadas a la explotación activa para los modales
+$comunidades = array();
+if ($tenantId) {
+    $stmtCom = $db->prepare("
+        SELECT c.id_comunidad, c.nombre_comunidad, c.es_predeterminada
+        FROM comunidades_regantes c
+        JOIN explotaciones_comunidades ec ON c.id_comunidad = ec.id_comunidad
+        WHERE ec.id_propietario = :prop AND c.activo = 1
+        ORDER BY c.es_predeterminada DESC, c.nombre_comunidad ASC
+    ");
+    $stmtCom->execute(array(':prop' => $tenantId));
+    $comunidades = $stmtCom->fetchAll();
+}
+if (empty($comunidades)) {
+    $comunidades = $db->query("SELECT id_comunidad, nombre_comunidad, es_predeterminada FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
+}
+
 // Filtros
 $filtroParaje = isset($_GET['paraje_id']) ? (int)$_GET['paraje_id'] : 0;
 $filtroTxt = isset($_GET['q']) ? trim($_GET['q']) : '';
 
 $sql = "
-    SELECT f.*, p.nombre_paraje,
+    SELECT f.*, p.nombre_paraje, cr.nombre_comunidad AS nombre_comunidad_ref,
            (SELECT COUNT(*) FROM plantaciones pl WHERE pl.id_finca = f.id_finca) AS total_plantaciones
     FROM fincas f 
     LEFT JOIN parajes p ON f.id_paraje = p.id_paraje 
+    LEFT JOIN comunidades_regantes cr ON f.id_comunidad = cr.id_comunidad
     WHERE f.activo = 1
 ";
 $params = array();
@@ -228,6 +262,11 @@ $fincas = $stmtF->fetchAll();
                                     <span class="badge bg-primary bg-opacity-10 text-primary fw-bold font-monospace px-3 py-2 rounded-pill">
                                         <?= number_format($f['superficie_ha'], 2, ',', '.') ?> ha
                                     </span>
+                                    <div class="mt-1">
+                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle font-monospace small" title="Equivalencia: 1 ha = <?= number_format($fanegasPorHa, 2, ',', '.') ?> fanegas">
+                                            <i class="fa-solid fa-wheat-awn text-warning me-1"></i><?= number_format($f['superficie_ha'] * $fanegasPorHa, 2, ',', '.') ?> fanegas
+                                        </span>
+                                    </div>
                                 </td>
                                 <td>
                                     <?php if ($f['referencia_catastral']): ?>
@@ -240,7 +279,9 @@ $fincas = $stmtF->fetchAll();
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="small fw-semibold"><?= htmlspecialchars($f['zona_riego'] ?: 'Comunidad') ?></div>
+                                    <div class="small fw-semibold text-primary">
+                                        <i class="fa-solid fa-water me-1"></i><?= htmlspecialchars(!empty($f['nombre_comunidad_ref']) ? $f['nombre_comunidad_ref'] : (!empty($f['zona_riego']) ? $f['zona_riego'] : 'Sin asignar')) ?>
+                                    </div>
                                     <div class="small text-muted">
                                         Parada: <?= htmlspecialchars($f['parada'] ?: '-') ?> | Tablón: <?= htmlspecialchars($f['tablon'] ?: '-') ?>
                                         <?php if ($f['num_socio_comunidad']): ?>
@@ -315,15 +356,25 @@ $fincas = $stmtF->fetchAll();
                                                         </div>
 
                                                         <div class="row g-3 mb-3">
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Superficie Total (ha) *</label>
-                                                                <input type="number" step="0.0001" name="superficie_ha" class="form-control font-monospace" value="<?= $f['superficie_ha'] ?>" required>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label fw-semibold small">Superficie (ha) *</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.0001" min="0" name="superficie_ha" id="modal_ha_<?= $f['id_finca'] ?>" class="form-control font-monospace fw-bold text-primary" value="<?= $f['superficie_ha'] ?>" required oninput="syncModalHa(<?= $f['id_finca'] ?>)">
+                                                                    <span class="input-group-text fw-bold">ha</span>
+                                                                </div>
                                                             </div>
-                                                            <div class="col-md-4">
+                                                            <div class="col-md-3">
+                                                                <label class="form-label fw-semibold small">Superficie (fanegas)</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.01" min="0" id="modal_fan_<?= $f['id_finca'] ?>" class="form-control font-monospace fw-bold text-dark" value="<?= number_format($f['superficie_ha'] * $fanegasPorHa, 2, '.', '') ?>" oninput="syncModalFan(<?= $f['id_finca'] ?>)">
+                                                                    <span class="input-group-text fw-bold">fan</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-3">
                                                                 <label class="form-label fw-semibold small">Polígono</label>
                                                                 <input type="text" name="poligono" class="form-control font-monospace" value="<?= htmlspecialchars($f['poligono'] ?: '') ?>">
                                                             </div>
-                                                            <div class="col-md-4">
+                                                            <div class="col-md-3">
                                                                 <label class="form-label fw-semibold small">Parcela</label>
                                                                 <input type="text" name="parcela" class="form-control font-monospace" value="<?= htmlspecialchars($f['parcela'] ?: '') ?>">
                                                             </div>
@@ -337,7 +388,7 @@ $fincas = $stmtF->fetchAll();
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Coste Anual IBI (€/año)</label>
                                                                 <div class="input-group">
-                                                                    <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" value="<?= $f['coste_anual_ibi'] ?? '0.00' ?>">
+                                                                    <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" value="<?= isset($f['coste_anual_ibi']) ? $f['coste_anual_ibi'] : '0.00' ?>">
                                                                     <span class="input-group-text">€/año</span>
                                                                 </div>
                                                             </div>
@@ -346,8 +397,15 @@ $fincas = $stmtF->fetchAll();
                                                         <h6 class="fw-bold text-primary border-top pt-3 mt-3">Derechos de Riego y Comunidad</h6>
                                                         <div class="row g-3 mb-3">
                                                             <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Zona / Comunidad de Regantes</label>
-                                                                <input type="text" name="zona_riego" class="form-control" value="<?= htmlspecialchars($f['zona_riego'] ?: '') ?>">
+                                                                <label class="form-label fw-semibold small">Comunidad de Regantes *</label>
+                                                                <select name="id_comunidad" class="form-select" required>
+                                                                    <option value="">-- Sin Comunidad Asignada --</option>
+                                                                    <?php foreach ($comunidades as $cr): ?>
+                                                                        <option value="<?= $cr['id_comunidad'] ?>" <?= ((int)$f['id_comunidad'] === (int)$cr['id_comunidad'] || (empty($f['id_comunidad']) && !empty($cr['es_predeterminada']))) ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars($cr['nombre_comunidad']) ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Nº Socio Comunidad</label>
@@ -390,5 +448,33 @@ $fincas = $stmtF->fetchAll();
         </div>
     </div>
 </div>
+
+<script>
+var FANEGAS_POR_HA = <?= (float)$fanegasPorHa ?>;
+
+function syncModalHa(id) {
+    var haEl = document.getElementById('modal_ha_' + id);
+    var fanEl = document.getElementById('modal_fan_' + id);
+    if (!haEl || !fanEl) return;
+    var ha = parseFloat(haEl.value);
+    if (!isNaN(ha) && ha >= 0 && FANEGAS_POR_HA > 0) {
+        fanEl.value = (ha * FANEGAS_POR_HA).toFixed(2);
+    } else {
+        fanEl.value = '';
+    }
+}
+
+function syncModalFan(id) {
+    var haEl = document.getElementById('modal_ha_' + id);
+    var fanEl = document.getElementById('modal_fan_' + id);
+    if (!haEl || !fanEl) return;
+    var fan = parseFloat(fanEl.value);
+    if (!isNaN(fan) && fan >= 0 && FANEGAS_POR_HA > 0) {
+        haEl.value = (fan / FANEGAS_POR_HA).toFixed(4);
+    } else {
+        haEl.value = '';
+    }
+}
+</script>
 
 <?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>

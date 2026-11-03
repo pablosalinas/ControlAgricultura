@@ -118,8 +118,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
 
+                    // Sincronizar comunidades de regantes asociadas a esta explotación
+                    $comSeleccionadas = isset($_POST['comunidades']) && is_array($_POST['comunidades']) ? array_map('intval', $_POST['comunidades']) : array();
+                    $db->prepare("DELETE FROM explotaciones_comunidades WHERE id_propietario = :id")->execute(array(':id' => $idProp));
+                    if (!empty($comSeleccionadas)) {
+                        $insEC = $db->prepare("INSERT IGNORE INTO explotaciones_comunidades (id_propietario, id_comunidad) VALUES (:pid, :cid)");
+                        foreach ($comSeleccionadas as $cid) {
+                            if ($cid > 0) {
+                                $insEC->execute(array(':pid' => $idProp, ':cid' => $cid));
+                            }
+                        }
+                    }
+
                     Auth::refreshTenantName();
-                    $success = "Datos de la explotación <strong>" . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
+                    $success = "Datos y comunidades asociadas a la explotación <strong>" . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
                 } catch (Exception $e) {
                     $error = "Error al guardar cambios: " . $e->getMessage();
                 }
@@ -157,6 +169,25 @@ if (Auth::isSuperAdmin()) {
 }
 
 $currentTenantId = Auth::tenantId();
+
+// Cargar todas las Comunidades de Regantes disponibles para asignación
+$todasComunidades = $db->query("SELECT id_comunidad, nombre_comunidad, es_predeterminada FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
+
+// Cargar mapa de comunidades vinculadas a cada explotación
+$stmtEC = $db->query("
+    SELECT ec.id_propietario, ec.id_comunidad, c.nombre_comunidad
+    FROM explotaciones_comunidades ec
+    JOIN comunidades_regantes c ON ec.id_comunidad = c.id_comunidad
+    ORDER BY c.nombre_comunidad ASC
+");
+$expComunidadesMap = array();
+$expComIdsMap = array();
+while ($ecRow = $stmtEC->fetch()) {
+    $pid = (int)$ecRow['id_propietario'];
+    $cid = (int)$ecRow['id_comunidad'];
+    $expComunidadesMap[$pid][] = $ecRow['nombre_comunidad'];
+    $expComIdsMap[$pid][] = $cid;
+}
 ?>
 
 <div class="container py-4">
@@ -404,16 +435,46 @@ $currentTenantId = Auth::tenantId();
                                                                 <input type="text" name="codigo_postal" class="form-control font-monospace" value="<?= htmlspecialchars($exp['codigo_postal'] ?: '') ?>">
                                                             </div>
 
-                                                            <!-- Aviso: Precios y Tarifas de Riego fijados por la Comunidad de Regantes -->
+                                                            <!-- Comunidades de Regantes que forman esta Explotación -->
                                                             <div class="col-12 mt-3">
-                                                                <div class="p-3 bg-light rounded-3 border d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
-                                                                    <div>
-                                                                        <div class="fw-bold text-primary small"><i class="fa-solid fa-water me-1"></i>Tarifas y Precios de Riego</div>
-                                                                        <div class="small text-muted">Las tarifas de agua (tanda, comunitaria, comunitaria hortalizas) y derramas no se fijan por explotación, sino directamente en la Comunidad de Regantes seleccionada.</div>
+                                                                <div class="p-3 bg-light rounded-3 border">
+                                                                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+                                                                        <div>
+                                                                            <label class="form-label fw-bold small text-primary mb-0">
+                                                                                <i class="fa-solid fa-water me-1"></i> Comunidades de Regantes que forman esta Explotación
+                                                                            </label>
+                                                                            <div class="text-muted small" style="font-size: 0.78rem;">Las comunidades pueden ser compartidas con varias explotaciones.</div>
+                                                                        </div>
+                                                                        <div class="btn-group btn-group-sm">
+                                                                            <button type="button" class="btn btn-outline-primary" onclick="seleccionarTodasComunidades('chk_com_<?= $exp['id_propietario'] ?>')">
+                                                                                <i class="fa-solid fa-check-double me-1"></i> Asignar Todas
+                                                                            </button>
+                                                                            <button type="button" class="btn btn-outline-secondary" onclick="deseleccionarTodasComunidades('chk_com_<?= $exp['id_propietario'] ?>')">
+                                                                                <i class="fa-solid fa-ban me-1"></i> Ninguna
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
-                                                                    <a href="<?= APP_URL ?>/comunidades-regantes" class="btn btn-sm btn-outline-primary text-nowrap align-self-start align-self-sm-center" target="_blank">
-                                                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Comunidades de Regantes
-                                                                    </a>
+                                                                    <div id="chk_com_<?= $exp['id_propietario'] ?>" class="row g-2" style="max-height: 180px; overflow-y: auto;">
+                                                                        <?php 
+                                                                        $assignedComIds = isset($expComIdsMap[$exp['id_propietario']]) ? $expComIdsMap[$exp['id_propietario']] : array();
+                                                                        ?>
+                                                                        <?php if (empty($todasComunidades)): ?>
+                                                                            <div class="col-12 text-muted small p-2">No hay comunidades de regantes dadas de alta todavía.</div>
+                                                                        <?php else: ?>
+                                                                            <?php foreach ($todasComunidades as $tc): ?>
+                                                                                <?php $isAssigned = in_array((int)$tc['id_comunidad'], $assignedComIds); ?>
+                                                                                <div class="col-md-6">
+                                                                                    <div class="form-check p-2 rounded bg-white border">
+                                                                                        <input class="form-check-input ms-0 me-2" type="checkbox" name="comunidades[]" value="<?= $tc['id_comunidad'] ?>" id="com_exp_<?= $exp['id_propietario'] ?>_<?= $tc['id_comunidad'] ?>" <?= $isAssigned ? 'checked' : '' ?>>
+                                                                                        <label class="form-check-label small fw-semibold text-truncate d-block" for="com_exp_<?= $exp['id_propietario'] ?>_<?= $tc['id_comunidad'] ?>" title="<?= htmlspecialchars($tc['nombre_comunidad']) ?>">
+                                                                                            <?= htmlspecialchars($tc['nombre_comunidad']) ?> <?= !empty($tc['es_predeterminada']) ? '★' : '' ?>
+                                                                                        </label>
+                                                                                    </div>
+                                                                                </div>
+                                                                            <?php endforeach; ?>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                    <div class="form-text small text-muted mt-2">Esta explotación tendrá acceso a los datos completos, tarifas y censo de socios de las comunidades seleccionadas.</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -507,5 +568,25 @@ $currentTenantId = Auth::tenantId();
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+function seleccionarTodasComunidades(containerId) {
+    var c = document.getElementById(containerId);
+    if (!c) return;
+    var chks = c.querySelectorAll('input[type="checkbox"]');
+    chks.forEach(function(cb) {
+        cb.checked = true;
+    });
+}
+
+function deseleccionarTodasComunidades(containerId) {
+    var c = document.getElementById(containerId);
+    if (!c) return;
+    var chks = c.querySelectorAll('input[type="checkbox"]');
+    chks.forEach(function(cb) {
+        cb.checked = false;
+    });
+}
+</script>
 
 <?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>

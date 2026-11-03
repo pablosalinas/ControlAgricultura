@@ -8,64 +8,113 @@ $tenantId = Auth::tenantId();
 // Cargar parajes maestros
 $parajes = $db->query("SELECT * FROM parajes ORDER BY nombre_paraje ASC")->fetchAll();
 
+// Cargar equivalencia de Fanegas por Hectárea desde configuración (por defecto 3.00)
+$cfgFan = $db->query("SELECT fanegas_por_hectarea FROM configuracion_web LIMIT 1")->fetch();
+$fanegasPorHa = (!empty($cfgFan['fanegas_por_hectarea'])) ? (float)$cfgFan['fanegas_por_hectarea'] : 3.0000;
+if ($fanegasPorHa <= 0) {
+    $fanegasPorHa = 3.0000;
+}
+
+// Cargar comunidades de regantes asociadas a esta explotación activa
+$comunidades = array();
+if ($tenantId) {
+    $stmtCom = $db->prepare("
+        SELECT c.id_comunidad, c.nombre_comunidad, c.es_predeterminada
+        FROM comunidades_regantes c
+        JOIN explotaciones_comunidades ec ON c.id_comunidad = ec.id_comunidad
+        WHERE ec.id_propietario = :prop AND c.activo = 1
+        ORDER BY c.es_predeterminada DESC, c.nombre_comunidad ASC
+    ");
+    $stmtCom->execute(array(':prop' => $tenantId));
+    $comunidades = $stmtCom->fetchAll();
+}
+// Fallback si no tiene vinculadas todavía o es superadmin
+if (empty($comunidades)) {
+    $comunidades = $db->query("SELECT id_comunidad, nombre_comunidad, es_predeterminada FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
+}
+
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nombre = trim($_POST['nombre_finca'] ?? '');
+    $nombre = trim(isset($_POST['nombre_finca']) ? $_POST['nombre_finca'] : '');
     $idParaje = !empty($_POST['id_paraje']) ? (int)$_POST['id_paraje'] : null;
-    $refCatastral = trim($_POST['referencia_catastral'] ?? '');
-    $poligono = trim($_POST['poligono'] ?? '');
-    $parcela = trim($_POST['parcela'] ?? '');
-    $superficie = (float)($_POST['superficie_ha'] ?? 0);
-    $costeIbi = (float)($_POST['coste_anual_ibi'] ?? 0);
-    $zonaRiego = trim($_POST['zona_riego'] ?? '');
-    $parada = trim($_POST['parada'] ?? '');
-    $tablon = trim($_POST['tablon'] ?? '');
-    $numSocio = trim($_POST['num_socio_comunidad'] ?? '');
-    $horasProp = (float)($_POST['horas_propiedad_tanda'] ?? 0);
-    $horasDisp = (float)($_POST['horas_disponibles_tanda'] ?? 0);
-    $datosRegistrales = trim($_POST['datos_registrales'] ?? '');
-    $observaciones = trim($_POST['observaciones'] ?? '');
+    $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
+    $refCatastral = trim(isset($_POST['referencia_catastral']) ? $_POST['referencia_catastral'] : '');
+    $poligono = trim(isset($_POST['poligono']) ? $_POST['poligono'] : '');
+    $parcela = trim(isset($_POST['parcela']) ? $_POST['parcela'] : '');
+    $superficie = (float)(isset($_POST['superficie_ha']) ? $_POST['superficie_ha'] : 0);
+    $costeIbi = (float)(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : 0);
+    $parada = trim(isset($_POST['parada']) ? $_POST['parada'] : '');
+    $tablon = trim(isset($_POST['tablon']) ? $_POST['tablon'] : '');
+    $numSocio = trim(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '');
+    $horasProp = (float)(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : 0);
+    $horasDisp = (float)(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : 0);
+    $datosRegistrales = trim(isset($_POST['datos_registrales']) ? $_POST['datos_registrales'] : '');
+    $observaciones = trim(isset($_POST['observaciones']) ? $_POST['observaciones'] : '');
+
+    // Extraer el nombre de la comunidad para retrocompatibilidad con zona_riego
+    $zonaRiego = '';
+    if ($idComunidad) {
+        foreach ($comunidades as $cr) {
+            if ((int)$cr['id_comunidad'] === $idComunidad) {
+                $zonaRiego = $cr['nombre_comunidad'];
+                break;
+            }
+        }
+    }
+    if (empty($zonaRiego) && isset($_POST['zona_riego'])) {
+        $zonaRiego = trim($_POST['zona_riego']);
+    }
+
+    // Validar propietario
+    $propietarioId = $tenantId;
+    if (!$propietarioId) {
+        $primerProp = $db->query("SELECT id_propietario FROM propietarios WHERE activo = 1 ORDER BY id_propietario ASC LIMIT 1")->fetchColumn();
+        $propietarioId = $primerProp ? (int)$primerProp : 1;
+    }
 
     if (empty($nombre)) {
         $error = 'El nombre de la finca es obligatorio.';
+    } elseif ($superficie <= 0) {
+        $error = 'Debes indicar una superficie válida mayor que cero en hectáreas o fanegas.';
     } else {
         try {
             $stmt = $db->prepare("
                 INSERT INTO fincas (
-                    id_propietario, id_paraje, nombre_finca, referencia_catastral, poligono, parcela,
+                    id_propietario, id_paraje, id_comunidad, nombre_finca, referencia_catastral, poligono, parcela,
                     superficie_ha, coste_anual_ibi, zona_riego, parada, tablon, num_socio_comunidad,
-                    horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones
+                    horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones, activo
                 ) VALUES (
-                    :prop, :paraje, :nombre, :catastro, :pol, :parc,
+                    :prop, :paraje, :comunidad, :nombre, :catastro, :pol, :parc,
                     :sup, :ibi, :zona, :parada, :tablon, :socio,
-                    :hprop, :hdisp, :reg, :obs
+                    :hprop, :hdisp, :reg, :obs, 1
                 )
             ");
-            $stmt->execute([
-                ':prop'    => $tenantId ?: 1,
-                ':paraje'  => $idParaje,
-                ':nombre'  => $nombre,
-                ':catastro'=> $refCatastral,
-                ':pol'     => $poligono,
-                ':parc'    => $parcela,
-                ':sup'     => $superficie,
-                ':ibi'     => $costeIbi,
-                ':zona'    => $zonaRiego,
-                ':parada'  => $parada,
-                ':tablon'  => $tablon,
-                ':socio'   => $numSocio,
-                ':hprop'   => $horasProp,
-                ':hdisp'   => $horasDisp,
-                ':reg'     => $datosRegistrales,
-                ':obs'     => $observaciones
-            ]);
+            $stmt->execute(array(
+                ':prop'      => $propietarioId,
+                ':paraje'    => $idParaje,
+                ':comunidad' => $idComunidad,
+                ':nombre'    => $nombre,
+                ':catastro'  => $refCatastral ?: null,
+                ':pol'       => $poligono ?: null,
+                ':parc'      => $parcela ?: null,
+                ':sup'       => $superficie,
+                ':ibi'       => $costeIbi,
+                ':zona'      => $zonaRiego ?: null,
+                ':parada'    => $parada ?: null,
+                ':tablon'    => $tablon ?: null,
+                ':socio'     => $numSocio ?: null,
+                ':hprop'     => $horasProp,
+                ':hdisp'     => $horasDisp,
+                ':reg'       => $datosRegistrales ?: null,
+                ':obs'       => $observaciones ?: null
+            ));
 
             header("Location: " . APP_URL . "/fincas");
             exit;
         } catch (Exception $e) {
-            $error = 'Error al guardar la finca: ' . $e->getMessage();
+            $error = 'Error al registrar la finca: ' . $e->getMessage();
         }
     }
 }
@@ -100,14 +149,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="row g-3 mb-4">
                         <div class="col-md-7">
                             <label class="form-label fw-semibold">Nombre de la Finca / Parcela <span class="text-danger">*</span></label>
-                            <input type="text" name="nombre_finca" class="form-control" required placeholder="Ej: Finca Las Moreras - Parcela Norte">
+                            <input type="text" name="nombre_finca" class="form-control" required placeholder="Ej: Finca Las Moreras - Parcela Norte" value="<?= htmlspecialchars(isset($_POST['nombre_finca']) ? $_POST['nombre_finca'] : '') ?>">
                         </div>
                         <div class="col-md-5">
                             <label class="form-label fw-semibold">Paraje</label>
                             <select name="id_paraje" class="form-select">
                                 <option value="">-- Seleccionar Paraje --</option>
                                 <?php foreach ($parajes as $p): ?>
-                                    <option value="<?= $p['id_paraje'] ?>">
+                                    <option value="<?= $p['id_paraje'] ?>" <?= (isset($_POST['id_paraje']) && (int)$_POST['id_paraje'] === (int)$p['id_paraje']) ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($p['nombre_paraje'] . ' (' . $p['termino_municipal'] . ')') ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -115,79 +164,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
 
-                    <!-- Sección 2: Catastro y Registro -->
+                    <!-- Sección 2: Catastro, Superficie en Hectáreas / Fanegas y Registro -->
                     <h5 class="fw-bold text-success border-bottom pb-2 mb-3">
-                        <i class="fa-solid fa-landmark me-2"></i>2. Datos Catastrales y Registrales
+                        <i class="fa-solid fa-landmark me-2"></i>2. Datos Catastrales y Superficie (ha / fanegas)
                     </h5>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Referencia Catastral (20 dígitos)</label>
-                            <input type="text" name="referencia_catastral" class="form-control" placeholder="Ej: 30019A012000450000AB" maxlength="30">
+                            <input type="text" name="referencia_catastral" class="form-control font-monospace" placeholder="Ej: 30019A012000450000AB" maxlength="30" value="<?= htmlspecialchars(isset($_POST['referencia_catastral']) ? $_POST['referencia_catastral'] : '') ?>">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Polígono</label>
-                            <input type="text" name="poligono" class="form-control" placeholder="Ej: 12">
+                            <input type="text" name="poligono" class="form-control font-monospace" placeholder="Ej: 12" value="<?= htmlspecialchars(isset($_POST['poligono']) ? $_POST['poligono'] : '') ?>">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Parcela</label>
-                            <input type="text" name="parcela" class="form-control" placeholder="Ej: 45">
+                            <input type="text" name="parcela" class="form-control font-monospace" placeholder="Ej: 45" value="<?= htmlspecialchars(isset($_POST['parcela']) ? $_POST['parcela'] : '') ?>">
                         </div>
                     </div>
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Superficie Total (Hectáreas)</label>
-                            <div class="input-group">
-                                <input type="number" step="0.0001" name="superficie_ha" class="form-control" placeholder="0.0000" required>
-                                <span class="input-group-text">ha</span>
+
+                    <!-- Conversión bidireccional Hectáreas <-> Fanegas -->
+                    <div class="card p-3 mb-3 bg-light border-0 shadow-sm">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-dark mb-1">
+                                    <i class="fa-solid fa-draw-polygon text-success me-1"></i>Superficie en Hectáreas <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" step="0.0001" min="0" name="superficie_ha" id="finca_ha" class="form-control font-monospace fs-6 fw-bold text-primary" placeholder="0.0000" value="<?= htmlspecialchars(isset($_POST['superficie_ha']) ? $_POST['superficie_ha'] : '') ?>" required oninput="syncHaToFanegas()">
+                                    <span class="input-group-text fw-bold">ha</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-dark mb-1">
+                                    <i class="fa-solid fa-wheat-awn text-warning me-1"></i>Superficie en Fanegas
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" id="finca_fanegas" class="form-control font-monospace fs-6 fw-bold text-dark" placeholder="0.00" oninput="syncFanegasToHa()">
+                                    <span class="input-group-text fw-bold">fanegas</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold text-muted mb-1">Coste Anual IBI (€/año)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" placeholder="0.00" value="<?= htmlspecialchars(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : '0.00') ?>">
+                                    <span class="input-group-text">€/año</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Coste Anual IBI (€/año)</label>
-                            <div class="input-group">
-                                <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" placeholder="0.00" value="0.00">
-                                <span class="input-group-text">€</span>
+                        <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top small text-muted">
+                            <div>
+                                <i class="fa-solid fa-calculator text-primary me-1"></i>
+                                Equivalencia configurada: <strong>1 ha = <?= number_format($fanegasPorHa, 2, ',', '.') ?> fanegas</strong> 
+                                <span class="ms-1">(1 fanega &approx; <?= number_format(10000 / $fanegasPorHa, 2, ',', '.') ?> m²)</span>.
                             </div>
+                            <?php if (Auth::isAdmin()): ?>
+                                <a href="<?= APP_URL ?>/admin/configuracion" target="_blank" class="text-decoration-none small">
+                                    <i class="fa-solid fa-gear me-1"></i>Ajustar equivalencia
+                                </a>
+                            <?php endif; ?>
                         </div>
-                        <div class="col-md-5">
-                            <label class="form-label fw-semibold">Datos Registrales</label>
-                            <input type="text" name="datos_registrales" class="form-control" placeholder="Registro de la Propiedad, Tomo, Folio...">
-                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Datos Registrales</label>
+                        <input type="text" name="datos_registrales" class="form-control" placeholder="Registro de la Propiedad, Tomo, Libro, Folio, Finca registral nº..." value="<?= htmlspecialchars(isset($_POST['datos_registrales']) ? $_POST['datos_registrales'] : '') ?>">
                     </div>
 
                     <!-- Sección 3: Datos de Regadío y Turnos por Tanda -->
                     <h5 class="fw-bold text-success border-bottom pb-2 mb-3">
-                        <i class="fa-solid fa-water me-2"></i>3. Régimen de Riegos y Tanda
+                        <i class="fa-solid fa-water me-2"></i>3. Régimen de Riegos y Comunidad
                     </h5>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Comunidad de Regantes / Zona de Riego</label>
-                            <input type="text" name="zona_riego" class="form-control" placeholder="Ej: C.R. Vega Alta / Sector V">
+                            <label class="form-label fw-semibold">Comunidad de Regantes de la Explotación <span class="text-danger">*</span></label>
+                            <select name="id_comunidad" class="form-select" id="select_comunidad" required>
+                                <option value="">-- Seleccionar Comunidad de Regantes --</option>
+                                <?php foreach ($comunidades as $cr): ?>
+                                    <option value="<?= $cr['id_comunidad'] ?>" <?= ((isset($_POST['id_comunidad']) && (int)$_POST['id_comunidad'] === (int)$cr['id_comunidad']) || (!isset($_POST['id_comunidad']) && !empty($cr['es_predeterminada']))) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($cr['nombre_comunidad']) ?> <?= !empty($cr['es_predeterminada']) ? '(Predeterminada)' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text small">
+                                Comunidades vinculadas a tu explotación. Para asociar más, ve a <a href="<?= APP_URL ?>/explotaciones">Explotaciones</a>.
+                            </div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Parada</label>
-                            <input type="text" name="parada" class="form-control" placeholder="Ej: Parada 4">
+                            <input type="text" name="parada" class="form-control" placeholder="Ej: Parada 4" value="<?= htmlspecialchars(isset($_POST['parada']) ? $_POST['parada'] : '') ?>">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Tablón</label>
-                            <input type="text" name="tablon" class="form-control" placeholder="Ej: Tablón B">
+                            <input type="text" name="tablon" class="form-control" placeholder="Ej: Tablón B" value="<?= htmlspecialchars(isset($_POST['tablon']) ? $_POST['tablon'] : '') ?>">
                         </div>
                     </div>
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Número de Socio / Comunero</label>
-                            <input type="text" name="num_socio_comunidad" class="form-control" placeholder="Ej: 1420">
+                            <input type="text" name="num_socio_comunidad" class="form-control font-monospace" placeholder="Ej: A1188" value="<?= htmlspecialchars(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '') ?>">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Horas en Propiedad (por tanda)</label>
                             <div class="input-group">
-                                <input type="number" step="0.25" name="horas_propiedad_tanda" class="form-control" value="0.00">
+                                <input type="number" step="0.25" min="0" name="horas_propiedad_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Horas Disponibles (por tanda)</label>
                             <div class="input-group">
-                                <input type="number" step="0.25" name="horas_disponibles_tanda" class="form-control" value="0.00">
+                                <input type="number" step="0.25" min="0" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
                             </div>
                         </div>
@@ -195,7 +282,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Observaciones o notas</label>
-                        <textarea name="observaciones" class="form-control" rows="2" placeholder="Accesos, lindes, peculiaridades del terreno..."></textarea>
+                        <textarea name="observaciones" class="form-control" rows="2" placeholder="Accesos, lindes, peculiaridades del terreno..."><?= htmlspecialchars(isset($_POST['observaciones']) ? $_POST['observaciones'] : '') ?></textarea>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
@@ -209,5 +296,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </div>
+
+<script>
+var FANEGAS_POR_HA = <?= (float)$fanegasPorHa ?>;
+
+function syncHaToFanegas() {
+    var haVal = parseFloat(document.getElementById('finca_ha').value);
+    if (!isNaN(haVal) && haVal >= 0 && FANEGAS_POR_HA > 0) {
+        var fan = haVal * FANEGAS_POR_HA;
+        document.getElementById('finca_fanegas').value = parseFloat(fan.toFixed(2));
+    } else {
+        document.getElementById('finca_fanegas').value = '';
+    }
+}
+
+function syncFanegasToHa() {
+    var fanVal = parseFloat(document.getElementById('finca_fanegas').value);
+    if (!isNaN(fanVal) && fanVal >= 0 && FANEGAS_POR_HA > 0) {
+        var ha = fanVal / FANEGAS_POR_HA;
+        document.getElementById('finca_ha').value = parseFloat(ha.toFixed(4));
+    } else {
+        document.getElementById('finca_ha').value = '';
+    }
+}
+
+// Inicializar si ya venía un valor
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('finca_ha').value) {
+        syncHaToFanegas();
+    }
+});
+</script>
 
 <?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>

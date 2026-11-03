@@ -43,6 +43,7 @@ CREATE TABLE propietarios (
     smtp_pass_enc TEXT NULL,
     email_remitente VARCHAR(150) NULL,
     email_comunidad VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com',
+    fanegas_por_hectarea DECIMAL(8,4) NOT NULL DEFAULT 3.0000,
     activo TINYINT(1) NOT NULL DEFAULT 1,
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_propietario_activo (activo)
@@ -86,6 +87,7 @@ CREATE TABLE configuracion_web (
     usar_captcha TINYINT(1) NOT NULL DEFAULT 1,
     mensaje_pendiente_aprobacion TEXT NULL,
     color_primario VARCHAR(20) DEFAULT '#2e7d32',
+    fanegas_por_hectarea DECIMAL(8,4) NOT NULL DEFAULT 3.0000,
     actualizado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -168,6 +170,7 @@ CREATE TABLE fincas (
     id_finca INT AUTO_INCREMENT PRIMARY KEY,
     id_propietario INT NOT NULL,
     id_paraje INT NULL,
+    id_comunidad INT NULL,
     nombre_finca VARCHAR(150) NOT NULL,
     referencia_catastral VARCHAR(30) NULL,
     poligono VARCHAR(20) NULL,

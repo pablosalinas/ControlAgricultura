@@ -11,31 +11,31 @@ $error = '';
 
 // Procesar Acciones CRUD
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
 
     // CREAR COMUNIDAD
     if ($action === 'crear') {
-        $nombre = trim($_POST['nombre_comunidad'] ?? '');
-        $cif = trim($_POST['cif'] ?? '');
-        $email = trim($_POST['email_solicitudes'] ?? 'alharabemoratalla@gmail.com');
-        $tel = trim($_POST['telefono'] ?? '');
-        $dir = trim($_POST['direccion'] ?? '');
-        $mun = trim($_POST['municipio'] ?? 'Moratalla');
-        $prov = trim($_POST['provincia'] ?? 'Murcia');
-        $banco = trim($_POST['banco_habitual'] ?? 'CAJAMAR');
-        $derrama = (float)($_POST['derrama_anual'] ?? 150.00);
+        $nombre = trim(isset($_POST['nombre_comunidad']) ? $_POST['nombre_comunidad'] : '');
+        $cif = trim(isset($_POST['cif']) ? $_POST['cif'] : '');
+        $email = trim(isset($_POST['email_solicitudes']) ? $_POST['email_solicitudes'] : 'alharabemoratalla@gmail.com');
+        $tel = trim(isset($_POST['telefono']) ? $_POST['telefono'] : '');
+        $dir = trim(isset($_POST['direccion']) ? $_POST['direccion'] : '');
+        $mun = trim(isset($_POST['municipio']) ? $_POST['municipio'] : 'Moratalla');
+        $prov = trim(isset($_POST['provincia']) ? $_POST['provincia'] : 'Murcia');
+        $banco = trim(isset($_POST['banco_habitual']) ? $_POST['banco_habitual'] : 'CAJAMAR');
+        $derrama = (float)(isset($_POST['derrama_anual']) ? $_POST['derrama_anual'] : 150.00);
 
         // Precios
-        $pTanda = (float)($_POST['precio_hora_tanda'] ?? 0.00);
-        $maxTanda = (float)($_POST['consumo_max_tanda_horas'] ?? 0.00);
-        $pCom = (float)($_POST['precio_hora_comunitaria'] ?? 12.00);
-        $maxCom = (float)($_POST['consumo_max_comunitaria_horas'] ?? 0.00);
-        $pHort = (float)($_POST['precio_hora_hortalizas'] ?? 15.00);
-        $maxHort = (float)($_POST['consumo_max_hortalizas_horas'] ?? 2.00);
+        $pTanda = (float)(isset($_POST['precio_hora_tanda']) ? $_POST['precio_hora_tanda'] : 0.00);
+        $maxTanda = (float)(isset($_POST['consumo_max_tanda_horas']) ? $_POST['consumo_max_tanda_horas'] : 0.00);
+        $pCom = (float)(isset($_POST['precio_hora_comunitaria']) ? $_POST['precio_hora_comunitaria'] : 12.00);
+        $maxCom = (float)(isset($_POST['consumo_max_comunitaria_horas']) ? $_POST['consumo_max_comunitaria_horas'] : 0.00);
+        $pHort = (float)(isset($_POST['precio_hora_hortalizas']) ? $_POST['precio_hora_hortalizas'] : 15.00);
+        $maxHort = (float)(isset($_POST['consumo_max_hortalizas_horas']) ? $_POST['consumo_max_hortalizas_horas'] : 2.00);
 
         $esPredet = !empty($_POST['es_predeterminada']) ? 1 : 0;
-        $horario = trim($_POST['horario_atencion'] ?? 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00');
-        $notas = trim($_POST['notas'] ?? '');
+        $horario = trim(isset($_POST['horario_atencion']) ? $_POST['horario_atencion'] : 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00');
+        $notas = trim(isset($_POST['notas']) ? $_POST['notas'] : '');
 
         if (empty($nombre) || empty($email)) {
             $error = "El nombre de la comunidad y el email oficial para solicitudes son obligatorios.";
@@ -95,28 +95,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // EDITAR COMUNIDAD
     elseif ($action === 'editar') {
-        $idCom = (int)($_POST['id_comunidad'] ?? 0);
-        $nombre = trim($_POST['nombre_comunidad'] ?? '');
-        $cif = trim($_POST['cif'] ?? '');
-        $email = trim($_POST['email_solicitudes'] ?? 'alharabemoratalla@gmail.com');
-        $tel = trim($_POST['telefono'] ?? '');
-        $dir = trim($_POST['direccion'] ?? '');
-        $mun = trim($_POST['municipio'] ?? 'Moratalla');
-        $prov = trim($_POST['provincia'] ?? 'Murcia');
-        $banco = trim($_POST['banco_habitual'] ?? 'CAJAMAR');
-        $derrama = (float)($_POST['derrama_anual'] ?? 150.00);
+        $idCom = (int)(isset($_POST['id_comunidad']) ? $_POST['id_comunidad'] : 0);
+        $nombre = trim(isset($_POST['nombre_comunidad']) ? $_POST['nombre_comunidad'] : '');
+        $cif = trim(isset($_POST['cif']) ? $_POST['cif'] : '');
+        $email = trim(isset($_POST['email_solicitudes']) ? $_POST['email_solicitudes'] : 'alharabemoratalla@gmail.com');
+        $tel = trim(isset($_POST['telefono']) ? $_POST['telefono'] : '');
+        $dir = trim(isset($_POST['direccion']) ? $_POST['direccion'] : '');
+        $mun = trim(isset($_POST['municipio']) ? $_POST['municipio'] : 'Moratalla');
+        $prov = trim(isset($_POST['provincia']) ? $_POST['provincia'] : 'Murcia');
+        $banco = trim(isset($_POST['banco_habitual']) ? $_POST['banco_habitual'] : 'CAJAMAR');
+        $derrama = (float)(isset($_POST['derrama_anual']) ? $_POST['derrama_anual'] : 150.00);
 
         // Precios y cupos máximos
-        $pTanda = (float)($_POST['precio_hora_tanda'] ?? 0.00);
-        $maxTanda = (float)($_POST['consumo_max_tanda_horas'] ?? 0.00);
-        $pCom = (float)($_POST['precio_hora_comunitaria'] ?? 12.00);
-        $maxCom = (float)($_POST['consumo_max_comunitaria_horas'] ?? 0.00);
-        $pHort = (float)($_POST['precio_hora_hortalizas'] ?? 15.00);
-        $maxHort = (float)($_POST['consumo_max_hortalizas_horas'] ?? 2.00);
+        $pTanda = (float)(isset($_POST['precio_hora_tanda']) ? $_POST['precio_hora_tanda'] : 0.00);
+        $maxTanda = (float)(isset($_POST['consumo_max_tanda_horas']) ? $_POST['consumo_max_tanda_horas'] : 0.00);
+        $pCom = (float)(isset($_POST['precio_hora_comunitaria']) ? $_POST['precio_hora_comunitaria'] : 12.00);
+        $maxCom = (float)(isset($_POST['consumo_max_comunitaria_horas']) ? $_POST['consumo_max_comunitaria_horas'] : 0.00);
+        $pHort = (float)(isset($_POST['precio_hora_hortalizas']) ? $_POST['precio_hora_hortalizas'] : 15.00);
+        $maxHort = (float)(isset($_POST['consumo_max_hortalizas_horas']) ? $_POST['consumo_max_hortalizas_horas'] : 2.00);
 
         $esPredet = !empty($_POST['es_predeterminada']) ? 1 : 0;
-        $horario = trim($_POST['horario_atencion'] ?? 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00');
-        $notas = trim($_POST['notas'] ?? '');
+        $horario = trim(isset($_POST['horario_atencion']) ? $_POST['horario_atencion'] : 'Lunes a viernes de 11:30 a 14:00 y de 16:00 a 19:00');
+        $notas = trim(isset($_POST['notas']) ? $_POST['notas'] : '');
 
         if (empty($nombre) || empty($email)) {
             $error = "El nombre de la comunidad y el email oficial para solicitudes son obligatorios.";
@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // MARCAR COMO PREDETERMINADA
     elseif ($action === 'hacer_predeterminada') {
-        $idCom = (int)($_POST['id_comunidad'] ?? 0);
+        $idCom = (int)(isset($_POST['id_comunidad']) ? $_POST['id_comunidad'] : 0);
         try {
             $db->exec("UPDATE comunidades_regantes SET es_predeterminada = 0");
             $stmt = $db->prepare("UPDATE comunidades_regantes SET es_predeterminada = 1 WHERE id_comunidad = :id");
@@ -198,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ELIMINAR COMUNIDAD
     elseif ($action === 'eliminar') {
-        $idCom = (int)($_POST['id_comunidad'] ?? 0);
+        $idCom = (int)(isset($_POST['id_comunidad']) ? $_POST['id_comunidad'] : 0);
         try {
             $stmt = $db->prepare("DELETE FROM comunidades_regantes WHERE id_comunidad = :id");
             $stmt->execute([':id' => $idCom]);
@@ -218,6 +218,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Consultar todas las comunidades
 $comunidades = $db->query("SELECT * FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
+
+// Comunidades vinculadas a la explotación activa
+$comunidadesVinculadasIds = array();
+if ($tenantId) {
+    $stmtVin = $db->prepare("SELECT id_comunidad FROM explotaciones_comunidades WHERE id_propietario = :prop");
+    $stmtVin->execute(array(':prop' => $tenantId));
+    $comunidadesVinculadasIds = array_map('intval', $stmtVin->fetchAll(PDO::FETCH_COLUMN));
+}
 
 // Si sólo hay una, asegurar bandera predeterminada
 if (count($comunidades) === 1 && empty($comunidades[0]['es_predeterminada'])) {
@@ -295,10 +303,10 @@ if (!$comPredeterminada && !empty($comunidades)) {
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-muted small fw-semibold">Comunidad Predeterminada</div>
-                        <div class="fs-5 fw-bold text-success text-truncate" style="max-width: 220px;" title="<?= htmlspecialchars($comPredeterminada['nombre_comunidad'] ?? 'Ninguna') ?>">
-                            <?= htmlspecialchars($comPredeterminada['nombre_comunidad'] ?? 'Ninguna') ?>
+                        <div class="fs-5 fw-bold text-success text-truncate" style="max-width: 220px;" title="<?= htmlspecialchars(isset($comPredeterminada['nombre_comunidad']) ? $comPredeterminada['nombre_comunidad'] : 'Ninguna') ?>">
+                            <?= htmlspecialchars(isset($comPredeterminada['nombre_comunidad']) ? $comPredeterminada['nombre_comunidad'] : 'Ninguna') ?>
                         </div>
-                        <div class="small text-muted font-monospace"><i class="fa-solid fa-envelope me-1"></i><?= htmlspecialchars($comPredeterminada['email_solicitudes'] ?? '-') ?></div>
+                        <div class="small text-muted font-monospace"><i class="fa-solid fa-envelope me-1"></i><?= htmlspecialchars(isset($comPredeterminada['email_solicitudes']) ? $comPredeterminada['email_solicitudes'] : '-') ?></div>
                     </div>
                     <div class="rounded-circle bg-success bg-opacity-10 p-3 text-success">
                         <i class="fa-solid fa-star fs-4"></i>
@@ -312,10 +320,10 @@ if (!$comPredeterminada && !empty($comunidades)) {
                     <div>
                         <div class="text-muted small fw-semibold">Tarifa Comunitaria / Hortalizas</div>
                         <div class="fs-4 fw-bold text-dark">
-                            <?= number_format($comPredeterminada['precio_hora_comunitaria'] ?? 12, 2) ?> € / 
-                            <span class="text-success"><?= number_format($comPredeterminada['precio_hora_hortalizas'] ?? 15, 2) ?> €</span>
+                            <?= number_format(isset($comPredeterminada['precio_hora_comunitaria']) ? $comPredeterminada['precio_hora_comunitaria'] : 12, 2) ?> € / 
+                            <span class="text-success"><?= number_format(isset($comPredeterminada['precio_hora_hortalizas']) ? $comPredeterminada['precio_hora_hortalizas'] : 15, 2) ?> €</span>
                         </div>
-                        <div class="small text-muted">Consumos máx: <?= ($comPredeterminada['consumo_max_comunitaria_horas'] ?? 0) > 0 ? $comPredeterminada['consumo_max_comunitaria_horas'].'h' : 'Según particip.' ?> | <?= ($comPredeterminada['consumo_max_hortalizas_horas'] ?? 0) > 0 ? $comPredeterminada['consumo_max_hortalizas_horas'].'h fijo' : 'Libre' ?></div>
+                        <div class="small text-muted">Consumos máx: <?= (isset($comPredeterminada['consumo_max_comunitaria_horas']) && $comPredeterminada['consumo_max_comunitaria_horas'] > 0) ? $comPredeterminada['consumo_max_comunitaria_horas'].'h' : 'Según particip.' ?> | <?= (isset($comPredeterminada['consumo_max_hortalizas_horas']) && $comPredeterminada['consumo_max_hortalizas_horas'] > 0) ? $comPredeterminada['consumo_max_hortalizas_horas'].'h fijo' : 'Libre' ?></div>
                     </div>
                     <div class="rounded-circle bg-info bg-opacity-10 text-info">
                         <i class="fa-solid fa-gauge-high fs-4"></i>
@@ -354,90 +362,130 @@ if (!$comPredeterminada && !empty($comunidades)) {
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($comunidades as $com): ?>
-                            <tr class="<?= !empty($com['es_predeterminada']) ? 'table-primary bg-opacity-10' : '' ?>">
+                        <?php foreach ($comunidades as $com): 
+                            $estaVinculada = $isSuperAdmin || in_array((int)$com['id_comunidad'], $comunidadesVinculadasIds);
+                        ?>
+                            <tr class="<?= !empty($com['es_predeterminada']) ? 'table-primary bg-opacity-10' : ($estaVinculada ? '' : 'table-light text-muted') ?>">
                                 <td class="ps-3">
                                     <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
                                         <?= htmlspecialchars($com['nombre_comunidad']) ?>
                                         <?php if (!empty($com['es_predeterminada'])): ?>
                                             <span class="badge bg-success small"><i class="fa-solid fa-star me-1"></i>Predeterminada</span>
                                         <?php endif; ?>
-                                    </div>
-                                    <div class="small text-muted">
-                                        <?= htmlspecialchars($com['municipio'] ?: 'Moratalla') ?> <?= $com['provincia'] ? '(' . htmlspecialchars($com['provincia']) . ')' : '' ?>
-                                        <?php if ($com['cif']): ?>
-                                            | CIF: <span class="font-monospace"><?= htmlspecialchars($com['cif']) ?></span>
+                                        <?php if (!$estaVinculada): ?>
+                                            <span class="badge bg-secondary small" title="Esta comunidad no está asociada a la explotación activa"><i class="fa-solid fa-lock me-1"></i>No vinculada</span>
                                         <?php endif; ?>
                                     </div>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="small text-muted">
+                                            <?= htmlspecialchars($com['municipio'] ?: 'Moratalla') ?> <?= $com['provincia'] ? '(' . htmlspecialchars($com['provincia']) . ')' : '' ?>
+                                            <?php if ($com['cif']): ?>
+                                                | CIF: <span class="font-monospace"><?= htmlspecialchars($com['cif']) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="small text-muted fst-italic">Solo accesible el nombre. Debes vincularla a una explotación para consultar datos, tarifas y socios.</div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="small fw-bold text-primary">
-                                        <i class="fa-solid fa-envelope me-1 text-primary"></i><?= htmlspecialchars($com['email_solicitudes']) ?>
-                                    </div>
-                                    <?php if ($com['telefono']): ?>
-                                        <div class="small text-muted"><i class="fa-solid fa-phone me-1 text-success"></i><?= htmlspecialchars($com['telefono']) ?></div>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="small fw-bold text-primary">
+                                            <i class="fa-solid fa-envelope me-1 text-primary"></i><?= htmlspecialchars($com['email_solicitudes']) ?>
+                                        </div>
+                                        <?php if ($com['telefono']): ?>
+                                            <div class="small text-muted"><i class="fa-solid fa-phone me-1 text-success"></i><?= htmlspecialchars($com['telefono']) ?></div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border"><i class="fa-solid fa-lock me-1"></i>Restringido</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">
-                                    <div class="fw-bold text-dark font-monospace"><?= number_format($com['precio_hora_tanda'], 2) ?> €/h</div>
-                                    <div class="small">
-                                        <?php if ($com['consumo_max_tanda_horas'] > 0): ?>
-                                            <span class="badge bg-warning text-dark">Fijo: <?= number_format($com['consumo_max_tanda_horas'], 1) ?> h</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-light text-muted border">Según participaciones</span>
-                                        <?php endif; ?>
-                                    </div>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="fw-bold text-dark font-monospace"><?= number_format($com['precio_hora_tanda'], 2) ?> €/h</div>
+                                        <div class="small">
+                                            <?php if ($com['consumo_max_tanda_horas'] > 0): ?>
+                                                <span class="badge bg-warning text-dark">Fijo: <?= number_format($com['consumo_max_tanda_horas'], 1) ?> h</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border">Según participaciones</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border"><i class="fa-solid fa-lock me-1"></i>Bloqueado</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
-                                    <div class="fw-bold text-primary font-monospace"><?= number_format($com['precio_hora_comunitaria'], 2) ?> €/h</div>
-                                    <div class="small">
-                                        <?php if ($com['consumo_max_comunitaria_horas'] > 0): ?>
-                                            <span class="badge bg-warning text-dark">Máx: <?= number_format($com['consumo_max_comunitaria_horas'], 1) ?> h</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-light text-muted border">Según participaciones</span>
-                                        <?php endif; ?>
-                                    </div>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="fw-bold text-primary font-monospace"><?= number_format($com['precio_hora_comunitaria'], 2) ?> €/h</div>
+                                        <div class="small">
+                                            <?php if ($com['consumo_max_comunitaria_horas'] > 0): ?>
+                                                <span class="badge bg-warning text-dark">Máx: <?= number_format($com['consumo_max_comunitaria_horas'], 1) ?> h</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border">Según participaciones</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border"><i class="fa-solid fa-lock me-1"></i>Bloqueado</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
-                                    <div class="fw-bold text-success font-monospace"><?= number_format($com['precio_hora_hortalizas'], 2) ?> €/h</div>
-                                    <div class="small">
-                                        <?php if ($com['consumo_max_hortalizas_horas'] > 0): ?>
-                                            <span class="badge bg-success bg-opacity-20 text-success fw-bold">Pautado: <?= number_format($com['consumo_max_hortalizas_horas'], 1) ?> h</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-light text-muted border">Según participaciones</span>
-                                        <?php endif; ?>
-                                    </div>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="fw-bold text-success font-monospace"><?= number_format($com['precio_hora_hortalizas'], 2) ?> €/h</div>
+                                        <div class="small">
+                                            <?php if ($com['consumo_max_hortalizas_horas'] > 0): ?>
+                                                <span class="badge bg-success bg-opacity-20 text-success fw-bold">Pautado: <?= number_format($com['consumo_max_hortalizas_horas'], 1) ?> h</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border">Según participaciones</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border"><i class="fa-solid fa-lock me-1"></i>Bloqueado</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
-                                    <div class="fw-bold text-dark font-monospace"><?= number_format($com['derrama_anual'], 2) ?> €/año</div>
-                                    <div class="small text-muted"><?= htmlspecialchars($com['banco_habitual'] ?: 'CAJAMAR') ?></div>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="fw-bold text-dark font-monospace"><?= number_format($com['derrama_anual'], 2) ?> €/año</div>
+                                        <div class="small text-muted"><?= htmlspecialchars($com['banco_habitual'] ?: 'CAJAMAR') ?></div>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border"><i class="fa-solid fa-lock me-1"></i>Bloqueado</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-end pe-3">
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="<?= APP_URL ?>/solicitud-riego?comunidad_id=<?= $com['id_comunidad'] ?>" class="btn btn-outline-primary" title="Hacer petición de agua a esta comunidad">
-                                            <i class="fa-solid fa-file-invoice"></i>
-                                        </a>
+                                    <?php if ($estaVinculada): ?>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="<?= APP_URL ?>/solicitud-riego?comunidad_id=<?= $com['id_comunidad'] ?>" class="btn btn-outline-primary" title="Hacer petición de agua a esta comunidad">
+                                                <i class="fa-solid fa-file-invoice"></i>
+                                            </a>
+                                            <a href="<?= APP_URL ?>/regantes?comunidad_id=<?= $com['id_comunidad'] ?>" class="btn btn-outline-info" title="Ver censo de socios de esta comunidad">
+                                                <i class="fa-solid fa-users"></i>
+                                            </a>
 
-                                        <?php if (empty($com['es_predeterminada'])): ?>
-                                            <form method="POST" action="" class="d-inline">
-                                                <input type="hidden" name="action" value="hacer_predeterminada">
+                                            <?php if (empty($com['es_predeterminada'])): ?>
+                                                <form method="POST" action="" class="d-inline">
+                                                    <input type="hidden" name="action" value="hacer_predeterminada">
+                                                    <input type="hidden" name="id_comunidad" value="<?= $com['id_comunidad'] ?>">
+                                                    <button type="submit" class="btn btn-outline-success" title="Marcar como predeterminada">
+                                                        <i class="fa-solid fa-star"></i>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditarCom_<?= $com['id_comunidad'] ?>" title="Editar">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+
+                                            <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar la comunidad \'<?= htmlspecialchars(addslashes($com['nombre_comunidad'])) ?>\'?');">
+                                                <input type="hidden" name="action" value="eliminar">
                                                 <input type="hidden" name="id_comunidad" value="<?= $com['id_comunidad'] ?>">
-                                                <button type="submit" class="btn btn-outline-success" title="Marcar como predeterminada">
-                                                    <i class="fa-solid fa-star"></i>
+                                                <button type="submit" class="btn btn-outline-danger" title="Eliminar">
+                                                    <i class="fa-solid fa-trash"></i>
                                                 </button>
                                             </form>
-                                        <?php endif; ?>
-
-                                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditarCom_<?= $com['id_comunidad'] ?>" title="Editar">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
-
-                                        <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar la comunidad \'<?= htmlspecialchars(addslashes($com['nombre_comunidad'])) ?>\'?');">
-                                            <input type="hidden" name="action" value="eliminar">
-                                            <input type="hidden" name="id_comunidad" value="<?= $com['id_comunidad'] ?>">
-                                            <button type="submit" class="btn btn-outline-danger" title="Eliminar">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
+                                        </div>
+                                    <?php else: ?>
+                                        <a href="<?= APP_URL ?>/explotaciones" class="btn btn-sm btn-outline-primary" title="Vincular a tu explotación activa">
+                                            <i class="fa-solid fa-link me-1"></i>Vincular
+                                        </a>
+                                    <?php endif; ?>
                                         </form>
                                     </div>
 

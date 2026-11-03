@@ -22,6 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim(isset($_POST['email_contacto']) ? $_POST['email_contacto'] : '');
         $permitirRegistro = isset($_POST['permitir_registro_publico']) ? 1 : 0;
         $usarCaptcha = isset($_POST['usar_captcha']) ? 1 : 0;
+        $fanegasPorHa = (float)(isset($_POST['fanegas_por_hectarea']) ? $_POST['fanegas_por_hectarea'] : 3.0000);
+        if ($fanegasPorHa <= 0) {
+            $fanegasPorHa = 3.0000;
+        }
 
         // SMTP
         $smtpHost = trim(isset($_POST['smtp_host']) ? $_POST['smtp_host'] : 'smtp.ionos.es');
@@ -40,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     email_contacto = :em,
                     permitir_registro_publico = :reg,
                     usar_captcha = :cap,
+                    fanegas_por_hectarea = :fanegas,
                     smtp_host = :shost,
                     smtp_port = :sport,
                     smtp_encryption = :senc,
@@ -53,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':em'    => $email,
                 ':reg'   => $permitirRegistro,
                 ':cap'   => $usarCaptcha,
+                ':fanegas' => $fanegasPorHa,
                 ':shost' => $smtpHost,
                 ':sport' => $smtpPort,
                 ':senc'  => $smtpEnc,
@@ -251,6 +257,32 @@ $userDescifrado = !empty($cfg['smtp_user_enc']) ? Mailer::decrypt($cfg['smtp_use
                         </div>
                     </div>
 
+                    <!-- SECCIÓN 4: UNIDADES AGRARIAS Y EQUIVALENCIA DE FANEGAS -->
+                    <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                        <i class="fa-solid fa-ruler-combined text-warning me-2"></i>4. Unidades Agrarias y Equivalencia de Fanegas
+                    </h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Equivalencia: Fanegas por Hectárea (1 ha = X fanegas)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.0001" min="0.01" name="fanegas_por_hectarea" class="form-control font-monospace fs-5 fw-bold text-primary" value="<?= htmlspecialchars(isset($cfg['fanegas_por_hectarea']) ? $cfg['fanegas_por_hectarea'] : '3.0000') ?>" required id="cfg_fanegas_input" oninput="calcularM2Fanega()">
+                                <span class="input-group-text fw-bold">fanegas / ha</span>
+                            </div>
+                            <div class="alert alert-light border mt-2 py-2 px-3 small" id="cfg_m2_fanega_info">
+                                <i class="fa-solid fa-calculator text-primary me-1"></i>
+                                Valor configurado: 1 ha (10.000 m²) = <strong id="lbl_fan_ha">3.00</strong> fanegas &rarr; <strong>1 fanega = <span id="lbl_m2_fan">3.333,33</span> m²</strong>.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded-3 border small h-100 d-flex flex-column justify-content-center">
+                                <h6 class="fw-bold text-dark mb-1"><i class="fa-solid fa-circle-info text-info me-1"></i>Conversión en Fincas y Parcelas</h6>
+                                <p class="text-muted mb-0">
+                                    Esta equivalencia se aplica en todas las fichas de fincas. Podrás teclear o visualizar la superficie indistintamente en <strong>hectáreas (ha)</strong> o en <strong>fanegas</strong> con cálculo simultáneo y en vivo.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="text-end">
                         <button type="submit" class="btn btn-ag px-4 py-2 fw-bold shadow-sm">
                             <i class="fa-solid fa-floppy-disk me-2"></i>Guardar Todos los Cambios
@@ -285,6 +317,21 @@ $userDescifrado = !empty($cfg['smtp_user_enc']) ? Mailer::decrypt($cfg['smtp_use
 </div>
 
 <script>
+function calcularM2Fanega() {
+    const val = parseFloat(document.getElementById('cfg_fanegas_input').value) || 0;
+    const lblFan = document.getElementById('lbl_fan_ha');
+    const lblM2 = document.getElementById('lbl_m2_fan');
+    if (val > 0) {
+        lblFan.textContent = val.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 4});
+        const m2 = 10000 / val;
+        lblM2.textContent = m2.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    } else {
+        lblFan.textContent = '0';
+        lblM2.textContent = '-';
+    }
+}
+document.addEventListener('DOMContentLoaded', calcularM2Fanega);
+
 function togglePass(inputId, iconId) {
     const inp = document.getElementById(inputId);
     const ico = document.getElementById(iconId);

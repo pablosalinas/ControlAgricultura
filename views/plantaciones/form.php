@@ -19,16 +19,16 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $idFinca = (int)$_POST['id_finca'];
     $idCultivo = (int)$_POST['id_cultivo'];
-    $cuadro = trim($_POST['identificador_cuadro'] ?? 'Cuadro Principal');
-    $campana = (int)($_POST['campana_ano'] ?? date('Y'));
-    $superficie = (float)($_POST['superficie_ocupada_ha'] ?? 0);
+    $cuadro = trim(isset($_POST['identificador_cuadro']) ? $_POST['identificador_cuadro'] : 'Cuadro Principal');
+    $campana = (int)(isset($_POST['campana_ano']) ? $_POST['campana_ano'] : date('Y'));
+    $superficie = (float)(isset($_POST['superficie_ocupada_ha']) ? $_POST['superficie_ocupada_ha'] : 0);
     $numPlantas = !empty($_POST['num_arboles_o_plantas']) ? (int)$_POST['num_arboles_o_plantas'] : null;
-    $marco = trim($_POST['marco_plantacion'] ?? '');
+    $marco = trim(isset($_POST['marco_plantacion']) ? $_POST['marco_plantacion'] : '');
     $fechaSiembra = !empty($_POST['fecha_siembra']) ? $_POST['fecha_siembra'] : null;
     $fechaTrans = !empty($_POST['fecha_transplante']) ? $_POST['fecha_transplante'] : null;
     $fechaFin = !empty($_POST['fecha_estimada_fin']) ? $_POST['fecha_estimada_fin'] : null;
-    $estado = $_POST['estado'] ?? 'en_crecimiento';
-    $notas = trim($_POST['notas'] ?? '');
+    $estado = isset($_POST['estado']) ? $_POST['estado'] : 'en_crecimiento';
+    $notas = trim(isset($_POST['notas']) ? $_POST['notas'] : '');
 
     if (empty($idFinca) || empty($idCultivo)) {
         $error = "Debes seleccionar una finca y un cultivo obligatoriamente.";

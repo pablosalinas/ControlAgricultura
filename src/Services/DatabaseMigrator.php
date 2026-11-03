@@ -64,9 +64,11 @@ class DatabaseMigrator {
 
             // 2. Columnas en FINCAS
             self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_ibi', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            self::addColumnIfNotExists($pdo, 'fincas', 'id_comunidad', 'INT NULL');
 
             // 3. Columnas en PROPIETARIOS (Explotaciones)
             self::addColumnIfNotExists($pdo, 'propietarios', 'logo', 'VARCHAR(255) NULL');
+            self::addColumnIfNotExists($pdo, 'propietarios', 'fanegas_por_hectarea', 'DECIMAL(8,4) NOT NULL DEFAULT 3.0000');
             self::addColumnIfNotExists($pdo, 'propietarios', 'precio_hora_comunitaria', 'DECIMAL(8,2) NOT NULL DEFAULT 12.00');
             self::addColumnIfNotExists($pdo, 'propietarios', 'precio_hora_hortalizas', 'DECIMAL(8,2) NOT NULL DEFAULT 15.00');
             self::addColumnIfNotExists($pdo, 'propietarios', 'derrama_anual_comunidad', 'DECIMAL(10,2) NOT NULL DEFAULT 150.00');
@@ -79,6 +81,7 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'propietarios', 'email_comunidad', "VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com'");
 
             // 4. Columnas en CONFIGURACION_WEB
+            self::addColumnIfNotExists($pdo, 'configuracion_web', 'fanegas_por_hectarea', 'DECIMAL(8,4) NOT NULL DEFAULT 3.0000');
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'precio_hora_comunitaria', 'DECIMAL(8,2) NOT NULL DEFAULT 12.00');
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'precio_hora_hortalizas', 'DECIMAL(8,2) NOT NULL DEFAULT 15.00');
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'derrama_anual_comunidad', 'DECIMAL(10,2) NOT NULL DEFAULT 150.00');
@@ -245,6 +248,38 @@ class DatabaseMigrator {
                     INDEX idx_log_user (id_usuario)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
+
+            // 9. Columna id_comunidad en REGANTES
+            self::addColumnIfNotExists($pdo, 'regantes', 'id_comunidad', 'INT NULL');
+            // Vincular socios existentes a la primera comunidad de regantes si no tienen
+            $primeraComId = $pdo->query("SELECT id_comunidad FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, id_comunidad ASC LIMIT 1")->fetchColumn();
+            if ($primeraComId) {
+                $pdo->exec("UPDATE regantes SET id_comunidad = " . (int)$primeraComId . " WHERE id_comunidad IS NULL OR id_comunidad = 0");
+            }
+
+            // 10. Tabla EXPLOTACIONES_COMUNIDADES (Relación N:M entre Explotaciones y Comunidades de Regantes compartidas)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS explotaciones_comunidades (
+                    id_propietario INT NOT NULL,
+                    id_comunidad INT NOT NULL,
+                    fecha_vinculacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id_propietario, id_comunidad),
+                    INDEX idx_ec_prop (id_propietario),
+                    INDEX idx_ec_com (id_comunidad)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Si está vacía, asociar de inicio las comunidades existentes con los propietarios existentes
+            $countEC = $pdo->query("SELECT COUNT(*) FROM explotaciones_comunidades")->fetchColumn();
+            if ($countEC == 0) {
+                $pdo->exec("
+                    INSERT IGNORE INTO explotaciones_comunidades (id_propietario, id_comunidad)
+                    SELECT p.id_propietario, c.id_comunidad
+                    FROM propietarios p
+                    CROSS JOIN comunidades_regantes c
+                    WHERE p.activo = 1 AND c.activo = 1;
+                ");
+            }
 
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún

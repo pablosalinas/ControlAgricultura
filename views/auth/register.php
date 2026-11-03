@@ -42,28 +42,28 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="nombre" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" required value="<?= htmlspecialchars($_POST['nombre'] ?? '') ?>">
+                            <input type="text" class="form-control" id="nombre" name="nombre" required value="<?= htmlspecialchars(isset($_POST['nombre']) ? $_POST['nombre'] : '') ?>">
                         </div>
                         <div class="col-md-6">
                             <label for="apellidos" class="form-label fw-semibold">Apellidos</label>
-                            <input type="text" class="form-control" id="apellidos" name="apellidos" value="<?= htmlspecialchars($_POST['apellidos'] ?? '') ?>">
+                            <input type="text" class="form-control" id="apellidos" name="apellidos" value="<?= htmlspecialchars(isset($_POST['apellidos']) ? $_POST['apellidos'] : '') ?>">
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="empresa_o_propietario" class="form-label fw-semibold">Nombre de la Explotación o Propietario Agrícola <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="empresa_o_propietario" name="empresa_o_propietario" required placeholder="Ej: Finca Los Naranjos S.L. o Explotación Hnos. Martínez" value="<?= htmlspecialchars($_POST['empresa_o_propietario'] ?? '') ?>">
+                        <input type="text" class="form-control" id="empresa_o_propietario" name="empresa_o_propietario" required placeholder="Ej: Finca Los Naranjos S.L. o Explotación Hnos. Martínez" value="<?= htmlspecialchars(isset($_POST['empresa_o_propietario']) ? $_POST['empresa_o_propietario'] : '') ?>">
                         <div class="form-text">Si eres un nuevo propietario, se creará tu espacio de gestión exclusivo.</div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="cif_nif" class="form-label fw-semibold">NIF / CIF</label>
-                            <input type="text" class="form-control" id="cif_nif" name="cif_nif" value="<?= htmlspecialchars($_POST['cif_nif'] ?? '') ?>">
+                            <input type="text" class="form-control" id="cif_nif" name="cif_nif" value="<?= htmlspecialchars(isset($_POST['cif_nif']) ? $_POST['cif_nif'] : '') ?>">
                         </div>
                         <div class="col-md-6">
                             <label for="telefono" class="form-label fw-semibold">Teléfono de Contacto</label>
-                            <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars($_POST['telefono'] ?? '') ?>">
+                            <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(isset($_POST['telefono']) ? $_POST['telefono'] : '') ?>">
                         </div>
                     </div>
 
@@ -72,7 +72,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="email" class="form-label fw-semibold">Correo Electrónico <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="email" name="email" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                            <input type="email" class="form-control" id="email" name="email" required value="<?= htmlspecialchars(isset($_POST['email']) ? $_POST['email'] : '') ?>">
                         </div>
                         <div class="col-md-6">
                             <label for="password" class="form-label fw-semibold">Contraseña <span class="text-danger">*</span></label>
@@ -82,7 +82,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
 
                     <div class="mb-3">
                         <label for="motivo" class="form-label fw-semibold">Motivo o detalles de la solicitud</label>
-                        <textarea class="form-control" id="motivo" name="motivo" rows="2" placeholder="Indica las fincas o actividad que deseas gestionar..."><?= htmlspecialchars($_POST['motivo'] ?? '') ?></textarea>
+                        <textarea class="form-control" id="motivo" name="motivo" rows="2" placeholder="Indica las fincas o actividad que deseas gestionar..."><?= htmlspecialchars(isset($_POST['motivo']) ? $_POST['motivo'] : '') ?></textarea>
                     </div>
 
                     <h6 class="text-uppercase text-muted fw-bold small mt-4 mb-3 border-bottom pb-2">3. Control de Seguridad (Anti-Bot)</h6>

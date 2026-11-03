@@ -6,13 +6,13 @@ $db = Database::getConnection();
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nombreComun = trim($_POST['nombre_comun'] ?? '');
-    $nombreCientifico = trim($_POST['nombre_cientifico'] ?? '');
-    $variedad = trim($_POST['variedad'] ?? '');
+    $nombreComun = trim(isset($_POST['nombre_comun']) ? $_POST['nombre_comun'] : '');
+    $nombreCientifico = trim(isset($_POST['nombre_cientifico']) ? $_POST['nombre_cientifico'] : '');
+    $variedad = trim(isset($_POST['variedad']) ? $_POST['variedad'] : '');
     $diasCiclo = !empty($_POST['dias_ciclo_aprox']) ? (int)$_POST['dias_ciclo_aprox'] : null;
-    $tipoCultivo = $_POST['tipo_cultivo'] ?? 'frutal';
-    $urlConsulta = trim($_POST['url_consulta_botanica'] ?? '');
-    $requerimientos = trim($_POST['requerimientos_tecnicos'] ?? '');
+    $tipoCultivo = isset($_POST['tipo_cultivo']) ? $_POST['tipo_cultivo'] : 'frutal';
+    $urlConsulta = trim(isset($_POST['url_consulta_botanica']) ? $_POST['url_consulta_botanica'] : '');
+    $requerimientos = trim(isset($_POST['requerimientos_tecnicos']) ? $_POST['requerimientos_tecnicos'] : '');
 
     if (empty($nombreComun)) {
         $error = 'El nombre común del cultivo es obligatorio.';
