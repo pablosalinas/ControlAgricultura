@@ -81,15 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "El nombre de la explotación no puede quedar vacío.";
             } else {
                 try {
-                    $pCom = (float)(isset($_POST['precio_hora_comunitaria']) ? $_POST['precio_hora_comunitaria'] : 12.00);
-                    $pHort = (float)(isset($_POST['precio_hora_hortalizas']) ? $_POST['precio_hora_hortalizas'] : 15.00);
-                    $derr = (float)(isset($_POST['derrama_anual_comunidad']) ? $_POST['derrama_anual_comunidad'] : 150.00);
-
                     $stmt = $db->prepare("
                         UPDATE propietarios 
                         SET nombre_razon_social = :nom, cif_nif = :cif, telefono = :tel, email = :email,
-                            direccion = :dir, municipio = :mun, provincia = :prov, codigo_postal = :cp,
-                            precio_hora_comunitaria = :pcom, precio_hora_hortalizas = :phort, derrama_anual_comunidad = :derr
+                            direccion = :dir, municipio = :mun, provincia = :prov, codigo_postal = :cp
                         WHERE id_propietario = :id
                     ");
                     $stmt->execute(array(
@@ -101,9 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':mun' => $mun ?: null,
                         ':prov' => $prov ?: null,
                         ':cp' => $cp ?: null,
-                        ':pcom' => $pCom,
-                        ':phort' => $pHort,
-                        ':derr' => $derr,
                         ':id' => $idProp
                     ));
 
@@ -127,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     Auth::refreshTenantName();
-                    $success = "Datos y tarifas de la explotación <strong>" . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
+                    $success = "Datos de la explotación <strong>" . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
                 } catch (Exception $e) {
                     $error = "Error al guardar cambios: " . $e->getMessage();
                 }
@@ -412,29 +404,16 @@ $currentTenantId = Auth::tenantId();
                                                                 <input type="text" name="codigo_postal" class="form-control font-monospace" value="<?= htmlspecialchars($exp['codigo_postal'] ?: '') ?>">
                                                             </div>
 
-                                                            <!-- Precios y Costes de Riego de la Explotación -->
+                                                            <!-- Aviso: Precios y Tarifas de Riego fijados por la Comunidad de Regantes -->
                                                             <div class="col-12 mt-3">
-                                                                <h6 class="fw-bold text-primary border-bottom pb-1"><i class="fa-solid fa-droplet me-1"></i>Tarifas y Cuotas de Riego para esta Explotación</h6>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Precio Hora Comunitaria</label>
-                                                                <div class="input-group">
-                                                                    <input type="number" step="0.01" name="precio_hora_comunitaria" class="form-control font-monospace fw-bold" value="<?= isset($exp['precio_hora_comunitaria']) ? $exp['precio_hora_comunitaria'] : '12.00' ?>">
-                                                                    <span class="input-group-text">€/h</span>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Hora Comunitaria HORTALIZAS</label>
-                                                                <div class="input-group">
-                                                                    <input type="number" step="0.01" name="precio_hora_hortalizas" class="form-control font-monospace fw-bold text-success" value="<?= isset($exp['precio_hora_hortalizas']) ? $exp['precio_hora_hortalizas'] : '15.00' ?>">
-                                                                    <span class="input-group-text">€/h</span>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Derrama Anual Comunidad</label>
-                                                                <div class="input-group">
-                                                                    <input type="number" step="0.01" name="derrama_anual_comunidad" class="form-control font-monospace fw-bold" value="<?= isset($exp['derrama_anual_comunidad']) ? $exp['derrama_anual_comunidad'] : '150.00' ?>">
-                                                                    <span class="input-group-text">€/año</span>
+                                                                <div class="p-3 bg-light rounded-3 border d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
+                                                                    <div>
+                                                                        <div class="fw-bold text-primary small"><i class="fa-solid fa-water me-1"></i>Tarifas y Precios de Riego</div>
+                                                                        <div class="small text-muted">Las tarifas de agua (tanda, comunitaria, comunitaria hortalizas) y derramas no se fijan por explotación, sino directamente en la Comunidad de Regantes seleccionada.</div>
+                                                                    </div>
+                                                                    <a href="<?= APP_URL ?>/comunidades-regantes" class="btn btn-sm btn-outline-primary text-nowrap align-self-start align-self-sm-center" target="_blank">
+                                                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Comunidades de Regantes
+                                                                    </a>
                                                                 </div>
                                                             </div>
                                                         </div>
