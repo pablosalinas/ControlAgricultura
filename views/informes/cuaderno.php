@@ -86,10 +86,13 @@ $cosechas = $stmtCosechas->fetchAll();
             <h2 class="fw-bold mb-1"><i class="fa-solid fa-file-contract text-success me-2"></i>Cuaderno de Campo Oficial</h2>
             <p class="text-muted mb-0">Generación de informes de trazabilidad fitosanitaria y recolección para auditorías</p>
         </div>
-        <div class="d-flex gap-2 mt-3 mt-md-0">
-            <button onclick="window.print()" class="btn btn-primary fw-bold shadow-sm">
-                <i class="fa-solid fa-print me-1"></i> Imprimir / Guardar en PDF
-            </button>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-md-0">
+            <?php
+            $reportTitle = 'Cuaderno de Campo Oficial - Campaña ' . $anoSel;
+            $reportTargetId = 'areaImprimibleCuaderno';
+            $reportFilename = 'cuaderno_campo_oficial_' . $anoSel . '.pdf';
+            require VIEWS_PATH . '/layouts/toolbar_informes.php';
+            ?>
         </div>
     </div>
 
@@ -120,7 +123,7 @@ $cosechas = $stmtCosechas->fetchAll();
     </div>
 
     <!-- DOCUMENTO OFICIAL IMPRIMIBLE -->
-    <div class="card card-custom p-4 p-md-5">
+    <div class="card card-custom p-4 p-md-5" id="areaImprimibleCuaderno">
         <!-- Encabezado Oficial -->
         <div class="row align-items-center border-bottom pb-3 mb-4">
             <div class="col-8">

@@ -1,6 +1,5 @@
 <?php
-$pageTitle = "Maestro de Parajes - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
+$pageTitle = "Maestro de Parajes y Paradas - " . APP_NAME;
 
 $db = Database::getConnection();
 $tenantId = Auth::tenantId();
@@ -117,6 +116,12 @@ $sqlParajes .= " GROUP BY p.id_paraje ORDER BY CASE WHEN p.codigo IS NOT NULL AN
 $stmtP = $db->prepare($sqlParajes);
 $stmtP->execute($params);
 $parajes = $stmtP->fetchAll();
+
+require_once VIEWS_PATH . '/layouts/header.php';
+
+$reportTitle = 'Catálogo Oficial de Parajes y Paradas de Riego (Moratalla)';
+$reportTargetId = 'tablaParajesImprimible';
+$reportFilename = 'catalogo_parajes_paradas_moratalla.pdf';
 ?>
 
 <div class="container py-4">
@@ -132,9 +137,12 @@ $parajes = $stmtP->fetchAll();
                 <p class="text-muted mb-0 small">Estandarización y catálogo oficial de parajes y paradas de la Comunidad de Regantes</p>
             </div>
         </div>
-        <button class="btn btn-ag shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formParaje">
-            <i class="fa-solid fa-plus-circle me-1"></i> Nueva Parada / Paraje
-        </button>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php require VIEWS_PATH . '/layouts/toolbar_informes.php'; ?>
+            <button class="btn btn-ag shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formParaje">
+                <i class="fa-solid fa-plus-circle me-1"></i> Nueva Parada / Paraje
+            </button>
+        </div>
     </div>
 
     <!-- Alertas -->
@@ -205,7 +213,7 @@ $parajes = $stmtP->fetchAll();
     </div>
 
     <!-- Tabla Maestra de Parajes (CRUD) -->
-    <div class="card card-ag shadow-sm border-0">
+    <div class="card card-ag shadow-sm border-0" id="tablaParajesImprimible">
         <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
             <h6 class="fw-bold mb-0 text-primary">
                 <i class="fa-solid fa-map-location-dot me-2"></i>Parajes Registrados (<?= count($parajes) ?>)

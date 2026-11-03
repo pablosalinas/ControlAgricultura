@@ -320,6 +320,11 @@ switch ($route) {
         require_once VIEWS_PATH . '/configuracion/backup.php';
         break;
 
+    // API Universal para Enviar Informes y Listados por Correo Electrónico
+    case 'api/informe/enviar-email':
+        require_once ROOT_PATH . '/controllers/api_informe_email.php';
+        break;
+
     default:
         http_response_code(404);
         $pageTitle = "Página no encontrada - " . APP_NAME;

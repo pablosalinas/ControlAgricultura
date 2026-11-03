@@ -183,7 +183,66 @@
                 font-size: 15px;
             }
         }
+
+        /* Reglas Universales de Impresión Oficial */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 10pt !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .navbar, .no-print, [data-report-toolbar], .btn, .btn-group, .pagination,
+            .alert, .modal, form:not(.imprimible), .dropdown, footer, header {
+                display: none !important;
+            }
+            .container, .container-fluid {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                margin-bottom: 0 !important;
+            }
+            .card-header {
+                background: #ffffff !important;
+                color: #000000 !important;
+                border-bottom: 2px solid #000000 !important;
+                padding: 8px 0 !important;
+            }
+            .table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 9pt !important;
+                color: #000000 !important;
+            }
+            .table th, .table td {
+                border: 1px solid #cccccc !important;
+                padding: 4px 6px !important;
+                color: #000000 !important;
+            }
+            .badge {
+                border: 1px solid #777777 !important;
+                color: #000000 !important;
+                background: transparent !important;
+            }
+            a {
+                text-decoration: none !important;
+                color: #000000 !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
     </style>
+    <!-- Librerías Globales para Exportación y PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>window.APP_URL = '<?= APP_URL ?>';</script>
+    <script src="<?= APP_URL ?>/assets/js/report-export.js"></script>
 </head>
 <body>
 

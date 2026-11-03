@@ -137,9 +137,17 @@ $plantaciones = $stmtPl->fetchAll();
                 <p class="text-muted mb-0 small">Control de cuadros parcelarios, fechas de siembra/trasplante, marcos y estado de producción</p>
             </div>
         </div>
-        <a href="<?= APP_URL ?>/plantaciones/nueva" class="btn btn-ag shadow-sm">
-            <i class="fa-solid fa-plus-circle me-1"></i> Nueva Plantación
-        </a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php
+            $reportTitle = 'Listado Oficial de Plantaciones y Cuadros de Cultivo';
+            $reportTargetId = 'tablaPlantacionesImprimible';
+            $reportFilename = 'plantaciones_cultivos_' . date('Y-m-d') . '.pdf';
+            require VIEWS_PATH . '/layouts/toolbar_informes.php';
+            ?>
+            <a href="<?= APP_URL ?>/plantaciones/nueva" class="btn btn-ag shadow-sm">
+                <i class="fa-solid fa-plus-circle me-1"></i> Nueva Plantación
+            </a>
+        </div>
     </div>
 
     <!-- Alertas -->
@@ -196,7 +204,7 @@ $plantaciones = $stmtPl->fetchAll();
     </div>
 
     <!-- Tabla Maestra de Plantaciones (CRUD) -->
-    <div class="card card-ag shadow-sm border-0">
+    <div class="card card-ag shadow-sm border-0" id="tablaPlantacionesImprimible">
         <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
             <h6 class="fw-bold mb-0 text-primary">
                 <i class="fa-solid fa-cubes-stacked me-2"></i>Plantaciones Registradas (<?= count($plantaciones) ?>)

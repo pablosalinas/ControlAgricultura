@@ -185,13 +185,16 @@ $regantes = $db->query("SELECT id_regante, num_regante, nombre_completo FROM reg
             <h1 class="h2 fw-bold text-dark mb-0">Partes y Consultas de Solicitud de Riego</h1>
             <p class="text-muted small mb-0">Registro histórico, asignación de turnos por la comunidad, estado de ejecución y totalización.</p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php
+            $reportTitle = 'Histórico y Partes de Solicitud de Riego';
+            $reportTargetId = 'tablaPartesRiegoImprimible';
+            $reportFilename = 'partes_solicitudes_riego_' . date('Y-m-d') . '.pdf';
+            require VIEWS_PATH . '/layouts/toolbar_informes.php';
+            ?>
             <a href="<?= APP_URL ?>/solicitud-riego" class="btn btn-primary fw-bold shadow-sm">
                 <i class="fa-solid fa-file-circle-plus me-1"></i> Nueva Solicitud (A4)
             </a>
-            <button type="button" class="btn btn-outline-secondary fw-semibold shadow-sm" onclick="window.print()">
-                <i class="fa-solid fa-print me-1"></i> Imprimir Listado
-            </button>
         </div>
     </div>
 
@@ -298,7 +301,7 @@ $regantes = $db->query("SELECT id_regante, num_regante, nombre_completo FROM reg
     </div>
 
     <!-- TABLA DE LISTADO DE PARTES DE RIEGO (TOTALIZACIÓN Y RESPONSIVE) -->
-    <div class="card card-custom shadow-sm overflow-hidden border">
+    <div class="card card-custom shadow-sm overflow-hidden border" id="tablaPartesRiegoImprimible">
         <div class="table-responsive">
             <table class="table table-hover table-striped align-middle mb-0" id="tablaPartes">
                 <thead class="table-dark text-nowrap">

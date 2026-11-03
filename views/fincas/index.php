@@ -200,9 +200,17 @@ $fincas = $stmtF->fetchAll();
                 </div>
             </div>
         </div>
-        <a href="<?= APP_URL ?>/fincas/nueva" class="btn btn-ag shadow-sm">
-            <i class="fa-solid fa-plus-circle me-1"></i> Nueva Finca
-        </a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php
+            $reportTitle = 'Maestro Oficial de Fincas y Parcelas (' . (isset($_SESSION['nombre_propietario']) && $_SESSION['nombre_propietario'] ? $_SESSION['nombre_propietario'] : 'Todas las Explotaciones') . ')';
+            $reportTargetId = 'tablaFincasImprimible';
+            $reportFilename = 'listado_fincas_' . date('Y-m-d') . '.pdf';
+            require VIEWS_PATH . '/layouts/toolbar_informes.php';
+            ?>
+            <a href="<?= APP_URL ?>/fincas/nueva" class="btn btn-ag shadow-sm">
+                <i class="fa-solid fa-plus-circle me-1"></i> Nueva Finca
+            </a>
+        </div>
     </div>
 
     <!-- Alertas -->
@@ -245,7 +253,7 @@ $fincas = $stmtF->fetchAll();
     </div>
 
     <!-- Tabla Maestra de Fincas (CRUD) -->
-    <div class="card card-ag shadow-sm border-0">
+    <div class="card card-ag shadow-sm border-0" id="tablaFincasImprimible">
         <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
             <h6 class="fw-bold mb-0 text-primary">
                 <i class="fa-solid fa-draw-polygon me-2"></i>Fincas Registradas (<?= count($fincas) ?>)

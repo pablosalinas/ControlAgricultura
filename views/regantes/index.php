@@ -238,7 +238,13 @@ foreach ($regantes as $r) {
                 <span class="text-muted small">Gestión de Cuotas, Comunidades de Regantes Asociadas y Derechos de Agua</span>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php
+            $reportTitle = 'Censo Oficial de Socios Regantes y Derechos de Agua';
+            $reportTargetId = 'tablaRegantesImprimible';
+            $reportFilename = 'censo_socios_regantes_' . date('Y-m-d') . '.pdf';
+            require VIEWS_PATH . '/layouts/toolbar_informes.php';
+            ?>
             <a href="<?= APP_URL ?>/solicitud-riego" class="btn btn-outline-primary fw-semibold">
                 <i class="fa-solid fa-file-invoice me-1"></i> Rellenar Papeleta Riego
             </a>
@@ -325,7 +331,7 @@ foreach ($regantes as $r) {
     </div>
 
     <!-- Buscador y Tabla -->
-    <div class="card card-custom p-4">
+    <div class="card card-custom p-4" id="tablaRegantesImprimible">
         <div class="row g-2 align-items-center mb-3">
             <div class="col-md-5">
                 <h5 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-list-check me-2"></i>Padrón de Regantes</h5>

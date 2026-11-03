@@ -335,7 +335,13 @@ if (empty($anosQuery)) {
                 <p class="text-muted mb-0 small">Seguimiento de costes agronómicos, facturas, insumos y cálculo de balance económico con check de confirmación</p>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php
+            $reportTitle = 'Balance y Control de Gastos e Ingresos por Finca';
+            $reportTargetId = 'areaImprimibleGastos';
+            $reportFilename = 'balance_gastos_ingresos_' . date('Y-m-d') . '.pdf';
+            require VIEWS_PATH . '/layouts/toolbar_informes.php';
+            ?>
             <a href="<?= APP_URL ?>/gastos/tipos" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-tags me-1 text-warning"></i> Maestro de Tipos
             </a>
@@ -359,8 +365,10 @@ if (empty($anosQuery)) {
         </div>
     <?php endif; ?>
 
-    <!-- Tarjetas de Resumen Económico -->
-    <div class="row g-3 mb-4">
+    <!-- Contenedor Imprimible y Exportable a PDF -->
+    <div id="areaImprimibleGastos">
+        <!-- Tarjetas de Resumen Económico -->
+        <div class="row g-3 mb-4">
         <!-- Gastos Confirmados -->
         <div class="col-md-3">
             <div class="card card-custom p-3 border-start border-4 border-danger">
@@ -726,6 +734,7 @@ if (empty($anosQuery)) {
             </table>
         </div>
     </div>
+    </div> <!-- /#areaImprimibleGastos -->
 </div>
 
 <!-- Modal Registrar Nuevo Gasto con Creación al Vuelo de Tipos -->
@@ -880,6 +889,7 @@ if (empty($anosQuery)) {
             </form>
         </div>
     </div>
+    </div> <!-- /#areaImprimibleGastos -->
 </div>
 
 <script>
