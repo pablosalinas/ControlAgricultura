@@ -28,12 +28,17 @@ $pdfBase64 = !empty($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
 $contenidoHtml = !empty($_POST['contenido_html']) ? $_POST['contenido_html'] : '';
 
 $attachments = array();
-if (!empty($pdfBase64) && strpos($pdfBase64, 'base64,') !== false) {
-    $parts = explode('base64,', $pdfBase64);
-    $bin = base64_decode($parts[1]);
-    if ($bin !== false) {
+if (!empty($pdfBase64)) {
+    if (strpos($pdfBase64, 'base64,') !== false) {
+        $parts = explode('base64,', $pdfBase64);
+        $bin = base64_decode($parts[1]);
+    } else {
+        $bin = base64_decode($pdfBase64);
+    }
+    if ($bin !== false && strlen($bin) > 0) {
         $attachments[] = array(
             'name'    => $nombreArchivo,
+            'data'    => $bin,
             'content' => $bin,
             'mime'    => 'application/pdf'
         );

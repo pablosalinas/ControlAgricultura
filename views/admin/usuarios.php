@@ -129,10 +129,14 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                         <input type="hidden" name="id_usuario" value="<?= $p['id_usuario'] ?>">
                                         <input type="hidden" name="action" value="aprobar">
                                         <select name="rol" class="form-select form-select-sm">
-                                            <option value="propietario" selected>Propietario</option>
+                                            <option value="propietario" selected>Gestor Explotación / Propietario</option>
                                             <option value="tecnico">Técnico / Encargado</option>
+                                            <option value="operario">Operario de Campo</option>
                                             <option value="lector">Lector / Auditor</option>
-                                            <option value="superadmin">Administrador General</option>
+                                            <?php if ($isSuperAdmin): ?>
+                                                <option value="administrador" class="text-primary fw-bold">Administrador</option>
+                                                <option value="superadmin" class="text-danger fw-bold">Superusuario</option>
+                                            <?php endif; ?>
                                         </select>
                                     </form>
                                 </td>
@@ -182,7 +186,19 @@ require_once VIEWS_PATH . '/layouts/header.php';
                             <td><?= htmlspecialchars($u['email']) ?></td>
                             <td><?= htmlspecialchars(isset($u['nombre_propietario']) ? $u['nombre_propietario'] : 'Todas (Admin)') ?></td>
                             <td>
-                                <span class="badge bg-secondary text-capitalize"><?= htmlspecialchars($u['rol']) ?></span>
+                                <?php if ($u['rol'] === 'superadmin'): ?>
+                                    <span class="badge bg-danger text-white"><i class="fa-solid fa-crown me-1 text-warning"></i>Superusuario</span>
+                                <?php elseif (in_array($u['rol'], array('administrador', 'admin'))): ?>
+                                    <span class="badge bg-warning text-dark"><i class="fa-solid fa-shield-halved me-1"></i>Administrador</span>
+                                <?php elseif ($u['rol'] === 'propietario'): ?>
+                                    <span class="badge bg-primary">Gestor Explotación</span>
+                                <?php elseif ($u['rol'] === 'tecnico'): ?>
+                                    <span class="badge bg-info text-dark">Técnico</span>
+                                <?php elseif ($u['rol'] === 'operario'): ?>
+                                    <span class="badge bg-secondary">Operario</span>
+                                <?php else: ?>
+                                    <span class="badge bg-light text-muted border">Lector</span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($u['estado'] === 'aprobado'): ?>

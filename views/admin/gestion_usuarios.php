@@ -382,10 +382,12 @@ $usuarios = $stmtUsers->fetchAll();
                         <label class="form-label fw-semibold small">Rol / Perfil de Trabajo <span class="text-danger">*</span></label>
                         <select name="rol" class="form-select" required>
                             <option value="tecnico" selected>Técnico / Encargado (Registra labores y riegos)</option>
-                            <option value="propietario">Gestor de Explotación (Control total de la finca)</option>
+                            <option value="propietario">Gestor de Explotación / Propietario (Control de finca)</option>
+                            <option value="operario">Operario de Campo (Labores asignadas)</option>
                             <option value="lector">Lector / Auditor (Solo consulta de cuadernos)</option>
                             <?php if ($isSuperAdmin): ?>
-                                <option value="superadmin" class="text-danger fw-bold">Administrador General</option>
+                                <option value="administrador" class="text-primary fw-bold">Administrador (Gestión del Sistema)</option>
+                                <option value="superadmin" class="text-danger fw-bold">Superusuario (Acceso Total y Seguridad)</option>
                             <?php endif; ?>
                         </select>
                     </div>
@@ -560,11 +562,15 @@ $usuarios = $stmtUsers->fetchAll();
                                 </td>
                                 <td>
                                     <?php if ($u['rol'] === 'superadmin'): ?>
+                                        <span class="badge bg-danger text-white"><i class="fa-solid fa-crown me-1 text-warning"></i>Superusuario</span>
+                                    <?php elseif (in_array($u['rol'], array('administrador', 'admin'))): ?>
                                         <span class="badge bg-warning text-dark"><i class="fa-solid fa-shield-halved me-1"></i>Administrador</span>
                                     <?php elseif ($u['rol'] === 'propietario'): ?>
                                         <span class="badge bg-primary"><i class="fa-solid fa-user-tie me-1"></i>Gestor Explotación</span>
                                     <?php elseif ($u['rol'] === 'tecnico'): ?>
                                         <span class="badge bg-info text-dark"><i class="fa-solid fa-tractor me-1"></i>Técnico / Encargado</span>
+                                    <?php elseif ($u['rol'] === 'operario'): ?>
+                                        <span class="badge bg-secondary"><i class="fa-solid fa-person-digging me-1"></i>Operario</span>
                                     <?php else: ?>
                                         <span class="badge bg-light text-muted border"><i class="fa-solid fa-eye me-1"></i>Lector / Auditor</span>
                                     <?php endif; ?>
@@ -662,11 +668,12 @@ $usuarios = $stmtUsers->fetchAll();
                                                                 <label class="form-label fw-semibold small">Perfil / Rol *</label>
                                                                 <select name="rol" class="form-select" required>
                                                                     <option value="tecnico" <?= $u['rol'] === 'tecnico' ? 'selected' : '' ?>>Técnico / Encargado</option>
-                                                                    <option value="propietario" <?= $u['rol'] === 'propietario' ? 'selected' : '' ?>>Gestor de Explotación</option>
+                                                                    <option value="propietario" <?= $u['rol'] === 'propietario' ? 'selected' : '' ?>>Gestor de Explotación / Propietario</option>
+                                                                    <option value="operario" <?= $u['rol'] === 'operario' ? 'selected' : '' ?>>Operario de Campo</option>
                                                                     <option value="lector" <?= $u['rol'] === 'lector' ? 'selected' : '' ?>>Lector / Auditor</option>
                                                                     <?php if ($isSuperAdmin): ?>
-                                                                        <option value="administrador" <?= in_array($u['rol'], array('administrador', 'admin')) ? 'selected' : '' ?> class="text-primary fw-bold">Administrador</option>
-                                                                        <option value="superadmin" <?= $u['rol'] === 'superadmin' ? 'selected' : '' ?> class="text-danger fw-bold">Administrador General (Superusuario)</option>
+                                                                        <option value="administrador" <?= in_array($u['rol'], array('administrador', 'admin')) ? 'selected' : '' ?> class="text-primary fw-bold">Administrador (Gestión del Sistema)</option>
+                                                                        <option value="superadmin" <?= $u['rol'] === 'superadmin' ? 'selected' : '' ?> class="text-danger fw-bold">Superusuario (Acceso Total y Seguridad)</option>
                                                                     <?php endif; ?>
                                                                 </select>
                                                             </div>

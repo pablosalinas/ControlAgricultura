@@ -242,6 +242,8 @@ class Mailer {
                             }
                         } elseif (isset($att['data'])) {
                             $attData = $att['data'];
+                        } elseif (isset($att['content'])) {
+                            $attData = $att['content'];
                         }
                         if (!empty($att['mime'])) {
                             $attMime = $att['mime'];
