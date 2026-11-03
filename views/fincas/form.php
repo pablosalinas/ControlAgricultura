@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <!-- Conversión bidireccional Hectáreas <-> Fanegas -->
                     <div class="card p-3 mb-3 bg-light border-0 shadow-sm">
                         <div class="row g-3 align-items-center">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark mb-1">
                                     <i class="fa-solid fa-draw-polygon text-success me-1"></i>Superficie en Hectáreas <span class="text-danger">*</span>
                                 </label>
@@ -197,20 +197,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <span class="input-group-text fw-bold">ha</span>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark mb-1">
                                     <i class="fa-solid fa-wheat-awn text-warning me-1"></i>Superficie en Fanegas
                                 </label>
                                 <div class="input-group">
                                     <input type="number" step="0.01" min="0" id="finca_fanegas" class="form-control font-monospace fs-6 fw-bold text-dark" placeholder="0.00" oninput="syncFanegasToHa()">
                                     <span class="input-group-text fw-bold">fanegas</span>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold text-muted mb-1">Coste Anual IBI (€/año)</label>
-                                <div class="input-group">
-                                    <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" placeholder="0.00" value="<?= htmlspecialchars(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : '0.00') ?>">
-                                    <span class="input-group-text">€/año</span>
                                 </div>
                             </div>
                         </div>
@@ -225,6 +218,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <i class="fa-solid fa-gear me-1"></i>Ajustar equivalencia
                                 </a>
                             <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Bloque Costes Fijos Anuales: IBI y Derramas Juntos -->
+                    <div class="card p-3 mb-3 bg-light border-0 shadow-sm">
+                        <div class="border-bottom pb-2 mb-3">
+                            <span class="fw-bold text-dark"><i class="fa-solid fa-coins text-warning me-2"></i>Costes Fijos Anuales de la Finca (IBI y Derramas)</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold mb-1">
+                                    <i class="fa-solid fa-receipt text-warning me-1"></i>Coste Anual IBI (€/año)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" name="coste_anual_ibi" class="form-control font-monospace fw-bold" placeholder="0.00" value="<?= htmlspecialchars(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : '0.00') ?>">
+                                    <span class="input-group-text">€/año</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold mb-1">
+                                    <i class="fa-solid fa-file-invoice-dollar text-success me-1"></i>Coste Anual Derrama (€/año)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" name="coste_anual_derrama" class="form-control font-monospace fw-bold" placeholder="0.00" value="<?= htmlspecialchars(isset($_POST['coste_anual_derrama']) ? $_POST['coste_anual_derrama'] : '0.00') ?>">
+                                    <span class="input-group-text">€/año</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -262,29 +282,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label fw-semibold">Número de Socio / Comunero</label>
                             <input type="text" name="num_socio_comunidad" class="form-control font-monospace" placeholder="Ej: A1188" value="<?= htmlspecialchars(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '') ?>">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label fw-semibold">Horas Propiedad (Tanda)</label>
                             <div class="input-group">
                                 <input type="number" step="0.25" min="0" name="horas_propiedad_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label fw-semibold">Agua disponible Comunitaria</label>
                             <div class="input-group">
                                 <input type="number" step="0.25" min="0" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Coste Derrama (€/año)</label>
-                            <div class="input-group">
-                                <input type="number" step="0.01" min="0" name="coste_anual_derrama" class="form-control font-monospace" placeholder="0.00" value="<?= htmlspecialchars(isset($_POST['coste_anual_derrama']) ? $_POST['coste_anual_derrama'] : '0.00') ?>">
-                                <span class="input-group-text">€/año</span>
                             </div>
                         </div>
                     </div>

@@ -392,14 +392,32 @@ $fincas = $stmtF->fetchAll();
                                                         </div>
 
                                                         <div class="row g-3 mb-3">
-                                                            <div class="col-md-6">
+                                                            <div class="col-12">
                                                                 <label class="form-label fw-semibold small">Referencia Catastral (20 caracteres)</label>
                                                                 <input type="text" name="referencia_catastral" class="form-control font-monospace" value="<?= htmlspecialchars($f['referencia_catastral'] ?: '') ?>" maxlength="20">
                                                             </div>
+                                                        </div>
+
+                                                        <!-- Bloque Costes Fijos Anuales: IBI y Derramas Juntos -->
+                                                        <div class="row g-3 mb-3 p-3 bg-light rounded border align-items-center">
+                                                            <div class="col-12 border-bottom pb-1 mb-1">
+                                                                <span class="fw-bold text-dark small"><i class="fa-solid fa-coins text-warning me-1"></i>Costes Fijos Anuales de la Finca</span>
+                                                            </div>
                                                             <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Coste Anual IBI (€/año)</label>
+                                                                <label class="form-label fw-semibold small text-dark mb-1">
+                                                                    <i class="fa-solid fa-receipt text-warning me-1"></i>Coste Anual IBI (€/año)
+                                                                </label>
                                                                 <div class="input-group">
-                                                                    <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace" value="<?= isset($f['coste_anual_ibi']) ? $f['coste_anual_ibi'] : '0.00' ?>">
+                                                                    <input type="number" step="0.01" name="coste_anual_ibi" class="form-control font-monospace fw-bold" value="<?= isset($f['coste_anual_ibi']) ? $f['coste_anual_ibi'] : '0.00' ?>">
+                                                                    <span class="input-group-text">€/año</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small text-dark mb-1">
+                                                                    <i class="fa-solid fa-file-invoice-dollar text-success me-1"></i>Coste Anual Derrama (€/año)
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.01" min="0" name="coste_anual_derrama" class="form-control font-monospace fw-bold" value="<?= isset($f['coste_anual_derrama']) ? $f['coste_anual_derrama'] : '0.00' ?>">
                                                                     <span class="input-group-text">€/año</span>
                                                                 </div>
                                                             </div>
@@ -437,13 +455,6 @@ $fincas = $stmtF->fetchAll();
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Agua disponible Comunitaria</label>
                                                                 <input type="number" step="0.01" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= $f['horas_disponibles_tanda'] ?>">
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Coste Anual Derrama (€/año)</label>
-                                                                <div class="input-group">
-                                                                    <input type="number" step="0.01" min="0" name="coste_anual_derrama" class="form-control font-monospace" value="<?= isset($f['coste_anual_derrama']) ? $f['coste_anual_derrama'] : '0.00' ?>">
-                                                                    <span class="input-group-text">€/año</span>
-                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
