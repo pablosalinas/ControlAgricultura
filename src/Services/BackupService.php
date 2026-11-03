@@ -209,18 +209,18 @@ class BackupService {
             die("El archivo de copia de seguridad no se encuentra.");
         }
 
+        // Limpiar cualquier buffer de salida previo antes de enviar cabeceras
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
         header('Content-Description: File Transfer');
         header('Content-Type: application/zip');
         header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
         header('Expires: 0');
-        header('Cache-Control: must-revalidate');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
         header('Pragma: public');
         header('Content-Length: ' . filesize($zipFilePath));
-
-        // Limpiar buffers
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
 
         readfile($zipFilePath);
         @unlink($zipFilePath);

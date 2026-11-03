@@ -1,6 +1,5 @@
 <?php
 $pageTitle = "Nueva Plantación - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
 
 $db = Database::getConnection();
 $tenantId = Auth::tenantId();
@@ -60,13 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':notas'    => $notas
             ]);
 
-            header("Location: " . APP_URL . "/plantaciones");
+            if (!headers_sent()) {
+                header("Location: " . APP_URL . "/plantaciones");
+            } else {
+                echo "<script>window.location.href='" . APP_URL . "/plantaciones';</script>";
+            }
             exit;
         } catch (Exception $e) {
             $error = "Error al registrar la plantación: " . $e->getMessage();
         }
     }
 }
+
+require_once VIEWS_PATH . '/layouts/header.php';
 ?>
 
 <div class="container py-4">

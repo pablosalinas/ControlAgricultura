@@ -1,6 +1,5 @@
 <?php
 $pageTitle = "Añadir Nueva Finca - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
 
 $db = Database::getConnection();
 $tenantId = Auth::tenantId();
@@ -116,13 +115,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':obs'       => $observaciones ?: null
             ));
 
-            header("Location: " . APP_URL . "/fincas");
+            if (!headers_sent()) {
+                header("Location: " . APP_URL . "/fincas");
+            } else {
+                echo "<script>window.location.href='" . APP_URL . "/fincas';</script>";
+            }
             exit;
         } catch (Exception $e) {
             $error = 'Error al registrar la finca: ' . $e->getMessage();
         }
     }
 }
+
+require_once VIEWS_PATH . '/layouts/header.php';
 ?>
 
 <div class="container py-4">

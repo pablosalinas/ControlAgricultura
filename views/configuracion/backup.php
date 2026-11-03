@@ -1,12 +1,11 @@
 <?php
 $pageTitle = "Copias de Seguridad (Backup) - " . APP_NAME;
-require_once VIEWS_PATH . '/layouts/header.php';
 
 $db = Database::getConnection();
 $error = '';
 $mensaje = '';
 
-// Procesar descarga de copia de seguridad
+// Procesar descarga de copia de seguridad (DEBE ejecutarse antes de enviar cualquier HTML)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'generar_backup') {
     require_once SRC_PATH . '/Services/BackupService.php';
     $res = BackupService::createBackup(BackupService::DEFAULT_PASSWORD);
@@ -22,6 +21,9 @@ $totalFincas = (int)$db->query("SELECT COUNT(*) FROM fincas WHERE activo = 1")->
 $totalPlantaciones = (int)$db->query("SELECT COUNT(*) FROM plantaciones")->fetchColumn();
 $totalGastos = (int)$db->query("SELECT COUNT(*) FROM gastos_explotacion WHERE activo = 1")->fetchColumn();
 $totalRegantes = (int)$db->query("SELECT COUNT(*) FROM regantes WHERE activo = 1")->fetchColumn();
+
+// Cargar la cabecera HTML solo si no se ha descargado el archivo
+require_once VIEWS_PATH . '/layouts/header.php';
 ?>
 
 <div class="container py-4">
