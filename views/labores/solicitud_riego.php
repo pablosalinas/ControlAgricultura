@@ -1276,8 +1276,16 @@ function cargarDatosFinca() {
     if (opt.getAttribute('data-domicilio')) document.getElementById('in_domicilio').value = opt.getAttribute('data-domicilio');
     if (opt.getAttribute('data-tel')) document.getElementById('in_telefono').value = opt.getAttribute('data-tel');
 
-    const horasTandaFinca = parseFloat(opt.getAttribute('data-horas-disp')) || parseFloat(opt.getAttribute('data-horas-prop')) || 0;
+    // Tanda = agua en propiedad. Comunitaria = agua por cupo disponible
+    const horasTandaFinca = parseFloat(opt.getAttribute('data-horas-prop')) || 0;
+    const horasComunitariaFinca = parseFloat(opt.getAttribute('data-horas-disp')) || 0;
     const badgeEstadoTitular = document.getElementById('lbl_estado_titular_cesion');
+
+    // Si estamos en comunitaria y la finca tiene agua comunitaria disponible, actualizar in_horas
+    const tipoActual = document.getElementById('in_tipo_riego').value;
+    if (tipoActual.indexOf('comunitaria') !== -1 && horasComunitariaFinca > 0) {
+        document.getElementById('in_horas').value = horasComunitariaFinca.toFixed(2);
+    }
 
     if (horasTandaFinca > 0) {
         document.getElementById('ces_nom_1').value = opt.getAttribute('data-titular') || '';

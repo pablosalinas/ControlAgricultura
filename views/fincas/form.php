@@ -267,14 +267,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="text" name="num_socio_comunidad" class="form-control font-monospace" placeholder="Ej: A1188" value="<?= htmlspecialchars(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '') ?>">
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Horas Propiedad (tanda)</label>
+                            <label class="form-label fw-semibold">Horas Propiedad (Tanda)</label>
                             <div class="input-group">
                                 <input type="number" step="0.25" min="0" name="horas_propiedad_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Horas Disponibles (tanda)</label>
+                            <label class="form-label fw-semibold">Agua disponible Comunitaria</label>
                             <div class="input-group">
                                 <input type="number" step="0.25" min="0" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>

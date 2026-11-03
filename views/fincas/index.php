@@ -232,7 +232,7 @@ $fincas = $stmtF->fetchAll();
                         <th>Superficie</th>
                         <th>Datos Catastrales</th>
                         <th>Comunidad / Parada / Tablón</th>
-                        <th>Tanda Riego</th>
+                        <th>Agua Riego</th>
                         <th>Plantaciones</th>
                         <th class="text-end pe-4">Acciones</th>
                     </tr>
@@ -302,11 +302,11 @@ $fincas = $stmtF->fetchAll();
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle font-monospace">
-                                        <?= $f['horas_propiedad_tanda'] ?>h prop.
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle font-monospace" title="Horas Propiedad por Tanda">
+                                        <?= $f['horas_propiedad_tanda'] ?>h tanda prop.
                                     </span>
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle font-monospace">
-                                        <?= $f['horas_disponibles_tanda'] ?>h disp.
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle font-monospace" title="Agua disponible Comunitaria">
+                                        <?= $f['horas_disponibles_tanda'] ?>h comunitaria
                                     </span>
                                 </td>
                                 <td>
@@ -435,7 +435,7 @@ $fincas = $stmtF->fetchAll();
                                                                 <input type="number" step="0.01" name="horas_propiedad_tanda" class="form-control font-monospace" value="<?= $f['horas_propiedad_tanda'] ?>">
                                                             </div>
                                                             <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Horas Disponibles por Tanda</label>
+                                                                <label class="form-label fw-semibold small">Agua disponible Comunitaria</label>
                                                                 <input type="number" step="0.01" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= $f['horas_disponibles_tanda'] ?>">
                                                             </div>
                                                             <div class="col-md-6">

@@ -142,7 +142,7 @@ $ultimosRiegos = $stmtRiegos->fetchAll();
                         <strong class="text-primary fs-5"><?= $finca['horas_propiedad_tanda'] ?> horas</strong>
                     </li>
                     <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Horas Disponibles (Tanda):</span>
+                        <span class="text-muted">Agua disponible Comunitaria:</span>
                         <strong class="text-success fs-5"><?= $finca['horas_disponibles_tanda'] ?> horas</strong>
                     </li>
                 </ul>
