@@ -291,6 +291,25 @@ switch ($route) {
         require_once VIEWS_PATH . '/labores/diario.php';
         break;
 
+    // Rutas para Gastos, Costes y Tipos de Gasto/Ingreso
+    case 'gastos':
+    case 'gastos/nuevo':
+    case 'gastos/finca':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/gastos/index.php';
+        break;
+
+    case 'gastos/tipos':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/gastos/tipos.php';
+        break;
+
     default:
         http_response_code(404);
         $pageTitle = "Página no encontrada - " . APP_NAME;

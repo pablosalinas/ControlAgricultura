@@ -253,6 +253,19 @@
                         </ul>
                     </li>
 
+                    <!-- Control Económico y Gastos por Finca -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-coins me-1 text-warning"></i> Gastos
+                        </a>
+                        <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/gastos"><i class="fa-solid fa-receipt me-2 text-primary"></i>Control de Gastos e Ingresos</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/gastos?nuevo=1"><i class="fa-solid fa-circle-plus me-2 text-success"></i>Añadir Gasto a Finca</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/gastos/tipos"><i class="fa-solid fa-tags me-2 text-info"></i>Maestro de Tipos de Gastos</a></li>
+                        </ul>
+                    </li>
+
                     <!-- Cuaderno oficial con certificado de explotación -->
                     <li class="nav-item">
                         <a class="nav-link text-warning fw-semibold" href="<?= APP_URL ?>/cuaderno">
@@ -278,6 +291,12 @@
                             </li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/comunidades-regantes"><i class="fa-solid fa-droplet me-2 text-primary"></i>Comunidades de Regantes</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/regantes"><i class="fa-solid fa-address-book me-2 text-info"></i>Socios Regantes (Censo)</a></li>
+
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li class="dropdown-header text-uppercase text-muted fw-bold small py-1" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                                <i class="fa-solid fa-coins me-1 text-warning"></i> Economía y Balances
+                            </li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/gastos/tipos"><i class="fa-solid fa-tags me-2 text-warning"></i>Maestro de Tipos de Gastos/Ingresos</a></li>
 
                             <?php if (Auth::canManageUsers()): ?>
                                 <li><hr class="dropdown-divider my-1"></li>

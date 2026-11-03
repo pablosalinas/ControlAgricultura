@@ -281,6 +281,79 @@ class DatabaseMigrator {
                 ");
             }
 
+            // 11. Tabla TIPOS_GASTOS_INGRESOS (Maestro configurable de conceptos económicos)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS tipos_gastos_ingresos (
+                    id_tipo INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NULL,
+                    nombre_tipo VARCHAR(100) NOT NULL,
+                    naturaleza ENUM('gasto', 'ingreso', 'ambos') NOT NULL DEFAULT 'gasto',
+                    color VARCHAR(30) NULL DEFAULT '#0284c7',
+                    descripcion VARCHAR(255) NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_tgi_prop (id_propietario),
+                    INDEX idx_tgi_nombre (nombre_tipo),
+                    INDEX idx_tgi_nat (naturaleza)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Semillas iniciales del maestro de tipos de gastos e ingresos
+            $countTipos = $pdo->query("SELECT COUNT(*) FROM tipos_gastos_ingresos")->fetchColumn();
+            if ($countTipos == 0) {
+                $stmtInsTipo = $pdo->prepare("
+                    INSERT INTO tipos_gastos_ingresos (nombre_tipo, naturaleza, color, descripcion, activo)
+                    VALUES (?, ?, ?, ?, 1)
+                ");
+                $semillasTipos = array(
+                    array('Fitosanitarios y Tratamientos', 'gasto', '#dc2626', 'Herbicidas, insecticidas, fungicidas y caldos'),
+                    array('Fertilizantes y Abonos', 'gasto', '#16a34a', 'Abonos de fondo, cobertera, fertirrigación y enmiendas'),
+                    array('Riego y Cuotas de Agua', 'gasto', '#0284c7', 'Consumos por tanda, horas comunitarias y canon'),
+                    array('Derramas Comunidad de Regantes', 'gasto', '#0369a1', 'Derramas anuales y extraordinarias de comunidades'),
+                    array('IBI y Tributos Rústicos', 'gasto', '#d97706', 'Impuesto de Bienes Inmuebles rústico y tasas locales'),
+                    array('Maquinaria, Aperos y Gasóleo', 'gasto', '#475569', 'Combustible agrícola, reparaciones, filtros y aperos'),
+                    array('Mano de Obra y Cuadrillas', 'gasto', '#7c3aed', 'Jornales de recolección, aclareo y trabajos de campo'),
+                    array('Poda, Injerto y Triturado', 'gasto', '#059669', 'Mano de obra y servicios de podadores y picado de ramas'),
+                    array('Semillas, Plantones y Vivero', 'gasto', '#65a30d', 'Adquisición de árboles nuevos, plantones y semillas'),
+                    array('Mantenimiento y Estructuras', 'gasto', '#64748b', 'Reparación de vallas, cabezal de riego, gomas y balsas'),
+                    array('Venta de Cosechas / Producción', 'ingreso', '#10b981', 'Liquidaciones de cooperativas, fruta, cereal o madera'),
+                    array('Subvenciones PAC y Ayudas Agrarias', 'ingreso', '#059669', 'Pago básico, eco-regímenes y ayudas agroambientales'),
+                    array('Otros Gastos de Explotación', 'gasto', '#94a3b8', 'Seguros agrarios, gestoría, análisis y varios')
+                );
+                foreach ($semillasTipos as $st) {
+                    $stmtInsTipo->execute($st);
+                }
+            }
+
+            // 12. Tabla GASTOS_EXPLOTACION (Gastos e ingresos imputados a cada finca)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS gastos_explotacion (
+                    id_gasto INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NOT NULL,
+                    id_finca INT NULL,
+                    id_tipo INT NULL,
+                    tipo_movimiento ENUM('gasto', 'ingreso') NOT NULL DEFAULT 'gasto',
+                    fecha_gasto DATE NOT NULL,
+                    concepto VARCHAR(200) NOT NULL,
+                    importe DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    proveedor_acreedor VARCHAR(150) NULL,
+                    num_factura VARCHAR(80) NULL,
+                    confirmado TINYINT(1) NOT NULL DEFAULT 1,
+                    notas TEXT NULL,
+                    archivo_adjunto VARCHAR(255) NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_por INT NULL,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    actualizado_el DATETIME NULL,
+                    INDEX idx_ge_prop (id_propietario),
+                    INDEX idx_ge_finca (id_finca),
+                    INDEX idx_ge_fecha (fecha_gasto),
+                    INDEX idx_ge_confirmado (confirmado),
+                    INDEX idx_ge_tipo (id_tipo),
+                    INDEX idx_ge_mov (tipo_movimiento)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }

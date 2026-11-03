@@ -367,6 +367,52 @@ CREATE TABLE recolecciones (
     INDEX idx_recol_fecha (fecha_recoleccion)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ------------------------------------------------------------------------------
+-- 13. TIPOS DE GASTOS E INGRESOS (Maestro Económico)
+-- ------------------------------------------------------------------------------
+CREATE TABLE tipos_gastos_ingresos (
+    id_tipo INT AUTO_INCREMENT PRIMARY KEY,
+    id_propietario INT NULL,
+    nombre_tipo VARCHAR(100) NOT NULL,
+    naturaleza ENUM('gasto', 'ingreso', 'ambos') NOT NULL DEFAULT 'gasto',
+    color VARCHAR(30) NULL DEFAULT '#0284c7',
+    descripcion VARCHAR(255) NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_propietario) REFERENCES propietarios(id_propietario) ON DELETE CASCADE,
+    INDEX idx_tgi_nombre (nombre_tipo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 14. GASTOS E INGRESOS DE EXPLOTACIÓN (Imputados por finca con check de confirmación)
+-- ------------------------------------------------------------------------------
+CREATE TABLE gastos_explotacion (
+    id_gasto INT AUTO_INCREMENT PRIMARY KEY,
+    id_propietario INT NOT NULL,
+    id_finca INT NULL,
+    id_tipo INT NULL,
+    tipo_movimiento ENUM('gasto', 'ingreso') NOT NULL DEFAULT 'gasto',
+    fecha_gasto DATE NOT NULL,
+    concepto VARCHAR(200) NOT NULL,
+    importe DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    proveedor_acreedor VARCHAR(150) NULL,
+    num_factura VARCHAR(80) NULL,
+    confirmado TINYINT(1) NOT NULL DEFAULT 1,
+    notas TEXT NULL,
+    archivo_adjunto VARCHAR(255) NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    creado_por INT NULL,
+    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actualizado_el DATETIME NULL,
+    FOREIGN KEY (id_propietario) REFERENCES propietarios(id_propietario) ON DELETE CASCADE,
+    FOREIGN KEY (id_finca) REFERENCES fincas(id_finca) ON DELETE SET NULL,
+    FOREIGN KEY (id_tipo) REFERENCES tipos_gastos_ingresos(id_tipo) ON DELETE SET NULL,
+    FOREIGN KEY (creado_por) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+    INDEX idx_ge_finca (id_finca),
+    INDEX idx_ge_fecha (fecha_gasto),
+    INDEX idx_ge_confirmado (confirmado)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ==============================================================================
 -- DATOS INICIALES (SEMILLAS)
 -- ==============================================================================

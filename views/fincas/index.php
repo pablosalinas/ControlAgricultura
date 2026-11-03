@@ -309,6 +309,10 @@ $fincas = $stmtF->fetchAll();
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">
+                                        <!-- Ver Gastos -->
+                                        <a href="<?= APP_URL ?>/gastos?finca_id=<?= $f['id_finca'] ?>" class="btn btn-outline-warning" title="Ver o imputar gastos a esta finca">
+                                            <i class="fa-solid fa-coins"></i>
+                                        </a>
                                         <!-- Modificar -->
                                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarFinca_<?= $f['id_finca'] ?>" title="Modificar finca">
                                             <i class="fa-solid fa-pen-to-square"></i>
