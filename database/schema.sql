@@ -181,6 +181,7 @@ CREATE TABLE fincas (
     tablon VARCHAR(50) NULL,
     num_socio_comunidad VARCHAR(50) NULL,
     coste_anual_ibi DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    coste_anual_derrama DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     horas_propiedad_tanda DECIMAL(6, 2) NOT NULL DEFAULT 0.00,
     horas_disponibles_tanda DECIMAL(6, 2) NOT NULL DEFAULT 0.00,
     datos_registrales TEXT NULL,

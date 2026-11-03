@@ -34,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emailRemitente = trim(isset($_POST['email_remitente']) ? $_POST['email_remitente'] : 'info@moratalla-murcia.com');
         $smtpPassPlain = trim(isset($_POST['smtp_pass']) ? $_POST['smtp_pass'] : '');
 
+        $idReganteDefecto = !empty($_POST['id_regante_defecto']) ? (int)$_POST['id_regante_defecto'] : null;
+
         try {
             $sqlUpd = "
                 UPDATE configuracion_web SET
@@ -45,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     permitir_registro_publico = :reg,
                     usar_captcha = :cap,
                     fanegas_por_hectarea = :fanegas,
+                    id_regante_defecto = :regdef,
                     smtp_host = :shost,
                     smtp_port = :sport,
                     smtp_encryption = :senc,
@@ -59,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':reg'   => $permitirRegistro,
                 ':cap'   => $usarCaptcha,
                 ':fanegas' => $fanegasPorHa,
+                ':regdef'  => $idReganteDefecto,
                 ':shost' => $smtpHost,
                 ':sport' => $smtpPort,
                 ':senc'  => $smtpEnc,
@@ -78,6 +82,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sqlUpd .= " WHERE id_config = 1";
             $stmt = $db->prepare($sqlUpd);
             $stmt->execute($params);
+
+            if ($idReganteDefecto) {
+                $db->prepare("UPDATE comunidades_regantes SET id_regante_defecto = :regdef WHERE es_predeterminada = 1")->execute([':regdef' => $idReganteDefecto]);
+            }
 
             $mensaje = "Configuración y credenciales de correo actualizadas con éxito.";
         } catch (Exception $e) {
@@ -108,6 +116,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Cargar configuración actual
 $cfg = $db->query("SELECT * FROM configuracion_web WHERE id_config = 1 LIMIT 1")->fetch();
+
+// Censo de Regantes para asignación de socio principal por defecto
+$sociosRegantes = $db->query("SELECT id_regante, num_regante, nombre_completo FROM regantes WHERE activo = 1 ORDER BY num_regante ASC")->fetchAll();
 
 // Descifrar usuario SMTP actual para mostrarlo en el input
 $userDescifrado = !empty($cfg['smtp_user_enc']) ? Mailer::decrypt($cfg['smtp_user_enc']) : 'info@moratalla-murcia.com';
@@ -278,6 +289,35 @@ $userDescifrado = !empty($cfg['smtp_user_enc']) ? Mailer::decrypt($cfg['smtp_use
                                 <h6 class="fw-bold text-dark mb-1"><i class="fa-solid fa-circle-info text-info me-1"></i>Conversión en Fincas y Parcelas</h6>
                                 <p class="text-muted mb-0">
                                     Esta equivalencia se aplica en todas las fichas de fincas. Podrás teclear o visualizar la superficie indistintamente en <strong>hectáreas (ha)</strong> o en <strong>fanegas</strong> con cálculo simultáneo y en vivo.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 5: SOCIO REGANTE PRINCIPAL PREDETERMINADO -->
+                    <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                        <i class="fa-solid fa-user-check text-info me-2"></i>5. Socio Regante Principal Predeterminado
+                    </h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold small">Socio Principal por Defecto para Solicitudes de Riego</label>
+                            <select name="id_regante_defecto" class="form-select font-monospace">
+                                <option value="">-- Sin socio principal por defecto (Usar primer socio) --</option>
+                                <?php foreach ($sociosRegantes as $sr): ?>
+                                    <option value="<?= $sr['id_regante'] ?>" <?= (!empty($cfg['id_regante_defecto']) && (int)$cfg['id_regante_defecto'] === (int)$sr['id_regante']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($sr['num_regante']) ?> - <?= htmlspecialchars($sr['nombre_completo']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text small">
+                                Este socio se seleccionará automáticamente de forma predeterminada al redactar papeletas de solicitud de riego.
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="p-3 bg-light rounded-3 border small h-100 d-flex flex-column justify-content-center">
+                                <h6 class="fw-bold text-dark mb-1"><i class="fa-solid fa-water text-primary me-1"></i>Asignación por Comunidad</h6>
+                                <p class="text-muted mb-0">
+                                    También puedes asignar un socio principal específico para cada Comunidad de Regantes en el módulo de <a href="<?= APP_URL ?>/comunidades-regantes" class="fw-semibold text-primary">Comunidades</a>.
                                 </p>
                             </div>
                         </div>

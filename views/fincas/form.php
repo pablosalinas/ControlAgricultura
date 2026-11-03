@@ -19,7 +19,7 @@ if ($fanegasPorHa <= 0) {
 $comunidades = array();
 if ($tenantId) {
     $stmtCom = $db->prepare("
-        SELECT c.id_comunidad, c.nombre_comunidad, c.es_predeterminada
+        SELECT c.id_comunidad, c.nombre_comunidad, c.es_predeterminada, c.derrama_anual
         FROM comunidades_regantes c
         JOIN explotaciones_comunidades ec ON c.id_comunidad = ec.id_comunidad
         WHERE ec.id_propietario = :prop AND c.activo = 1
@@ -30,7 +30,7 @@ if ($tenantId) {
 }
 // Fallback si no tiene vinculadas todavía o es superadmin
 if (empty($comunidades)) {
-    $comunidades = $db->query("SELECT id_comunidad, nombre_comunidad, es_predeterminada FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
+    $comunidades = $db->query("SELECT id_comunidad, nombre_comunidad, es_predeterminada, derrama_anual FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
 }
 
 $error = '';
@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $parcela = trim(isset($_POST['parcela']) ? $_POST['parcela'] : '');
     $superficie = (float)(isset($_POST['superficie_ha']) ? $_POST['superficie_ha'] : 0);
     $costeIbi = (float)(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : 0);
+    $costeDerrama = (float)(isset($_POST['coste_anual_derrama']) ? str_replace(',', '.', $_POST['coste_anual_derrama']) : 0);
     $parada = trim(isset($_POST['parada']) ? $_POST['parada'] : '');
     $tablon = trim(isset($_POST['tablon']) ? $_POST['tablon'] : '');
     $numSocio = trim(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '');
@@ -83,11 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("
                 INSERT INTO fincas (
                     id_propietario, id_paraje, id_comunidad, nombre_finca, referencia_catastral, poligono, parcela,
-                    superficie_ha, coste_anual_ibi, zona_riego, parada, tablon, num_socio_comunidad,
+                    superficie_ha, coste_anual_ibi, coste_anual_derrama, zona_riego, parada, tablon, num_socio_comunidad,
                     horas_propiedad_tanda, horas_disponibles_tanda, datos_registrales, observaciones, activo
                 ) VALUES (
                     :prop, :paraje, :comunidad, :nombre, :catastro, :pol, :parc,
-                    :sup, :ibi, :zona, :parada, :tablon, :socio,
+                    :sup, :ibi, :derrama, :zona, :parada, :tablon, :socio,
                     :hprop, :hdisp, :reg, :obs, 1
                 )
             ");
@@ -101,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':parc'      => $parcela ?: null,
                 ':sup'       => $superficie,
                 ':ibi'       => $costeIbi,
+                ':derrama'   => $costeDerrama,
                 ':zona'      => $zonaRiego ?: null,
                 ':parada'    => $parada ?: null,
                 ':tablon'    => $tablon ?: null,
@@ -260,22 +262,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold">Número de Socio / Comunero</label>
                             <input type="text" name="num_socio_comunidad" class="form-control font-monospace" placeholder="Ej: A1188" value="<?= htmlspecialchars(isset($_POST['num_socio_comunidad']) ? $_POST['num_socio_comunidad'] : '') ?>">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Horas en Propiedad (por tanda)</label>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Horas Propiedad (tanda)</label>
                             <div class="input-group">
                                 <input type="number" step="0.25" min="0" name="horas_propiedad_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_propiedad_tanda']) ? $_POST['horas_propiedad_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Horas Disponibles (por tanda)</label>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Horas Disponibles (tanda)</label>
                             <div class="input-group">
                                 <input type="number" step="0.25" min="0" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= htmlspecialchars(isset($_POST['horas_disponibles_tanda']) ? $_POST['horas_disponibles_tanda'] : '0.00') ?>">
                                 <span class="input-group-text">horas</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Coste Derrama (€/año)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" min="0" name="coste_anual_derrama" class="form-control font-monospace" placeholder="0.00" value="<?= htmlspecialchars(isset($_POST['coste_anual_derrama']) ? $_POST['coste_anual_derrama'] : '0.00') ?>">
+                                <span class="input-group-text">€/año</span>
                             </div>
                         </div>
                     </div>

@@ -294,9 +294,17 @@ if ($solicitudCargada) {
     $defEmailDestino = $solicitudCargada['email_destino'];
     $defNotasAdmin = $solicitudCargada['notas_admin'];
 } else {
-    // Datos predeterminados del socio inicial
-    $reganteInicial = !empty($regantes) ? $regantes[0] : null;
-    $preReganteId = (int)(isset($_GET['regante_id']) ? $_GET['regante_id'] : 0);
+    // Socio principal predeterminado desde la comunidad seleccionada o la configuración general
+    $cfgWeb = $db->query("SELECT id_regante_defecto FROM configuracion_web LIMIT 1")->fetch();
+    $idSocioDefecto = null;
+    if (!empty($comSeleccionada['id_regante_defecto'])) {
+        $idSocioDefecto = (int)$comSeleccionada['id_regante_defecto'];
+    } elseif (!empty($cfgWeb['id_regante_defecto'])) {
+        $idSocioDefecto = (int)$cfgWeb['id_regante_defecto'];
+    }
+
+    $preReganteId = (int)(isset($_GET['regante_id']) ? $_GET['regante_id'] : ($idSocioDefecto ? $idSocioDefecto : 0));
+    $reganteInicial = null;
     if ($preReganteId > 0) {
         foreach ($regantes as $r) {
             if ((int)$r['id_regante'] === $preReganteId) {
@@ -304,6 +312,9 @@ if ($solicitudCargada) {
                 break;
             }
         }
+    }
+    if (!$reganteInicial && !empty($regantes)) {
+        $reganteInicial = $regantes[0];
     }
 
     $defNumRegante = $reganteInicial ? $reganteInicial['num_regante'] : 'A1188';
@@ -326,6 +337,13 @@ if ($solicitudCargada) {
     $defFechaEnvioEmail = '';
     $defEmailDestino = '';
     $defNotasAdmin = '';
+
+    // Regla Tanda: si el socio NO tiene agua en propiedad (tanda) disponible, NO agregar a las líneas de cesión
+    $horasTandaSocioInicial = $reganteInicial ? (float)$reganteInicial['horas_tanda_disponibles'] : 0.0;
+    $tieneTandaInicial = ($horasTandaSocioInicial > 0);
+    $defCesNom1 = $tieneTandaInicial ? $defNombre : '';
+    $defCesNum1 = $tieneTandaInicial ? $defNumRegante : '';
+    $defCesH1 = $tieneTandaInicial ? ($horasTandaSocioInicial >= 2.0 ? '2.0' : number_format($horasTandaSocioInicial, 1, '.', '')) : '';
 }
 ?>
 
@@ -422,6 +440,7 @@ if ($solicitudCargada) {
                                 data-phort="<?= $com['precio_hora_hortalizas'] ?>"
                                 data-maxhort="<?= $com['consumo_max_hortalizas_horas'] ?>"
                                 data-derr="<?= $com['derrama_anual'] ?>"
+                                data-regdef="<?= !empty($com['id_regante_defecto']) ? $com['id_regante_defecto'] : '' ?>"
                                 data-horario="<?= htmlspecialchars($com['horario_atencion'] ?: '') ?>"
                                 <?= ($comSeleccionada && $comSeleccionada['id_comunidad'] == $com['id_comunidad']) ? 'selected' : '' ?>
                             >
@@ -585,16 +604,26 @@ if ($solicitudCargada) {
                         </tr>
                     </thead>
                     <tbody id="tbodyCesiones">
-                        <!-- Fila 1: Titular Principal -->
+                        <!-- Fila 1: Titular Solicitante (Sólo si tiene horas disponibles en propiedad / tanda) -->
                         <tr class="table-primary bg-opacity-10">
                             <td class="text-center fw-bold">1 (Tú)</td>
-                            <td><input type="number" step="0.25" id="ces_h_1" class="form-control form-control-sm font-monospace fw-bold" value="2.0" oninput="actualizarCesiones()"></td>
+                            <td><input type="number" step="0.25" id="ces_h_1" class="form-control form-control-sm font-monospace fw-bold" value="<?= htmlspecialchars($defCesH1) ?>" placeholder="0.0" oninput="actualizarCesiones()"></td>
                             <td class="text-center font-monospace fw-bold">Hor</td>
-                            <td><input type="text" id="ces_nom_1" class="form-control form-control-sm fw-bold" value="<?= htmlspecialchars($defNombre) ?>" oninput="actualizarCesiones()"></td>
-                            <td><input type="text" id="ces_num_1" class="form-control form-control-sm font-monospace fw-bold" value="<?= htmlspecialchars($defNumRegante) ?>" oninput="actualizarCesiones()"></td>
-                            <td class="text-muted small text-center">Titular Solicitante</td>
+                            <td><input type="text" id="ces_nom_1" class="form-control form-control-sm fw-bold" value="<?= htmlspecialchars($defCesNom1) ?>" placeholder="Sin horas en tanda (no añadido)" oninput="actualizarCesiones()"></td>
+                            <td><input type="text" id="ces_num_1" class="form-control form-control-sm font-monospace fw-bold" value="<?= htmlspecialchars($defCesNum1) ?>" placeholder="Nº Socio" oninput="actualizarCesiones()"></td>
+                            <td class="text-center" id="lbl_estado_titular_cesion">
+                                <?php if ($tieneTandaInicial): ?>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle small">
+                                        <i class="fa-solid fa-circle-check me-1"></i><?= $horasTandaSocioInicial ?>h en propiedad
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle small">
+                                        <i class="fa-solid fa-ban me-1"></i>Sin agua en propiedad
+                                    </span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
-                        <!-- Filas 2 a 6: Cesiones de otros socios -->
+                        <!-- Filas 2 a 6: Cesiones de otros socios (sólo socios con horas en tandas) -->
                         <?php for ($i = 2; $i <= 6; $i++): ?>
                             <tr>
                                 <td class="text-center fw-semibold text-muted"><?= $i ?></td>
@@ -604,10 +633,16 @@ if ($solicitudCargada) {
                                 <td><input type="text" id="ces_num_<?= $i ?>" class="form-control form-control-sm font-monospace" placeholder="Ej: A0420" oninput="actualizarCesiones()"></td>
                                 <td>
                                     <select class="form-select form-select-sm" onchange="seleccionarCedente(<?= $i ?>, this)">
-                                        <option value="">-- Asignar socio --</option>
+                                        <option value="">-- Asignar socio cedente --</option>
                                         <?php foreach ($regantes as $rg): ?>
-                                            <option value="<?= htmlspecialchars($rg['num_regante']) ?>" data-nom="<?= htmlspecialchars($rg['nombre_completo']) ?>">
+                                            <?php $htCed = (float)$rg['horas_tanda_disponibles']; ?>
+                                            <option value="<?= htmlspecialchars($rg['num_regante']) ?>"
+                                                data-nom="<?= htmlspecialchars($rg['nombre_completo']) ?>"
+                                                data-ht="<?= $htCed ?>"
+                                                <?= ($htCed <= 0) ? 'disabled class="text-muted"' : '' ?>
+                                            >
                                                 <?= htmlspecialchars($rg['num_regante']) ?> - <?= htmlspecialchars($rg['nombre_completo']) ?>
+                                                <?= ($htCed > 0) ? "({$htCed}h tanda)" : "(Sin agua tanda)" ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -842,7 +877,7 @@ if ($solicitudCargada) {
                     <div class="d-flex align-items-center gap-2">
                         <span class="fs-5 fw-bold">Solicita:</span>
                         <div class="px-3 py-1 border border-dark text-center fw-bold font-monospace fs-5 bg-white" style="min-width: 90px;" id="doc_horas_tanda">
-                            2.0
+                            <?= !empty($defCesH1) ? $defCesH1 : '0.0' ?>
                         </div>
                         <span class="fs-5 fw-bold">Horas</span>
                     </div>
@@ -857,10 +892,10 @@ if ($solicitudCargada) {
                 <table class="tabla-cesiones-tanda w-100 mb-2">
                     <?php for ($k = 1; $k <= 6; $k++): ?>
                         <tr>
-                            <td class="celda-horas font-monospace text-center fw-bold" id="grid_h_<?= $k ?>"><?= ($k === 1) ? '2.0' : '' ?></td>
+                            <td class="celda-horas font-monospace text-center fw-bold" id="grid_h_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defCesH1) : '' ?></td>
                             <td class="celda-unidad text-center font-monospace">Hor</td>
-                            <td class="celda-nombre ps-2 fw-semibold" id="grid_nom_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defNombre) : '' ?></td>
-                            <td class="celda-num font-monospace text-center fw-bold" id="grid_num_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defNumRegante) : '' ?></td>
+                            <td class="celda-nombre ps-2 fw-semibold" id="grid_nom_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defCesNom1) : '' ?></td>
+                            <td class="celda-num font-monospace text-center fw-bold" id="grid_num_<?= $k ?>"><?= ($k === 1) ? htmlspecialchars($defCesNum1) : '' ?></td>
                         </tr>
                     <?php endfor; ?>
                 </table>
@@ -1167,6 +1202,19 @@ function cargarComunidadSeleccionada() {
         document.getElementById('doc_instrucciones_horario').innerText = comunidadActiva.horario;
     }
 
+    // Si la comunidad tiene socio principal por defecto, precargarlo
+    const regDef = opt.getAttribute('data-regdef');
+    if (regDef) {
+        const selReg = document.getElementById('sel_regante');
+        for (let i = 0; i < selReg.options.length; i++) {
+            if (selReg.options[i].value === regDef) {
+                selReg.selectedIndex = i;
+                cargarDatosRegante();
+                break;
+            }
+        }
+    }
+
     conmutarTipoRiego();
 }
 
@@ -1186,8 +1234,28 @@ function cargarDatosRegante() {
     if (opt.getAttribute('data-paraje')) document.getElementById('in_paraje').value = opt.getAttribute('data-paraje');
     if (opt.getAttribute('data-tablon')) document.getElementById('in_tablon').value = opt.getAttribute('data-tablon');
 
-    document.getElementById('ces_nom_1').value = opt.getAttribute('data-nom') || '';
-    document.getElementById('ces_num_1').value = opt.getAttribute('data-num') || '';
+    // REGLA: Si el socio no tiene agua disponible como tanda (horas en propiedad), NO agregar a las líneas de cesión
+    const horasTanda = parseFloat(opt.getAttribute('data-ht')) || 0;
+    const badgeEstadoTitular = document.getElementById('lbl_estado_titular_cesion');
+
+    if (horasTanda > 0) {
+        document.getElementById('ces_nom_1').value = opt.getAttribute('data-nom') || '';
+        document.getElementById('ces_num_1').value = opt.getAttribute('data-num') || '';
+        if (!document.getElementById('ces_h_1').value || parseFloat(document.getElementById('ces_h_1').value) === 0) {
+            document.getElementById('ces_h_1').value = (horasTanda >= 2 ? '2.0' : horasTanda.toFixed(1));
+        }
+        if (badgeEstadoTitular) {
+            badgeEstadoTitular.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle small"><i class="fa-solid fa-circle-check me-1"></i>${horasTanda.toFixed(1)}h tanda</span>`;
+        }
+    } else {
+        // Sin agua en tanda: no agregar a líneas de cesión
+        document.getElementById('ces_nom_1').value = '';
+        document.getElementById('ces_num_1').value = '';
+        document.getElementById('ces_h_1').value = '';
+        if (badgeEstadoTitular) {
+            badgeEstadoTitular.innerHTML = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle small"><i class="fa-solid fa-ban me-1"></i>Sin agua tanda</span>`;
+        }
+    }
 
     actualizarCesiones();
     actualizarVistaPrevia();
@@ -1208,8 +1276,33 @@ function cargarDatosFinca() {
     if (opt.getAttribute('data-domicilio')) document.getElementById('in_domicilio').value = opt.getAttribute('data-domicilio');
     if (opt.getAttribute('data-tel')) document.getElementById('in_telefono').value = opt.getAttribute('data-tel');
 
-    document.getElementById('ces_nom_1').value = opt.getAttribute('data-titular') || '';
-    document.getElementById('ces_num_1').value = opt.getAttribute('data-socio') || '';
+    const horasTandaFinca = parseFloat(opt.getAttribute('data-horas-disp')) || parseFloat(opt.getAttribute('data-horas-prop')) || 0;
+    const badgeEstadoTitular = document.getElementById('lbl_estado_titular_cesion');
+
+    if (horasTandaFinca > 0) {
+        document.getElementById('ces_nom_1').value = opt.getAttribute('data-titular') || '';
+        document.getElementById('ces_num_1').value = opt.getAttribute('data-socio') || '';
+        if (!document.getElementById('ces_h_1').value || parseFloat(document.getElementById('ces_h_1').value) === 0) {
+            document.getElementById('ces_h_1').value = (horasTandaFinca >= 2 ? '2.0' : horasTandaFinca.toFixed(1));
+        }
+        if (badgeEstadoTitular) {
+            badgeEstadoTitular.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle small"><i class="fa-solid fa-circle-check me-1"></i>${horasTandaFinca.toFixed(1)}h tanda finca</span>`;
+        }
+    } else {
+        // Verificar si el regante activo tiene tanda
+        const selReg = document.getElementById('sel_regante');
+        const optReg = selReg ? selReg.options[selReg.selectedIndex] : null;
+        const htReg = optReg ? (parseFloat(optReg.getAttribute('data-ht')) || 0) : 0;
+        if (htReg <= 0) {
+            // Sin agua disponible en tanda: NO agregar a líneas de cesión
+            document.getElementById('ces_nom_1').value = '';
+            document.getElementById('ces_num_1').value = '';
+            document.getElementById('ces_h_1').value = '';
+            if (badgeEstadoTitular) {
+                badgeEstadoTitular.innerHTML = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle small"><i class="fa-solid fa-ban me-1"></i>Sin agua tanda</span>`;
+            }
+        }
+    }
 
     actualizarCesiones();
     actualizarVistaPrevia();
@@ -1286,10 +1379,17 @@ function seleccionarCedente(filaIndex, selectEl) {
     const opt = selectEl.options[selectEl.selectedIndex];
     if (!opt || !opt.value) return;
 
+    const ht = parseFloat(opt.getAttribute('data-ht')) || 0;
+    if (ht <= 0) {
+        alert('Este socio no dispone de horas de tanda en propiedad (agua de tanda). Solo pueden agregarse a las líneas de cesión socios con horas en tandas.');
+        selectEl.value = '';
+        return;
+    }
+
     document.getElementById('ces_num_' + filaIndex).value = opt.value;
     document.getElementById('ces_nom_' + filaIndex).value = opt.getAttribute('data-nom') || '';
-    if (!document.getElementById('ces_h_' + filaIndex).value) {
-        document.getElementById('ces_h_' + filaIndex).value = '1.0';
+    if (!document.getElementById('ces_h_' + filaIndex).value || parseFloat(document.getElementById('ces_h_' + filaIndex).value) === 0) {
+        document.getElementById('ces_h_' + filaIndex).value = (ht >= 1 ? '1.0' : ht.toFixed(1));
     }
     actualizarCesiones();
 }

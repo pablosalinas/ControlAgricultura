@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $idComunidad = !empty($_POST['id_comunidad']) ? (int)$_POST['id_comunidad'] : null;
         $superficie = (float)(isset($_POST['superficie_ha']) ? $_POST['superficie_ha'] : 0);
         $costeIbi = (float)(isset($_POST['coste_anual_ibi']) ? $_POST['coste_anual_ibi'] : 0);
+        $costeDerrama = (float)(isset($_POST['coste_anual_derrama']) ? $_POST['coste_anual_derrama'] : 0);
         $poligono = trim(isset($_POST['poligono']) ? $_POST['poligono'] : '');
         $parcela = trim(isset($_POST['parcela']) ? $_POST['parcela'] : '');
         $refCatastral = trim(isset($_POST['referencia_catastral']) ? $_POST['referencia_catastral'] : '');
@@ -45,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtUpd = $db->prepare("
                     UPDATE fincas
                     SET nombre_finca = :nom, id_paraje = :paraje, id_comunidad = :comunidad, superficie_ha = :sup,
-                        coste_anual_ibi = :ibi,
+                        coste_anual_ibi = :ibi, coste_anual_derrama = :derrama,
                         poligono = :pol, parcela = :parc, referencia_catastral = :ref,
                         zona_riego = :zona, parada = :parada, tablon = :tablon,
                         num_socio_comunidad = :socio, horas_propiedad_tanda = :hprop,
@@ -58,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':comunidad' => $idComunidad,
                     ':sup'       => $superficie,
                     ':ibi'       => $costeIbi,
+                    ':derrama'   => $costeDerrama,
                     ':pol'       => $poligono ?: null,
                     ':parc'      => $parcela ?: null,
                     ':ref'       => $refCatastral ?: null,
@@ -293,6 +295,11 @@ $fincas = $stmtF->fetchAll();
                                             <i class="fa-solid fa-receipt text-warning me-1"></i>IBI: <strong><?= number_format($f['coste_anual_ibi'], 2, ',', '.') ?> €/año</strong>
                                         </div>
                                     <?php endif; ?>
+                                    <?php if (!empty($f['coste_anual_derrama']) && $f['coste_anual_derrama'] > 0): ?>
+                                        <div class="small text-dark mt-1">
+                                            <i class="fa-solid fa-file-invoice-dollar text-success me-1"></i>Derrama: <strong><?= number_format($f['coste_anual_derrama'], 2, ',', '.') ?> €/año</strong>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle font-monospace">
@@ -430,6 +437,13 @@ $fincas = $stmtF->fetchAll();
                                                             <div class="col-md-6">
                                                                 <label class="form-label fw-semibold small">Horas Disponibles por Tanda</label>
                                                                 <input type="number" step="0.01" name="horas_disponibles_tanda" class="form-control font-monospace" value="<?= $f['horas_disponibles_tanda'] ?>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">Coste Anual Derrama (€/año)</label>
+                                                                <div class="input-group">
+                                                                    <input type="number" step="0.01" min="0" name="coste_anual_derrama" class="form-control font-monospace" value="<?= isset($f['coste_anual_derrama']) ? $f['coste_anual_derrama'] : '0.00' ?>">
+                                                                    <span class="input-group-text">€/año</span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

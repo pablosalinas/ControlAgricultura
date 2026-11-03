@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $prov = trim(isset($_POST['provincia']) ? $_POST['provincia'] : 'Murcia');
         $banco = trim(isset($_POST['banco_habitual']) ? $_POST['banco_habitual'] : 'CAJAMAR');
         $derrama = (float)(isset($_POST['derrama_anual']) ? $_POST['derrama_anual'] : 150.00);
+        $idReganteDefecto = !empty($_POST['id_regante_defecto']) ? (int)$_POST['id_regante_defecto'] : null;
 
         // Precios
         $pTanda = (float)(isset($_POST['precio_hora_tanda']) ? $_POST['precio_hora_tanda'] : 0.00);
@@ -54,13 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $db->prepare("
                     INSERT INTO comunidades_regantes (
                         nombre_comunidad, cif, email_solicitudes, telefono, direccion, municipio, provincia,
-                        banco_habitual, derrama_anual, precio_hora_tanda, consumo_max_tanda_horas,
+                        banco_habitual, derrama_anual, id_regante_defecto, precio_hora_tanda, consumo_max_tanda_horas,
                         precio_hora_comunitaria, consumo_max_comunitaria_horas,
                         precio_hora_hortalizas, consumo_max_hortalizas_horas,
                         es_predeterminada, horario_atencion, notas, activo
                     ) VALUES (
                         :nom, :cif, :email, :tel, :dir, :mun, :prov,
-                        :banco, :derr, :ptanda, :maxtanda,
+                        :banco, :derr, :regdef, :ptanda, :maxtanda,
                         :pcom, :maxcom,
                         :phort, :maxhort,
                         :predet, :horario, :notas, 1
@@ -76,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':prov'     => $prov ?: 'Murcia',
                     ':banco'    => $banco ?: 'CAJAMAR',
                     ':derr'     => $derrama,
+                    ':regdef'   => $idReganteDefecto,
                     ':ptanda'   => $pTanda,
                     ':maxtanda' => $maxTanda,
                     ':pcom'     => $pCom,
@@ -105,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $prov = trim(isset($_POST['provincia']) ? $_POST['provincia'] : 'Murcia');
         $banco = trim(isset($_POST['banco_habitual']) ? $_POST['banco_habitual'] : 'CAJAMAR');
         $derrama = (float)(isset($_POST['derrama_anual']) ? $_POST['derrama_anual'] : 150.00);
+        $idReganteDefecto = !empty($_POST['id_regante_defecto']) ? (int)$_POST['id_regante_defecto'] : null;
 
         // Precios y cupos máximos
         $pTanda = (float)(isset($_POST['precio_hora_tanda']) ? $_POST['precio_hora_tanda'] : 0.00);
@@ -137,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         provincia = :prov,
                         banco_habitual = :banco,
                         derrama_anual = :derr,
+                        id_regante_defecto = :regdef,
                         precio_hora_tanda = :ptanda,
                         consumo_max_tanda_horas = :maxtanda,
                         precio_hora_comunitaria = :pcom,
@@ -158,6 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':prov'     => $prov ?: 'Murcia',
                     ':banco'    => $banco ?: 'CAJAMAR',
                     ':derr'     => $derrama,
+                    ':regdef'   => $idReganteDefecto,
                     ':ptanda'   => $pTanda,
                     ':maxtanda' => $maxTanda,
                     ':pcom'     => $pCom,
@@ -218,6 +223,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Consultar todas las comunidades
 $comunidades = $db->query("SELECT * FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
+
+// Censo de regantes para selector de socio principal
+$sociosCenso = $db->query("SELECT id_regante, num_regante, nombre_completo, id_comunidad FROM regantes WHERE activo = 1 ORDER BY num_regante ASC")->fetchAll();
 
 // Comunidades vinculadas a la explotación activa
 $comunidadesVinculadasIds = array();
@@ -540,6 +548,18 @@ if (!$comPredeterminada && !empty($comunidades)) {
                                                                     <span class="input-group-text">€/año</span>
                                                                 </div>
                                                             </div>
+                                                            <div class="col-md-12">
+                                                                <label class="form-label fw-semibold">Socio Principal por Defecto</label>
+                                                                <select name="id_regante_defecto" class="form-select font-monospace">
+                                                                    <option value="">-- Sin socio principal asignado --</option>
+                                                                    <?php foreach ($sociosCenso as $sc): ?>
+                                                                        <option value="<?= $sc['id_regante'] ?>" <?= (!empty($com['id_regante_defecto']) && (int)$com['id_regante_defecto'] === (int)$sc['id_regante']) ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars($sc['num_regante']) ?> - <?= htmlspecialchars($sc['nombre_completo']) ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                                <div class="form-text small">Se precargará automáticamente al solicitar riego en esta comunidad.</div>
+                                                            </div>
 
                                                             <!-- Tarifas y Cupos de Riego -->
                                                             <div class="col-12 mt-3">
@@ -681,6 +701,18 @@ if (!$comPredeterminada && !empty($comunidades)) {
                                 <input type="number" step="0.01" name="derrama_anual" class="form-control font-monospace fw-bold" value="150.00">
                                 <span class="input-group-text">€/año</span>
                             </div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Socio Principal por Defecto</label>
+                            <select name="id_regante_defecto" class="form-select font-monospace">
+                                <option value="">-- Sin socio principal asignado --</option>
+                                <?php foreach ($sociosCenso as $sc): ?>
+                                    <option value="<?= $sc['id_regante'] ?>">
+                                        <?= htmlspecialchars($sc['num_regante']) ?> - <?= htmlspecialchars($sc['nombre_completo']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text small">Se precargará automáticamente al solicitar riego en esta comunidad.</div>
                         </div>
 
                         <!-- Tarifas y Cupos -->

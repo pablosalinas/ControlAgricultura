@@ -64,6 +64,7 @@ class DatabaseMigrator {
 
             // 2. Columnas en FINCAS
             self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_ibi', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_derrama', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             self::addColumnIfNotExists($pdo, 'fincas', 'id_comunidad', 'INT NULL');
 
             // 3. Columnas en PROPIETARIOS (Explotaciones)
@@ -81,6 +82,7 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'propietarios', 'email_comunidad', "VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com'");
 
             // 4. Columnas en CONFIGURACION_WEB
+            self::addColumnIfNotExists($pdo, 'configuracion_web', 'id_regante_defecto', 'INT NULL');
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'fanegas_por_hectarea', 'DECIMAL(8,4) NOT NULL DEFAULT 3.0000');
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'precio_hora_comunitaria', 'DECIMAL(8,2) NOT NULL DEFAULT 12.00');
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'precio_hora_hortalizas', 'DECIMAL(8,2) NOT NULL DEFAULT 15.00');
@@ -166,6 +168,8 @@ class DatabaseMigrator {
             if ($totalActivas === 1) {
                 $pdo->exec("UPDATE comunidades_regantes SET es_predeterminada = 1 WHERE activo = 1");
             }
+
+            self::addColumnIfNotExists($pdo, 'comunidades_regantes', 'id_regante_defecto', 'INT NULL');
 
             // 6. Tabla SOLICITUDES_RIEGO (Historial, Partes, Asignación de Turnos y Estados)
             $pdo->exec("
