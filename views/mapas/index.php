@@ -179,6 +179,17 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
+    /* PANE CONTROL: El perímetro de la finca NUNCA bloquea las zonas ni los árboles */
+    .leaflet-pane.leaflet-panePerimetro-pane,
+    .leaflet-pane.leaflet-panePerimetro-pane svg,
+    .leaflet-pane.leaflet-panePerimetro-pane svg path {
+        pointer-events: none !important;
+    }
+    .leaflet-pane.leaflet-paneZonas-pane svg path {
+        pointer-events: auto !important;
+        cursor: pointer;
+    }
+
     /* Tooltip al pasar el ratón (Hover) */
     .leaflet-tooltip.sig-custom-tooltip {
         background: rgba(15, 23, 42, 0.95) !important;
@@ -335,10 +346,18 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         <!-- Barra de Herramientas Flotante -->
         <div class="sig-toolbar">
             <div class="sig-toolbar-inner d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <!-- Info de la Finca Activa -->
-                <div class="d-flex align-items-center gap-1 text-truncate">
+                <!-- Info de la Finca Activa y Desplegable de Objetos -->
+                <div class="d-flex align-items-center gap-1 text-truncate flex-wrap">
                     <span class="badge bg-primary px-2 py-1 fw-semibold text-truncate" style="max-width: 170px;" id="lblFincaActiva">Cargando...</span>
-                    <span class="badge bg-light text-dark border px-2 py-1 small d-none d-md-inline" id="lblCatastro">Pol: - | Parc: -</span>
+                    <span class="badge bg-light text-dark border px-2 py-1 small d-none d-lg-inline" id="lblCatastro">Pol: - | Parc: -</span>
+
+                    <!-- DESPLEGABLE CON TODOS LOS OBJETOS INTRODUCIDOS EN EL MAPA -->
+                    <div class="input-group input-group-sm shadow-sm" style="max-width: 270px;">
+                        <span class="input-group-text bg-white text-primary px-2 py-0"><i class="fa-solid fa-crosshairs"></i></span>
+                        <select id="selectorObjetosMapa" class="form-select form-select-sm fw-semibold" onchange="localizarObjetoSeleccionado(this.value)">
+                            <option value="">📍 Localizar objeto (0)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Botonera de Herramientas (Capas, Zoom Máximo, Scrub/Mover, Dibujo, Árboles) -->
@@ -718,6 +737,10 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
     let mapa = null;
     let fincaActual = null;
     let plantacionesActuales = [];
+    let objetosMapaMemoria = {
+        zonas: [],
+        arboles: []
+    };
 
     // Capas Base
     let capaOrtoPNOA = null;
@@ -769,6 +792,17 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         // Zoom en posición superior izquierda
         L.control.zoom({ position: 'topleft' }).addTo(mapa);
 
+        // Crear paneles con orden z-index explícito para garantizar que nada bloquee a las zonas y árboles
+        mapa.createPane('panePerimetro');
+        mapa.getPane('panePerimetro').style.zIndex = 350; // Debajo de las zonas
+        mapa.getPane('panePerimetro').style.pointerEvents = 'none'; // Clave: los clics traspasan directamente al terreno y cultivos
+
+        mapa.createPane('paneZonas');
+        mapa.getPane('paneZonas').style.zIndex = 400; // Zonas de cultivo
+
+        mapa.createPane('paneArboles');
+        mapa.getPane('paneArboles').style.zIndex = 500; // Árboles individuales
+
         // 1. Ortofoto PNOA IGN España (Máxima Resolución con escalado hasta zoom 22)
         capaOrtoPNOA = L.tileLayer.wms('https://www.ign.es/wms-inspire/pnoa-ma?', {
             layers: 'OI.OrthoimageCoverage',
@@ -808,10 +842,10 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         capaOrtoPNOA.addTo(mapa);
         capaCatastroWMS.addTo(mapa);
 
-        // Grupos de vectores
-        capaPerimetroFinca = L.featureGroup().addTo(mapa);
-        capaGeometrias = L.featureGroup().addTo(mapa);
-        capaArboles = L.featureGroup().addTo(mapa);
+        // Grupos de vectores asignados a sus respectivos paneles
+        capaPerimetroFinca = L.featureGroup([], { pane: 'panePerimetro' }).addTo(mapa);
+        capaGeometrias = L.featureGroup([], { pane: 'paneZonas' }).addTo(mapa);
+        capaArboles = L.featureGroup([], { pane: 'paneArboles' }).addTo(mapa);
 
         // Control de Geoman para trazar zonas
         mapa.pm.setLang('es');
@@ -985,24 +1019,29 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
 
                 actualizarSelectoresPlantacion();
 
+                // Resetear objetos en memoria
+                objetosMapaMemoria = { zonas: [], arboles: [] };
+
                 // Limpiar capas previas
                 capaPerimetroFinca.clearLayers();
                 capaGeometrias.clearLayers();
                 capaArboles.clearLayers();
 
-                // 1. Renderizar zonas de cultivo
+                // 1. Delimitación Catastral Oficial al fondo (nunca bloquea clics)
+                gestionarDelimitacionFinca();
+
+                // 2. Renderizar zonas de cultivo
                 if (data.geometrias && data.geometrias.length > 0) {
                     data.geometrias.forEach(g => renderizarZonaEnMapa(g));
                 }
 
-                // 2. Renderizar árboles
+                // 3. Renderizar árboles en la capa superior
                 if (data.arboles && data.arboles.length > 0) {
                     data.arboles.forEach(a => renderizarArbolEnMapa(a));
                 }
 
-                // 3. Renderizar o buscar la Delimitación Catastral Oficial de la Finca
-                gestionarDelimitacionFinca();
-
+                // 4. Actualizar desplegable de objetos introducidos en el mapa y leyenda
+                actualizarSelectorObjetosMapa();
                 actualizarLeyendaCultivos(plantacionesActuales);
             })
             .catch(err => {
@@ -1184,27 +1223,25 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
     }
 
     /**
-     * Dibuja el perímetro oficial de la finca y ajusta el zoom grande
+     * Dibuja el perímetro oficial de la finca y ajusta el zoom grande.
+     * Se sitúa en panePerimetro con interactive: false para que NUNCA bloquee clics a cultivos ni árboles.
      */
     function dibujarPerimetroOficial(geojsonObj, hacerZoom) {
         capaPerimetroFinca.clearLayers();
 
         const layer = L.geoJSON(geojsonObj, {
+            pane: 'panePerimetro',
+            interactive: false,
             style: {
                 color: '#0284c7',
-                weight: 4,
+                weight: 3,
                 dashArray: '6, 6',
                 opacity: 0.95,
                 fillColor: '#38bdf8',
-                fillOpacity: 0.15
+                fillOpacity: 0.08,
+                interactive: false
             }
         });
-
-        layer.bindTooltip(`
-            <div class="fw-bold text-info"><i class="fa-solid fa-draw-polygon me-1"></i>Perímetro Catastral Oficial</div>
-            <div class="small text-white">Finca: <strong>${fincaActual ? fincaActual.nombre_finca : ''}</strong></div>
-            <div class="small text-light">Polígono: ${fincaActual ? fincaActual.poligono || '-' : '-'} | Parcela: ${fincaActual ? fincaActual.parcela || '-' : '-'}</div>
-        `, { sticky: true, className: 'sig-custom-tooltip' });
 
         capaPerimetroFinca.addLayer(layer);
 
@@ -1267,6 +1304,7 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             const color = g.color_hex || (plantacion ? (COLORES_CULTIVO[plantacion.tipo_cultivo] || '#10b981') : '#10b981');
 
             const layer = L.geoJSON(geojsonObj, {
+                pane: 'paneZonas',
                 style: {
                     color: color,
                     weight: 3,
@@ -1281,6 +1319,14 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
 
             sublayer._idGeometria = g.id_geometria;
             sublayer._datosZona = g;
+            sublayer.options.pane = 'paneZonas';
+
+            // Guardar en memoria de objetos para el selector desplegable
+            objetosMapaMemoria.zonas.push({
+                geometria: g,
+                plantacion: plantacion,
+                layer: sublayer
+            });
 
             const nombreCultivo = plantacion ? plantacion.nombre_comun : 'Cultivo';
             const variedad = plantacion && plantacion.variedad ? `(${plantacion.variedad})` : '';
@@ -1306,6 +1352,10 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             sublayer.on('mouseout', function() { if (!modoMoverActivo && !modoEditarVerticesActivo) this.setStyle({ weight: 3, fillOpacity: 0.4 }); });
             sublayer.on('click', function(e) {
                 L.DomEvent.stopPropagation(e);
+                if (modoPlantarArbol) {
+                    abrirModalGuardarArbol(e.latlng.lat, e.latlng.lng);
+                    return;
+                }
                 if (!modoMoverActivo && !modoEditarVerticesActivo) {
                     abrirDetalleZona(g, plantacion, sublayer);
                 }
@@ -1379,12 +1429,19 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
 
         // Marcador arrastrable (Draggable) para permitir Scrub
         const marcador = L.marker([lat, lng], { 
+            pane: 'paneArboles',
             icon: icono,
             draggable: true 
         });
 
         marcador._idArbol = a.id_arbol;
         marcador._datosArbol = a;
+
+        // Guardar en memoria de objetos para el selector desplegable
+        objetosMapaMemoria.arboles.push({
+            arbol: a,
+            marcador: marcador
+        });
 
         const tooltipHtml = `
             <div class="fw-bold fs-6 text-success"><i class="fa-solid fa-tree me-1"></i>${a.codigo_arbol}</div>
@@ -2004,6 +2061,103 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         } else {
             caja.classList.add('d-none');
             caja.innerHTML = '';
+        }
+    }
+
+    /**
+     * Rellena el desplegable de objetos con todas las zonas y árboles introducidos en el mapa
+     */
+    function actualizarSelectorObjetosMapa() {
+        const sel = document.getElementById('selectorObjetosMapa');
+        if (!sel) return;
+
+        const totalZonas = (objetosMapaMemoria && objetosMapaMemoria.zonas) ? objetosMapaMemoria.zonas.length : 0;
+        const totalArboles = (objetosMapaMemoria && objetosMapaMemoria.arboles) ? objetosMapaMemoria.arboles.length : 0;
+        const totalTotal = totalZonas + totalArboles;
+
+        sel.innerHTML = `<option value="">📍 Localizar objeto (${totalTotal})</option>`;
+
+        if (totalTotal === 0) {
+            sel.innerHTML += `<option value="" disabled>-- Sin zonas ni árboles aún --</option>`;
+            return;
+        }
+
+        if (totalZonas > 0) {
+            const optgroupZ = document.createElement('optgroup');
+            optgroupZ.label = `🌱 Zonas y Bancales (${totalZonas})`;
+            objetosMapaMemoria.zonas.forEach(z => {
+                const opt = document.createElement('option');
+                opt.value = `zona_${z.geometria.id_geometria}`;
+                const nomCultivo = z.plantacion ? z.plantacion.nombre_comun : 'Zona';
+                const cuadro = z.geometria.nombre_zona || (z.plantacion ? z.plantacion.identificador_cuadro : 'Bancal');
+                const sup = z.geometria.superficie_m2 ? ` [${Math.round(z.geometria.superficie_m2)} m²]` : '';
+                opt.textContent = `🌱 ${nomCultivo} (${cuadro})${sup}`;
+                optgroupZ.appendChild(opt);
+            });
+            sel.appendChild(optgroupZ);
+        }
+
+        if (totalArboles > 0) {
+            const optgroupA = document.createElement('optgroup');
+            optgroupA.label = `🌳 Árboles Individuales (${totalArboles})`;
+            objetosMapaMemoria.arboles.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = `arbol_${a.arbol.id_arbol}`;
+                const esp = a.arbol.especie_variedad || a.arbol.nombre_cultivo || 'Árbol';
+                opt.textContent = `🌳 ${a.arbol.codigo_arbol} - ${esp} [${a.arbol.estado_salud.toUpperCase()}]`;
+                optgroupA.appendChild(opt);
+            });
+            sel.appendChild(optgroupA);
+        }
+    }
+
+    /**
+     * Localiza, centra, destaca y abre la ficha del objeto seleccionado en el desplegable
+     */
+    function localizarObjetoSeleccionado(valor) {
+        if (!valor) return;
+
+        if (valor.startsWith('zona_')) {
+            const idGeom = valor.replace('zona_', '');
+            const obj = objetosMapaMemoria.zonas.find(z => z.geometria.id_geometria == idGeom);
+            if (obj && obj.layer) {
+                if (obj.layer.getBounds) {
+                    mapa.fitBounds(obj.layer.getBounds(), { padding: [50, 50], maxZoom: 21, animate: true });
+                }
+                if (obj.layer.setStyle) {
+                    const estiloOriginal = {
+                        color: obj.layer.options.color || '#10b981',
+                        weight: obj.layer.options.weight || 3,
+                        fillOpacity: obj.layer.options.fillOpacity || 0.4
+                    };
+                    obj.layer.setStyle({ color: '#f59e0b', weight: 6, fillOpacity: 0.8 });
+                    setTimeout(() => {
+                        obj.layer.setStyle(estiloOriginal);
+                    }, 2500);
+                }
+                abrirDetalleZona(obj.geometria, obj.plantacion, obj.layer);
+                mostrarToast(`🌱 Zona localizada: ${obj.geometria.nombre_zona || (obj.plantacion ? obj.plantacion.nombre_comun : 'Zona')}`, false, 3000);
+            }
+        } else if (valor.startsWith('arbol_')) {
+            const idArbol = valor.replace('arbol_', '');
+            const obj = objetosMapaMemoria.arboles.find(a => a.arbol.id_arbol == idArbol);
+            if (obj && obj.marcador) {
+                const latLng = obj.marcador.getLatLng();
+                mapa.setView(latLng, 21, { animate: true });
+
+                const iconoEl = obj.marcador.getElement();
+                if (iconoEl) {
+                    iconoEl.style.transition = 'transform 0.3s ease, filter 0.3s ease';
+                    iconoEl.style.transform = 'scale(2.0)';
+                    iconoEl.style.filter = 'drop-shadow(0 0 12px #22c55e)';
+                    setTimeout(() => {
+                        iconoEl.style.transform = '';
+                        iconoEl.style.filter = '';
+                    }, 2500);
+                }
+                abrirDetalleArbol(obj.arbol, obj.marcador);
+                mostrarToast(`🌳 Árbol localizado: ${obj.arbol.codigo_arbol}`, false, 3000);
+            }
         }
     }
 
