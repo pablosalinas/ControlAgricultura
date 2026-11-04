@@ -26,6 +26,15 @@ try {
     require_once SRC_PATH . '/Services/CropAiService.php';
     $data = CropAiService::searchCrop($query, $isOrganic, $tipoCultivo);
 
+    if (empty($data) || empty($data['success'])) {
+        $msg = !empty($data['message']) ? $data['message'] : "No se ha encontrado información agronómica contrastada para '{$query}'. Por favor, introduce los datos manualmente para asegurar la exactitud de tu cuaderno.";
+        echo json_encode(array(
+            'success' => false,
+            'message' => $msg
+        ));
+        exit;
+    }
+
     echo json_encode(array(
         'success' => true,
         'data'    => $data

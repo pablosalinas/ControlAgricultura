@@ -335,86 +335,121 @@ document.getElementById('aiQuery').addEventListener('keypress', function(e) {
 });
 
 async function ejecutarConsultaIA() {
-    const query = document.getElementById('aiQuery').value.trim();
+    const queryEl = document.getElementById('aiQuery');
+    const query = queryEl ? queryEl.value.trim() : '';
     if (!query) {
-        alert('Por favor, introduce el nombre del cultivo o variedad que deseas buscar (ej: Almendro Guara, Tomate, Olivo Picual...).');
-        document.getElementById('aiQuery').focus();
+        alert('Por favor, introduce el nombre del cultivo o variedad que deseas buscar (ej: Pinus halepensis, Lechuga baby, Almendro Guara...).');
+        if (queryEl) queryEl.focus();
         return;
     }
 
-    const isOrganic = document.getElementById('aiEsEcologico').checked ? 1 : 0;
     const btn = document.getElementById('btnBuscarIA');
-    const originalText = btn.innerHTML;
+    const originalText = btn ? btn.innerHTML : 'Buscar con IA';
     const statusBox = document.getElementById('aiStatus');
-    const statusText = document.getElementById('aiStatusText');
+    const isOrganic = document.getElementById('aiEsEcologico') && document.getElementById('aiEsEcologico').checked ? 1 : 0;
 
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Investigando...';
-    statusBox.classList.remove('d-none');
-    statusText.textContent = `Consultando base agronómica y taxonomía para '${query}'...`;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Investigando...';
+    }
+
+    if (statusBox) {
+        statusBox.classList.remove('d-none');
+        statusBox.innerHTML = `
+            <div class="alert alert-info py-2 px-3 mb-0 small d-flex align-items-center gap-2 border-0 bg-white text-dark shadow-sm">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                <span>Consultando taxonomía y base botánica contrastada para '<strong>${escapeHtml(query)}</strong>'...</span>
+            </div>
+        `;
+    }
 
     try {
         const formData = new FormData();
         formData.append('query', query);
         formData.append('es_ecologico', isOrganic);
 
+        // Control de tiempo límite preventivo (máximo 10 segundos)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         const response = await fetch('<?= APP_URL ?>/api/cultivos/consultar-ia', {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         const res = await response.json();
 
         if (res.success && res.data) {
             const d = res.data;
-            document.getElementById('nombre_comun').value = d.nombre_comun || query;
-            document.getElementById('nombre_cientifico').value = d.nombre_cientifico || '';
-            document.getElementById('variedad').value = d.variedad || '';
-            if (d.tipo_cultivo) {
+            if (document.getElementById('nombre_comun')) document.getElementById('nombre_comun').value = d.nombre_comun || query;
+            if (document.getElementById('nombre_cientifico')) document.getElementById('nombre_cientifico').value = d.nombre_cientifico || '';
+            if (document.getElementById('variedad')) document.getElementById('variedad').value = d.variedad || '';
+            if (d.tipo_cultivo && document.getElementById('tipo_cultivo')) {
                 document.getElementById('tipo_cultivo').value = d.tipo_cultivo;
             }
-            document.getElementById('es_ecologico').checked = (d.es_ecologico == 1);
-            document.getElementById('aiEsEcologico').checked = (d.es_ecologico == 1);
+            if (document.getElementById('es_ecologico')) document.getElementById('es_ecologico').checked = (d.es_ecologico == 1);
+            if (document.getElementById('aiEsEcologico')) document.getElementById('aiEsEcologico').checked = (d.es_ecologico == 1);
             actualizarBadgeEco();
 
-            if (d.dias_ciclo_aprox) {
+            if (d.dias_ciclo_aprox && document.getElementById('dias_ciclo_aprox')) {
                 document.getElementById('dias_ciclo_aprox').value = d.dias_ciclo_aprox;
             }
-            document.getElementById('descripcion').value = d.descripcion || '';
-            document.getElementById('formato_siembra').value = d.formato_siembra || '';
-            document.getElementById('epoca_siembra').value = d.epoca_siembra || '';
-            document.getElementById('epoca_trasplante').value = d.epoca_trasplante || '';
-            document.getElementById('epoca_recoleccion').value = d.epoca_recoleccion || '';
-            document.getElementById('tratamientos_recomendados').value = d.tratamientos_recomendados || '';
-            document.getElementById('requerimientos_tecnicos').value = d.requerimientos_tecnicos || '';
-            document.getElementById('url_consulta_botanica').value = d.url_consulta_botanica || '';
+            if (document.getElementById('descripcion')) document.getElementById('descripcion').value = d.descripcion || '';
+            if (document.getElementById('formato_siembra')) document.getElementById('formato_siembra').value = d.formato_siembra || '';
+            if (document.getElementById('epoca_siembra')) document.getElementById('epoca_siembra').value = d.epoca_siembra || '';
+            if (document.getElementById('epoca_trasplante')) document.getElementById('epoca_trasplante').value = d.epoca_trasplante || '';
+            if (document.getElementById('epoca_recoleccion')) document.getElementById('epoca_recoleccion').value = d.epoca_recoleccion || '';
+            if (document.getElementById('tratamientos_recomendados')) document.getElementById('tratamientos_recomendados').value = d.tratamientos_recomendados || '';
+            if (document.getElementById('requerimientos_tecnicos')) document.getElementById('requerimientos_tecnicos').value = d.requerimientos_tecnicos || '';
+            if (document.getElementById('url_consulta_botanica')) document.getElementById('url_consulta_botanica').value = d.url_consulta_botanica || '';
 
-            statusBox.innerHTML = `
-                <div class="alert alert-success py-2 px-3 mb-0 small d-flex align-items-center justify-content-between border-0 bg-white text-success shadow-sm">
-                    <div>
-                        <i class="fa-solid fa-circle-check me-2"></i>
-                        <strong>¡Cultivo investigado con éxito!</strong> Ficha técnica y cuidados completados (${d.fuente || 'IA'}). Revisa los datos y pulsa 'Guardar y Dar de Alta Cultivo'.
+            if (statusBox) {
+                statusBox.innerHTML = `
+                    <div class="alert alert-success py-2 px-3 mb-0 small d-flex align-items-center justify-content-between border-0 bg-white text-success shadow-sm">
+                        <div>
+                            <i class="fa-solid fa-circle-check me-2"></i>
+                            <strong>¡Cultivo contrastado con éxito!</strong> Ficha técnica cargada (${escapeHtml(d.fuente || 'Base Botánica')}). Revisa los datos y pulsa 'Guardar y Dar de Alta Cultivo'.
+                        </div>
+                        <button type="button" class="btn-close btn-close-sm" onclick="this.closest('#aiStatus').classList.add('d-none')"></button>
                     </div>
-                    <button type="button" class="btn-close btn-close-sm" onclick="this.closest('.alert').remove()"></button>
-                </div>
-            `;
+                `;
+            }
 
-            // Scroll suave hacia el formulario para revisar
-            document.getElementById('formCultivo').scrollIntoView({ behavior: 'smooth' });
+            const formEl = document.getElementById('formCultivo');
+            if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
         } else {
-            throw new Error(res.message || 'No se pudieron recuperar los datos del cultivo.');
+            throw new Error(res.message || 'No se encontró información agronómica contrastada para esta búsqueda.');
         }
 
     } catch (err) {
-        statusBox.innerHTML = `
-            <div class="alert alert-danger py-2 px-3 mb-0 small border-0 bg-white text-danger shadow-sm">
-                <i class="fa-solid fa-circle-exclamation me-2"></i>${err.message}
-            </div>
-        `;
+        let msg = (err.name === 'AbortError') 
+            ? 'La consulta ha excedido el tiempo de espera. Inténtalo de nuevo o introduce los datos manualmente.' 
+            : err.message;
+
+        if (statusBox) {
+            statusBox.innerHTML = `
+                <div class="alert alert-warning py-2 px-3 mb-0 small d-flex align-items-center justify-content-between border-0 bg-white text-dark shadow-sm">
+                    <div>
+                        <i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>
+                        <span>${escapeHtml(msg)}</span>
+                    </div>
+                    <button type="button" class="btn-close btn-close-sm" onclick="this.closest('#aiStatus').classList.add('d-none')"></button>
+                </div>
+            `;
+        }
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function abrirFichaBotanica() {
