@@ -20,17 +20,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $idCultivo = (int)(isset($_POST['id_cultivo']) ? $_POST['id_cultivo'] : 0);
         $cuadro = trim(isset($_POST['identificador_cuadro']) ? $_POST['identificador_cuadro'] : '');
         $campana = (int)(isset($_POST['campana_ano']) ? $_POST['campana_ano'] : date('Y'));
-        $superficie = (float)(isset($_POST['superficie_ocupada_ha']) ? $_POST['superficie_ocupada_ha'] : 0);
+        
+        $superficieRaw = isset($_POST['superficie_ocupada_ha']) ? trim($_POST['superficie_ocupada_ha']) : '0';
+        $superficie = (float)str_replace(',', '.', $superficieRaw);
+        if ($superficie < 0) {
+            $superficie = 0.0;
+        }
+
         $arboles = !empty($_POST['num_arboles_o_plantas']) ? (int)$_POST['num_arboles_o_plantas'] : null;
         $marco = trim(isset($_POST['marco_plantacion']) ? $_POST['marco_plantacion'] : '');
         $siembra = !empty($_POST['fecha_siembra']) ? $_POST['fecha_siembra'] : null;
         $transplante = !empty($_POST['fecha_transplante']) ? $_POST['fecha_transplante'] : null;
         $fin = !empty($_POST['fecha_estimada_fin']) ? $_POST['fecha_estimada_fin'] : null;
+        $tipoPlantacion = isset($_POST['tipo_plantacion']) ? $_POST['tipo_plantacion'] : 'temporada';
+        $diaMesRecoleccion = !empty($fin) ? date('m-d', strtotime($fin)) : null;
         $estado = isset($_POST['estado']) ? $_POST['estado'] : 'en_crecimiento';
         $notas = trim(isset($_POST['notas']) ? $_POST['notas'] : (isset($_POST['notas_cuaderno']) ? $_POST['notas_cuaderno'] : ''));
 
-        if (empty($idFinca) || empty($idCultivo) || empty($cuadro) || $superficie <= 0) {
-            $error = "La finca, el cultivo, el identificador de cuadro y una superficie válida son obligatorios.";
+        if (empty($idFinca) || empty($idCultivo) || empty($cuadro)) {
+            $error = "La finca, el cultivo y el identificador de cuadro son obligatorios.";
         } else {
             try {
                 // Actualizar plantación con finca, cultivo y campos técnicos
@@ -40,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         superficie_ocupada_ha = :sup, num_arboles_o_plantas = :arb,
                         marco_plantacion = :marco, fecha_siembra = :siembra,
                         fecha_transplante = :transp, fecha_estimada_fin = :fin,
+                        tipo_plantacion = :tipo, dia_mes_recoleccion = :diames,
                         estado = :est, notas = :notas
                     WHERE id_plantacion = :id
                 ");
@@ -54,6 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':siembra' => $siembra,
                     ':transp'  => $transplante,
                     ':fin'     => $fin,
+                    ':tipo'    => $tipoPlantacion,
+                    ':diames'  => $diaMesRecoleccion,
                     ':est'     => $estado,
                     ':notas'   => $notas ?: null,
                     ':id'      => $idPlantacion
@@ -298,7 +309,7 @@ $plantaciones = $stmtPl->fetchAll();
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">
                                         <!-- Modificar -->
-                                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarPlantacion_<?= $pl['id_plantacion'] ?>" title="Modificar plantación">
+                                        <button type="button" class="btn btn-outline-primary" onclick="abrirModalEditarPlantacion(<?= htmlspecialchars(json_encode($pl), ENT_QUOTES, 'UTF-8') ?>)" title="Modificar plantación">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button>
                                         <!-- Borrar -->
@@ -310,125 +321,6 @@ $plantaciones = $stmtPl->fetchAll();
                                             </button>
                                         </form>
                                     </div>
-
-                                    <!-- Modal Modificar Plantación -->
-                                    <div class="modal fade text-start" id="modalEditarPlantacion_<?= $pl['id_plantacion'] ?>" tabindex="-1">
-                                        <div class="modal-dialog modal-lg">
-                                            <div class="modal-content border-0 shadow">
-                                                <div class="modal-header text-white" style="background: linear-gradient(135deg, #091e3a, #1d4ed8);">
-                                                    <h5 class="modal-title fw-bold">
-                                                        <i class="fa-solid fa-pen-to-square me-2"></i> Modificar Plantación: <?= htmlspecialchars($pl['nombre_finca'] . ' - ' . $pl['identificador_cuadro']) ?>
-                                                    </h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <form action="<?= APP_URL ?>/plantaciones" method="POST">
-                                                    <input type="hidden" name="action" value="editar_plantacion">
-                                                    <input type="hidden" name="id_plantacion" value="<?= $pl['id_plantacion'] ?>">
-                                                    <div class="modal-body p-4">
-                                                        <div class="row g-3 mb-3">
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small text-primary">
-                                                                    <i class="fa-solid fa-draw-polygon me-1"></i>Finca de Destino *
-                                                                </label>
-                                                                <select name="id_finca" class="form-select fw-semibold" required>
-                                                                    <?php foreach ($fincasList as $f): ?>
-                                                                        <option value="<?= $f['id_finca'] ?>" <?= ($f['id_finca'] == $pl['id_finca']) ? 'selected' : '' ?>>
-                                                                            <?= htmlspecialchars($f['nombre_finca']) ?> (<?= number_format($f['superficie_ha'], 2) ?> ha)
-                                                                        </option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small text-success">
-                                                                    <i class="fa-solid fa-seedling me-1"></i>Cultivo / Especie *
-                                                                </label>
-                                                                <select name="id_cultivo" class="form-select fw-semibold" required>
-                                                                    <?php foreach ($cultivosList as $cl): ?>
-                                                                        <option value="<?= $cl['id_cultivo'] ?>" <?= ($cl['id_cultivo'] == $pl['id_cultivo']) ? 'selected' : '' ?>>
-                                                                            <?= htmlspecialchars($cl['nombre_comun'] . ($cl['variedad'] ? ' (' . $cl['variedad'] . ')' : '')) ?>
-                                                                        </option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-
-                                                        <?php
-                                                        $numArbVal = !empty($pl['num_arboles_o_plantas']) ? $pl['num_arboles_o_plantas'] : '';
-                                                        $marcoVal = !empty($pl['marco_plantacion']) ? $pl['marco_plantacion'] : '';
-                                                        $siembraVal = !empty($pl['fecha_siembra']) ? $pl['fecha_siembra'] : '';
-                                                        $transpVal = !empty($pl['fecha_transplante']) ? $pl['fecha_transplante'] : '';
-                                                        $finVal = !empty($pl['fecha_estimada_fin']) ? $pl['fecha_estimada_fin'] : '';
-                                                        $estadoVal = isset($pl['estado']) ? $pl['estado'] : 'en_crecimiento';
-                                                        $notasVal = !empty($pl['notas']) ? $pl['notas'] : (!empty($pl['notas_cuaderno']) ? $pl['notas_cuaderno'] : '');
-                                                        ?>
-
-                                                        <div class="row g-3 mb-3">
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Identificador Cuadro / Parcela *</label>
-                                                                <input type="text" name="identificador_cuadro" class="form-control" value="<?= htmlspecialchars($pl['identificador_cuadro']) ?>" required>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Campaña (Año) *</label>
-                                                                <input type="number" name="campana_ano" class="form-control font-monospace" value="<?= $pl['campana_ano'] ?>" required>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row g-3 mb-3">
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Superficie Ocupada (ha) *</label>
-                                                                <input type="number" step="0.0001" name="superficie_ocupada_ha" class="form-control font-monospace" value="<?= $pl['superficie_ocupada_ha'] ?>" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Nº Árboles / Plantas</label>
-                                                                <input type="number" name="num_arboles_o_plantas" class="form-control font-monospace" value="<?= htmlspecialchars((string)$numArbVal) ?>">
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Marco de Plantación</label>
-                                                                <input type="text" name="marco_plantacion" class="form-control font-monospace" value="<?= htmlspecialchars((string)$marcoVal) ?>" placeholder="Ej: 6 x 4 m">
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row g-3 mb-3">
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Fecha Siembra</label>
-                                                                <input type="date" name="fecha_siembra" class="form-control" value="<?= htmlspecialchars((string)$siembraVal) ?>">
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Fecha Trasplante</label>
-                                                                <input type="date" name="fecha_transplante" class="form-control" value="<?= htmlspecialchars((string)$transpVal) ?>">
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold small">Fecha Estimada Fin</label>
-                                                                <input type="date" name="fecha_estimada_fin" class="form-control" value="<?= htmlspecialchars((string)$finVal) ?>">
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row g-3 mb-3">
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Estado del Cuadro *</label>
-                                                                <select name="estado" class="form-select" required>
-                                                                    <option value="produccion" <?= $estadoVal === 'produccion' ? 'selected' : '' ?>>En Producción</option>
-                                                                    <option value="en_crecimiento" <?= $estadoVal === 'en_crecimiento' ? 'selected' : '' ?>>En Crecimiento</option>
-                                                                    <option value="en_descanso" <?= $estadoVal === 'en_descanso' ? 'selected' : '' ?>>En Descanso</option>
-                                                                    <option value="arrancado" <?= $estadoVal === 'arrancado' ? 'selected' : '' ?>>Arrancado</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Notas de Seguimiento</label>
-                                                                <input type="text" name="notas" class="form-control" value="<?= htmlspecialchars((string)$notasVal) ?>" placeholder="Observaciones de seguimiento">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer bg-light">
-                                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                        <button type="submit" class="btn btn-ag">
-                                                            <i class="fa-solid fa-floppy-disk me-1"></i> Guardar Cambios
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -438,5 +330,155 @@ $plantaciones = $stmtPl->fetchAll();
         </div>
     </div>
 </div>
+
+<!-- Modal Modificar Plantación (Estable, fuera de la tabla) -->
+<div class="modal fade text-start" id="modalEditarPlantacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #091e3a, #1d4ed8);">
+                <h5 class="modal-title fw-bold" id="modalEditarPlantacionTitle">
+                    <i class="fa-solid fa-pen-to-square me-2"></i> Modificar Plantación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?= APP_URL ?>/plantaciones" method="POST">
+                <input type="hidden" name="action" value="editar_plantacion">
+                <input type="hidden" name="id_plantacion" id="edit_id_plantacion" value="">
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small text-primary">
+                                <i class="fa-solid fa-draw-polygon me-1"></i>Finca de Destino *
+                            </label>
+                            <select name="id_finca" id="edit_id_finca" class="form-select fw-semibold" required>
+                                <?php foreach ($fincasList as $f): ?>
+                                    <option value="<?= $f['id_finca'] ?>">
+                                        <?= htmlspecialchars($f['nombre_finca']) ?> (<?= number_format($f['superficie_ha'], 2) ?> ha)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small text-success">
+                                <i class="fa-solid fa-seedling me-1"></i>Cultivo / Especie *
+                            </label>
+                            <select name="id_cultivo" id="edit_id_cultivo" class="form-select fw-semibold" required>
+                                <?php foreach ($cultivosList as $cl): ?>
+                                    <option value="<?= $cl['id_cultivo'] ?>">
+                                        <?= htmlspecialchars($cl['nombre_comun'] . ($cl['variedad'] ? ' (' . $cl['variedad'] . ')' : '')) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Identificador Cuadro / Parcela *</label>
+                            <input type="text" name="identificador_cuadro" id="edit_identificador_cuadro" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold small">Campaña (Año) *</label>
+                            <input type="number" name="campana_ano" id="edit_campana_ano" class="form-control font-monospace" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold small">Tipo Plantación</label>
+                            <select name="tipo_plantacion" id="edit_tipo_plantacion" class="form-select">
+                                <option value="temporada">Temporada (Hortícola)</option>
+                                <option value="permanente">Permanente (Frutal/Olivo/etc)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Superficie Ocupada (ha)</label>
+                            <input type="number" step="0.0001" min="0" name="superficie_ocupada_ha" id="edit_superficie_ocupada_ha" class="form-control font-monospace" value="0.0000">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Nº Árboles / Plantas</label>
+                            <input type="number" name="num_arboles_o_plantas" id="edit_num_arboles_o_plantas" class="form-control font-monospace" placeholder="Opcional">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Marco de Plantación</label>
+                            <input type="text" name="marco_plantacion" id="edit_marco_plantacion" class="form-control font-monospace" placeholder="Ej: 6 x 4 m">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Fecha Siembra</label>
+                            <input type="date" name="fecha_siembra" id="edit_fecha_siembra" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Fecha Trasplante</label>
+                            <input type="date" name="fecha_transplante" id="edit_fecha_transplante" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Fecha Estimada Fin / Cosecha</label>
+                            <input type="date" name="fecha_estimada_fin" id="edit_fecha_estimada_fin" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Estado del Cuadro *</label>
+                            <select name="estado" id="edit_estado" class="form-select" required>
+                                <option value="produccion">En Producción</option>
+                                <option value="en_crecimiento">En Crecimiento</option>
+                                <option value="en_descanso">En Descanso</option>
+                                <option value="arrancado">Arrancado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold small">Notas de Seguimiento</label>
+                            <input type="text" name="notas" id="edit_notas" class="form-control" placeholder="Observaciones de seguimiento">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-ag">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalEditarPlantacion(pl) {
+    if (!pl) return;
+    document.getElementById('edit_id_plantacion').value = pl.id_plantacion || '';
+    document.getElementById('edit_id_finca').value = pl.id_finca || '';
+    document.getElementById('edit_id_cultivo').value = pl.id_cultivo || '';
+    document.getElementById('edit_identificador_cuadro').value = pl.identificador_cuadro || '';
+    document.getElementById('edit_campana_ano').value = pl.campana_ano || new Date().getFullYear();
+    document.getElementById('edit_tipo_plantacion').value = pl.tipo_plantacion || 'temporada';
+    document.getElementById('edit_superficie_ocupada_ha').value = (pl.superficie_ocupada_ha !== null && pl.superficie_ocupada_ha !== undefined) ? pl.superficie_ocupada_ha : '0.0000';
+    document.getElementById('edit_num_arboles_o_plantas').value = pl.num_arboles_o_plantas || '';
+    document.getElementById('edit_marco_plantacion').value = pl.marco_plantacion || '';
+    document.getElementById('edit_fecha_siembra').value = pl.fecha_siembra || '';
+    document.getElementById('edit_fecha_transplante').value = pl.fecha_transplante || '';
+    document.getElementById('edit_fecha_estimada_fin').value = pl.fecha_estimada_fin || '';
+    document.getElementById('edit_estado').value = pl.estado || 'en_crecimiento';
+    document.getElementById('edit_notas').value = pl.notas || pl.notas_cuaderno || '';
+
+    var titleEl = document.getElementById('modalEditarPlantacionTitle');
+    if (titleEl) {
+        var nomFinca = pl.nombre_finca || 'Finca';
+        var cuadro = pl.identificador_cuadro || 'Cuadro';
+        titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> Modificar Plantación: ' + nomFinca + ' - ' + cuadro;
+    }
+
+    var modalEl = document.getElementById('modalEditarPlantacion');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    modal.show();
+}
+</script>
 
 <?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>
