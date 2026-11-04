@@ -588,6 +588,70 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
 </div>
 
 <!-- ========================================================================= -->
+<!-- MODAL: DUPLICAR / MULTI-COPIAR MARCADOR DE ÁRBOL                         -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalDuplicarArbol" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold" id="modalDuplicarTitle"><i class="fa-solid fa-copy me-2"></i>Duplicar Marcador de Árbol</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDuplicarArbol" onsubmit="enviarDuplicarArbol(event)">
+                <input type="hidden" id="dup_id_arbol" value="">
+                <input type="hidden" id="dup_codigo_base" value="">
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border py-2 px-3 small mb-3" id="cajaInfoDuplicarArbol">
+                        <!-- Info del árbol origen -->
+                    </div>
+
+                    <!-- Cantidad de copias -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">¿Cuántas copias deseas generar? <span class="text-danger">*</span></label>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text bg-white"><i class="fa-solid fa-clone text-success"></i></span>
+                            <input type="number" id="dup_cantidad" class="form-control fw-bold fs-5 text-center" value="1" min="1" max="100" required oninput="actualizarPrevisualizacionCopias()">
+                        </div>
+                        <!-- Botones rápidos de cantidad -->
+                        <div class="d-flex gap-1 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fijarCantidadCopias(1)">1 copia</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fijarCantidadCopias(5)">5 copias</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fijarCantidadCopias(10)">10 copias</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fijarCantidadCopias(25)">25 copias</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fijarCantidadCopias(50)">50 copias</button>
+                        </div>
+                    </div>
+
+                    <!-- Distancia de separación -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Separación estimada entre árboles (metros)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" step="0.5" id="dup_distancia" class="form-control" value="6" min="1" max="50">
+                            <span class="input-group-text">metros</span>
+                        </div>
+                        <div class="form-text small">Los árboles se crearán correlativos en hilera y podrás arrastrar cualquiera para colocarlo en su posición exacta sobre la foto.</div>
+                    </div>
+
+                    <!-- Vista previa de los códigos a generar -->
+                    <div class="alert alert-info py-2 px-3 small mb-0">
+                        <div class="fw-bold"><i class="fa-solid fa-list-ol me-1"></i>Códigos correlativos que se crearán:</div>
+                        <div class="font-monospace mt-1 text-dark" id="txtPrevisualizacionCodigos">-</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4" id="btnSubmitDuplicar">
+                        <i class="fa-solid fa-copy me-1"></i> Generar Copias
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
 <!-- PANEL LATERAL DESLIZANTE (OFFCANVAS) PARA DETALLE AL HACER CLIC            -->
 <!-- ========================================================================= -->
 <div class="offcanvas offcanvas-end shadow-lg" tabindex="-1" id="offcanvasDetalle" style="width: 440px; max-width: 90vw;">
@@ -1421,6 +1485,9 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                 </div>
 
                 <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-success fw-bold btn-sm shadow-sm" onclick="abrirModalDuplicarArbol(${JSON.stringify(arbol).replace(/"/g, '&quot;')})">
+                        <i class="fa-solid fa-copy me-1"></i> Duplicar / Multi-Copiar este Árbol
+                    </button>
                     <button type="button" class="btn btn-outline-warning text-dark fw-bold btn-sm" onclick="editarDatosArbol(${JSON.stringify(arbol).replace(/"/g, '&quot;')})">
                         <i class="fa-solid fa-pen-to-square me-1"></i> Modificar Datos de este Árbol
                     </button>
@@ -1899,6 +1966,119 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
 
     function cerrarToast() {
         document.getElementById('sigToast').style.display = 'none';
+    }
+
+    let arbolADuplicarActual = null;
+
+    /**
+     * Abre el modal de Duplicar / Multi-Copiar marcador de árbol
+     */
+    function abrirModalDuplicarArbol(arbol) {
+        bootstrap.Offcanvas.getInstance(document.getElementById('offcanvasDetalle')).hide();
+        arbolADuplicarActual = arbol;
+
+        document.getElementById('dup_id_arbol').value = arbol.id_arbol;
+        document.getElementById('dup_codigo_base').value = arbol.codigo_arbol;
+        document.getElementById('dup_cantidad').value = 1;
+        document.getElementById('dup_distancia').value = 6;
+
+        document.getElementById('modalDuplicarTitle').innerHTML = `<i class="fa-solid fa-copy me-2"></i>Duplicar Árbol: ${arbol.codigo_arbol}`;
+
+        const caja = document.getElementById('cajaInfoDuplicarArbol');
+        caja.innerHTML = `
+            <div><strong>Árbol origen:</strong> <span class="badge bg-dark">${arbol.codigo_arbol}</span> &bull; <strong>Especie:</strong> ${arbol.especie_variedad || arbol.nombre_cultivo || 'Árbol'}</div>
+            <div class="text-muted mt-1" style="font-size:0.75rem;">Salud: <strong>${(arbol.estado_salud || 'bueno').toUpperCase()}</strong> | Año: <strong>${arbol.ano_plantacion || '-'}</strong> | Portainjerto: <strong>${arbol.patron_portainjerto || 'Estándar'}</strong></div>
+        `;
+
+        actualizarPrevisualizacionCopias();
+        new bootstrap.Modal(document.getElementById('modalDuplicarArbol')).show();
+    }
+
+    function fijarCantidadCopias(num) {
+        document.getElementById('dup_cantidad').value = num;
+        actualizarPrevisualizacionCopias();
+    }
+
+    function actualizarPrevisualizacionCopias() {
+        if (!arbolADuplicarActual) return;
+        const codOrig = arbolADuplicarActual.codigo_arbol;
+        const cant = parseInt(document.getElementById('dup_cantidad').value) || 1;
+
+        let prefijo = 'ARB';
+        let numBase = 1;
+        const m = codOrig.match(/^(.*?)[-_](\d+)$/);
+        if (m) {
+            prefijo = m[1];
+            numBase = parseInt(m[2]);
+        } else {
+            prefijo = codOrig;
+        }
+
+        // Buscar el número más alto existente en capaArboles con ese prefijo
+        let maxNum = numBase;
+        capaArboles.eachLayer(layer => {
+            if (layer._datosArbol && layer._datosArbol.codigo_arbol) {
+                const c = layer._datosArbol.codigo_arbol;
+                const m2 = c.match(/[-_](\d+)$/);
+                if (m2 && c.startsWith(prefijo)) {
+                    const v = parseInt(m2[1]);
+                    if (v > maxNum) maxNum = v;
+                }
+            }
+        });
+
+        const codigos = [];
+        const limitMostrar = Math.min(cant, 5);
+        for (let i = 1; i <= limitMostrar; i++) {
+            codigos.push(`${prefijo}-${String(maxNum + i).padStart(3, '0')}`);
+        }
+
+        const resto = cant - limitMostrar;
+        let texto = codigos.join(', ');
+        if (resto > 0) {
+            texto += `, ... y ${resto} más (hasta ${prefijo}-${String(maxNum + cant).padStart(3, '0')})`;
+        }
+
+        document.getElementById('txtPrevisualizacionCodigos').textContent = texto;
+    }
+
+    function enviarDuplicarArbol(e) {
+        e.preventDefault();
+        const idArbol = document.getElementById('dup_id_arbol').value;
+        const cant = parseInt(document.getElementById('dup_cantidad').value) || 1;
+        const dist = parseFloat(document.getElementById('dup_distancia').value) || 6.0;
+
+        const btn = document.getElementById('btnSubmitDuplicar');
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Generando ${cant} copias...`;
+
+        fetch(`${window.APP_URL}/api/mapas?action=duplicar_arbol`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id_arbol: idArbol,
+                cantidad: cant,
+                distancia_metros: dist
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-copy me-1"></i> Generar Copias`;
+
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('modalDuplicarArbol')).hide();
+                mostrarToast(data.message + " Arrástralos para ajustar su posición sobre la foto aérea.", false, 5000);
+                cargarDatosFinca(fincaActual.id_finca);
+            } else {
+                alert(data.message || 'Error al duplicar árbol.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-copy me-1"></i> Generar Copias`;
+            alert('Error de conexión al duplicar árbol.');
+        });
     }
 </script>
 

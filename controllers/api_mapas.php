@@ -422,6 +422,136 @@ try {
             break;
 
         // =========================================================================
+        // 5b2. DUPLICAR / MULTI-COPIAR MARCADOR DE ÁRBOL CON CONTEO CORRELATIVO
+        // =========================================================================
+        case 'duplicar_arbol':
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!$input) $input = $_POST;
+
+            $idArbolOrigen = !empty($input['id_arbol']) ? (int)$input['id_arbol'] : 0;
+            $cantidad = !empty($input['cantidad']) ? max(1, min(150, (int)$input['cantidad'])) : 1;
+            $distanciaMetros = !empty($input['distancia_metros']) ? max(1.0, (float)$input['distancia_metros']) : 6.0;
+
+            if ($idArbolOrigen <= 0) {
+                echo json_encode(array('success' => false, 'message' => 'ID de árbol origen no válido.'));
+                exit;
+            }
+
+            // Obtener datos del árbol origen
+            $stmtOrig = $db->prepare("SELECT * FROM arboles_individuales WHERE id_arbol = :id AND activo = 1");
+            $stmtOrig->execute(array(':id' => $idArbolOrigen));
+            $arbol = $stmtOrig->fetch();
+
+            if (!$arbol) {
+                echo json_encode(array('success' => false, 'message' => 'Árbol origen no encontrado.'));
+                exit;
+            }
+
+            $idFinca = (int)$arbol['id_finca'];
+            $codigoOrigen = trim($arbol['codigo_arbol']);
+
+            // Analizar prefijo y número correlativo
+            $prefijo = 'ARB';
+            $numInicial = 1;
+            if (preg_match('/^(.*?)[-_](\d+)$/', $codigoOrigen, $matches)) {
+                $prefijo = $matches[1];
+                $numInicial = (int)$matches[2];
+            } elseif (preg_match('/^([A-Za-z]+)(\d+)$/', $codigoOrigen, $matches)) {
+                $prefijo = $matches[1];
+                $numInicial = (int)$matches[2];
+            } else {
+                $prefijo = $codigoOrigen;
+            }
+
+            // Buscar el número más alto existente con ese prefijo en la finca
+            $stmtExistentes = $db->prepare("
+                SELECT codigo_arbol FROM arboles_individuales 
+                WHERE id_finca = :finca AND activo = 1 AND codigo_arbol LIKE :pref
+            ");
+            $stmtExistentes->execute(array(
+                ':finca' => $idFinca,
+                ':pref'  => $prefijo . '%'
+            ));
+            $codigosExistentes = $stmtExistentes->fetchAll(PDO::FETCH_COLUMN);
+
+            $maxNum = $numInicial;
+            foreach ($codigosExistentes as $cod) {
+                if (preg_match('/[-_](\d+)$/', $cod, $m)) {
+                    $val = (int)$m[1];
+                    if ($val > $maxNum) $maxNum = $val;
+                }
+            }
+
+            $latOrigen = (float)$arbol['latitud'];
+            $lngOrigen = (float)$arbol['longitud'];
+
+            // Desplazamiento métrico a grados GPS
+            $deltaLngPorMetro = 1.0 / (111320.0 * cos(deg2rad($latOrigen)));
+            $deltaLatPorMetro = 1.0 / 111320.0;
+
+            $stmtIns = $db->prepare("
+                INSERT INTO arboles_individuales (
+                    id_finca, id_plantacion, id_cultivo, codigo_arbol, especie_variedad,
+                    latitud, longitud, ano_plantacion, estado_salud, patron_portainjerto, notas, activo
+                ) VALUES (
+                    :finca, :plant, :cult, :cod, :esp,
+                    :lat, :lng, :ano, :est, :pat, :notas, 1
+                )
+            ");
+
+            $db->beginTransaction();
+            $nuevosArboles = array();
+
+            for ($i = 1; $i <= $cantidad; $i++) {
+                $siguienteNum = $maxNum + $i;
+                $nuevoCodigo = sprintf("%s-%03d", $prefijo, $siguienteNum);
+
+                // Disposición espacial inteligente en hileras de 10
+                $col = ($i - 1) % 10 + 1;
+                $fila = floor(($i - 1) / 10);
+
+                $nuevaLat = $latOrigen - ($fila * $distanciaMetros * $deltaLatPorMetro);
+                $nuevaLng = $lngOrigen + ($col * $distanciaMetros * $deltaLngPorMetro);
+
+                $stmtIns->execute(array(
+                    ':finca' => $idFinca,
+                    ':plant' => $arbol['id_plantacion'],
+                    ':cult'  => $arbol['id_cultivo'],
+                    ':cod'   => $nuevoCodigo,
+                    ':esp'   => $arbol['especie_variedad'],
+                    ':lat'   => $nuevaLat,
+                    ':lng'   => $nuevaLng,
+                    ':ano'   => $arbol['ano_plantacion'],
+                    ':est'   => $arbol['estado_salud'],
+                    ':pat'   => $arbol['patron_portainjerto'],
+                    ':notas' => $arbol['notas']
+                ));
+
+                $nuevoId = (int)$db->lastInsertId();
+                $nuevosArboles[] = array(
+                    'id_arbol' => $nuevoId,
+                    'codigo_arbol' => $nuevoCodigo,
+                    'latitud' => $nuevaLat,
+                    'longitud' => $nuevaLng
+                );
+            }
+
+            $db->commit();
+
+            $primerCod = $nuevosArboles[0]['codigo_arbol'];
+            $ultimoCod = $nuevosArboles[count($nuevosArboles) - 1]['codigo_arbol'];
+            $msg = ($cantidad == 1) ? 
+                "Se ha creado 1 copia con el código <strong>$primerCod</strong>." : 
+                "Se han generado <strong>$cantidad</strong> copias correlativas (desde <strong>$primerCod</strong> hasta <strong>$ultimoCod</strong>).";
+
+            echo json_encode(array(
+                'success' => true,
+                'message' => $msg,
+                'arboles_creados' => $nuevosArboles
+            ));
+            break;
+
+        // =========================================================================
         // 5c. MOVER O EDITAR VÉRTICES DE ZONA (SCRUB / GEOMETRÍA EN MAPA)
         // =========================================================================
         case 'mover_zona':
