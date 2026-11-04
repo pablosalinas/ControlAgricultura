@@ -3,26 +3,45 @@ $pageTitle = "Visor Cartográfico SIG - Cultivos y Arboleda - " . APP_NAME;
 require_once VIEWS_PATH . '/layouts/header.php';
 
 $db = Database::getConnection();
+
+// Conmutar explotación si se recibe por parámetro
+if (isset($_GET['explotacion_id'])) {
+    $conmutarId = (int)$_GET['explotacion_id'];
+    Auth::switchTenant($conmutarId);
+}
+
 $tenantId = Auth::tenantId();
 $isSuperAdmin = Auth::isSuperAdmin();
 
-// Obtener todas las fincas activas del usuario con datos de paraje
+// Obtener lista de explotaciones para selector rápido
+$userTenants = array();
+if ($isSuperAdmin) {
+    $userTenants = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE activo = 1 ORDER BY nombre_razon_social ASC")->fetchAll();
+} else if (Auth::check()) {
+    $userTenants = Auth::getUserTenants(Auth::user()['id']);
+}
+
+// Obtener ÚNICAMENTE las fincas activas de la explotación seleccionada
 $sqlFincas = "
-    SELECT f.id_finca, f.nombre_finca, f.poligono, f.parcela, f.referencia_catastral, f.superficie_ha, 
+    SELECT f.id_finca, f.id_propietario, f.nombre_finca, f.poligono, f.parcela, f.referencia_catastral, f.superficie_ha, 
            f.latitud_centro, f.longitud_centro, f.zoom_mapa, f.geojson_perimetro,
            pa.nombre_paraje, pa.termino_municipal, pa.provincia
     FROM fincas f
     LEFT JOIN parajes pa ON f.id_paraje = pa.id_paraje
     WHERE f.activo = 1
 ";
-if ($tenantId && !$isSuperAdmin) {
-    $sqlFincas .= " AND (f.id_propietario = " . (int)$tenantId . " OR f.id_propietario IS NULL)";
+if ($tenantId) {
+    $sqlFincas .= " AND f.id_propietario = " . (int)$tenantId;
 }
 $sqlFincas .= " ORDER BY f.nombre_finca ASC";
 $fincasDisponibles = $db->query($sqlFincas)->fetchAll();
 
-// Finca seleccionada por defecto (por URL o primera de la lista)
-$fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!empty($fincasDisponibles) ? (int)$fincasDisponibles[0]['id_finca'] : 0);
+// Finca seleccionada por defecto (por URL o primera de la lista disponible de la explotación)
+$fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : 0;
+$idsFincasValidas = array_map(function($item) { return (int)$item['id_finca']; }, $fincasDisponibles);
+if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValidas)) {
+    $fincaSeleccionadaId = !empty($fincasDisponibles) ? (int)$fincasDisponibles[0]['id_finca'] : 0;
+}
 ?>
 
 <!-- Hojas de Estilo para Leaflet y Geoman -->
@@ -253,12 +272,33 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
         </div>
 
         <div class="d-flex flex-wrap align-items-center gap-2 ms-auto">
-            <!-- Selector de Finca Activa -->
+            <!-- Selector de Explotación (Multi-tenant) -->
+            <?php if (!empty($userTenants) && (count($userTenants) > 1 || $isSuperAdmin)): ?>
+            <div class="input-group input-group-sm shadow-sm" style="max-width: 290px;">
+                <span class="input-group-text bg-white text-success fw-bold"><i class="fa-solid fa-building-wheat me-1"></i> Explotación:</span>
+                <select id="selectorExplotacion" class="form-select fw-semibold" onchange="cambiarExplotacion(this.value)">
+                    <?php if ($isSuperAdmin): ?>
+                        <option value="0" <?= empty($tenantId) ? 'selected' : '' ?>>Todas las Explotaciones</option>
+                    <?php endif; ?>
+                    <?php foreach ($userTenants as $t): ?>
+                        <option value="<?= $t['id_propietario'] ?>" <?= ($tenantId == $t['id_propietario']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($t['nombre_razon_social']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php elseif (!empty($_SESSION['nombre_propietario']) && $_SESSION['nombre_propietario'] !== 'Sin asignar'): ?>
+            <span class="badge bg-white text-dark border px-2 py-1 small d-none d-lg-inline-flex align-items-center shadow-sm">
+                <i class="fa-solid fa-building-wheat me-1 text-success"></i><?= htmlspecialchars($_SESSION['nombre_propietario']) ?>
+            </span>
+            <?php endif; ?>
+
+            <!-- Selector de Finca Activa (filtrada por la explotación) -->
             <div class="input-group input-group-sm shadow-sm" style="max-width: 320px;">
                 <span class="input-group-text bg-white text-primary fw-bold"><i class="fa-solid fa-layer-group me-1"></i> Finca:</span>
                 <select id="selectorFinca" class="form-select fw-semibold" onchange="cambiarFinca(this.value)">
                     <?php if (empty($fincasDisponibles)): ?>
-                        <option value="0">Sin fincas registradas</option>
+                        <option value="0">Sin fincas en esta explotación</option>
                     <?php else: ?>
                         <?php foreach ($fincasDisponibles as $f): ?>
                             <option value="<?= $f['id_finca'] ?>" <?= ((int)$f['id_finca'] === $fincaSeleccionadaId) ? 'selected' : '' ?>>
@@ -420,7 +460,7 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                     </button>
 
                     <!-- 6. FIJAR VISTA -->
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="guardarCentroActual()" title="Fijar esta vista como predeterminada de la finca">
+                    <button type="button" id="btnFijarVista" class="btn btn-sm btn-outline-secondary" onclick="guardarCentroActual()" title="Fijar esta vista y nivel de zoom para esta finca">
                         <i class="fa-solid fa-thumbtack text-danger"></i>
                     </button>
                 </div>
@@ -451,8 +491,9 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
             </div>
         </div>
 
-        <!-- Indicador de Estado y Coordenadas -->
+        <!-- Indicador de Estado, Zoom y Coordenadas -->
         <div class="sig-status-badge d-flex align-items-center gap-2">
+            <span id="txtZoomActual" class="badge bg-primary bg-opacity-75">Zoom: 18</span>
             <span id="txtCoordenadasGPS" class="font-monospace">GPS: -</span>
             <span class="opacity-50 d-none d-sm-inline">|</span>
             <span id="txtModoActual" class="text-info fw-semibold d-none d-sm-inline">Consulta</span>
@@ -800,6 +841,13 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                 `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
         });
 
+        // Actualizar indicador de nivel de zoom en tiempo real
+        mapa.on('zoomend', function() {
+            const z = Math.round(mapa.getZoom());
+            const badgeZ = document.getElementById('txtZoomActual');
+            if (badgeZ) badgeZ.textContent = 'Zoom: ' + z;
+        });
+
         // Evento click en modo plantar árbol
         mapa.on('click', function(e) {
             if (modoPlantarArbol) {
@@ -964,12 +1012,50 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
     }
 
     /**
-     * Localiza la parcela catastral, dibuja su perímetro oficial y hace zoom suave a ella
+     * Localiza la parcela catastral, dibuja su perímetro oficial y sitúa la vista.
+     * Si el usuario ha fijado una vista con el pincho rojo, se respeta estrictamente
+     * el centro y el nivel de zoom guardados.
      */
     function gestionarDelimitacionFinca() {
         if (!fincaActual) return;
 
-        // Caso A: La finca ya tiene guardado el perímetro catastral GeoJSON
+        // Comprobar si la finca tiene coordenadas y zoom fijados por el usuario
+        const tieneVistaFijada = fincaActual.latitud_centro && 
+                                 fincaActual.longitud_centro && 
+                                 parseFloat(fincaActual.latitud_centro) !== 0 && 
+                                 parseFloat(fincaActual.longitud_centro) !== 0;
+
+        const latFijada = tieneVistaFijada ? parseFloat(fincaActual.latitud_centro) : null;
+        const lngFijada = tieneVistaFijada ? parseFloat(fincaActual.longitud_centro) : null;
+        const zoomFijado = tieneVistaFijada ? (parseInt(fincaActual.zoom_mapa, 10) || 18) : null;
+
+        // PRIORIDAD 1: Si el usuario TIENE vista fijada con el pincho rojo
+        if (tieneVistaFijada) {
+            // Fijar inmediatamente la vista y el zoom guardados
+            mapa.setView([latFijada, lngFijada], zoomFijado, { animate: false });
+            const badgeZ = document.getElementById('txtZoomActual');
+            if (badgeZ) badgeZ.textContent = 'Zoom: ' + zoomFijado;
+
+            // Si ya tiene perímetro catastral guardado, pintarlo en el mapa SIN hacer zoom
+            if (fincaActual.geojson_perimetro) {
+                try {
+                    const geoPerim = JSON.parse(fincaActual.geojson_perimetro);
+                    dibujarPerimetroOficial(geoPerim, false); // false = NO alterar la vista ni el zoom fijado
+                    mostrarToast(`📌 Vista y Zoom (${zoomFijado}) cargados para ${fincaActual.nombre_finca}`, false, 2500);
+                    return;
+                } catch (e) {
+                    console.warn("GeoJSON perimétrico no parseable, buscando en Catastro...");
+                }
+            }
+
+            // Si no tiene perímetro guardado, buscarlo en segundo plano SIN mover la vista
+            consultarCatastroOnline(fincaActual, false);
+            mostrarToast(`📌 Vista y Zoom (${zoomFijado}) cargados para ${fincaActual.nombre_finca}`, false, 2500);
+            return;
+        }
+
+        // PRIORIDAD 2: No tiene vista fijada por el usuario
+        // Caso A: Ya tiene perímetro catastral guardado -> ajustar vista al polígono
         if (fincaActual.geojson_perimetro) {
             try {
                 const geoPerim = JSON.parse(fincaActual.geojson_perimetro);
@@ -981,27 +1067,18 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
             }
         }
 
-        // Caso B: Si la finca tiene latitud/longitud centro pero no perímetro
-        if (fincaActual.latitud_centro && fincaActual.longitud_centro) {
-            const lat = parseFloat(fincaActual.latitud_centro);
-            const lng = parseFloat(fincaActual.longitud_centro);
-            if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
-                if (capaGeometrias.getLayers().length > 0 || capaArboles.getLayers().length > 0) {
-                    const bounds = capaGeometrias.getBounds().extend(capaArboles.getBounds());
-                    if (bounds.isValid()) {
-                        mapa.fitBounds(bounds, { padding: [30, 30], maxZoom: 19 });
-                        mostrarToast("Finca centrada en sus cultivos delimitados.", false, 2500);
-                        return;
-                    }
-                }
-                mapa.setView([lat, lng], fincaActual.zoom_mapa || 18);
-                mostrarToast("Finca centrada en su posición registrada.", false, 2500);
+        // Caso B: Si tiene cultivos delimitados o árboles, ajustar a ellos
+        if (capaGeometrias.getLayers().length > 0 || capaArboles.getLayers().length > 0) {
+            const bounds = capaGeometrias.getBounds().extend(capaArboles.getBounds());
+            if (bounds.isValid()) {
+                mapa.fitBounds(bounds, { padding: [30, 30], maxZoom: 19 });
+                mostrarToast("Finca centrada en sus cultivos delimitados.", false, 2500);
                 consultarCatastroOnline(fincaActual, false);
                 return;
             }
         }
 
-        // Caso C: Consulta directa al Catastro
+        // Caso C: Consulta directa al Catastro forzando zoom al encontrar la parcela
         consultarCatastroOnline(fincaActual, true);
     }
 
@@ -1021,7 +1098,9 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                 } else if (data.success && data.latitud && data.longitud) {
                     const lat = parseFloat(data.latitud);
                     const lng = parseFloat(data.longitud);
-                    mapa.setView([lat, lng], 18);
+                    if (forzarZoom) {
+                        mapa.setView([lat, lng], 18);
+                    }
                     mostrarToast(`Parcela localizada: ${data.latitud}, ${data.longitud}`, false, 3500);
                 } else {
                     consultarWFSCatastroNavegador(finca, forzarZoom);
@@ -1085,7 +1164,13 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
 
                         const cLat = sumLat / count;
                         const cLng = sumLng / count;
-                        guardarCentroFincaDirecto(finca.id_finca, cLat, cLng, JSON.stringify(geojsonObj));
+                        
+                        // Si la finca ya tiene coordenadas fijadas, NO sobreescribirlas
+                        if (!finca.latitud_centro || parseFloat(finca.latitud_centro) === 0) {
+                            guardarCentroFincaDirecto(finca.id_finca, cLat, cLng, JSON.stringify(geojsonObj));
+                        } else {
+                            guardarSoloPerimetroFinca(finca.id_finca, JSON.stringify(geojsonObj));
+                        }
 
                         mostrarToast(`¡Linderos oficiales de la parcela cargados!`, false, 3500);
                         return;
@@ -1156,6 +1241,17 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                 latitud_centro: lat,
                 longitud_centro: lng,
                 zoom_mapa: 18,
+                geojson_perimetro: geojson
+            })
+        });
+    }
+
+    function guardarSoloPerimetroFinca(idFinca, geojson) {
+        fetch(`${window.APP_URL}/api/mapas?action=guardar_centro_finca`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id_finca: idFinca,
                 geojson_perimetro: geojson
             })
         });
@@ -1768,9 +1864,19 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
     }
 
     function guardarCentroActual() {
-        if (!fincaActual) return;
+        if (!fincaActual) {
+            mostrarToast("Selecciona una finca primero para fijar su vista.", true);
+            return;
+        }
         const centro = mapa.getCenter();
-        const zoom = mapa.getZoom();
+        const zoom = Math.round(mapa.getZoom());
+
+        const btnPin = document.getElementById('btnFijarVista');
+        const iconoOriginal = btnPin ? btnPin.innerHTML : '';
+        if (btnPin) {
+            btnPin.disabled = true;
+            btnPin.innerHTML = '<span class="spinner-border spinner-border-sm text-danger"></span>';
+        }
 
         fetch(`${window.APP_URL}/api/mapas?action=guardar_centro_finca`, {
             method: 'POST',
@@ -1781,8 +1887,36 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                 longitud_centro: centro.lng,
                 zoom_mapa: zoom
             })
-        }).then(() => {
-            mostrarToast("Vista y posición fijadas como predeterminadas para esta finca.", false, 3000);
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btnPin) {
+                btnPin.disabled = false;
+                btnPin.innerHTML = '<i class="fa-solid fa-check text-success"></i>';
+                setTimeout(() => {
+                    btnPin.innerHTML = iconoOriginal;
+                }, 2000);
+            }
+            if (data.success) {
+                // Actualizar en el objeto de memoria
+                fincaActual.latitud_centro = centro.lat;
+                fincaActual.longitud_centro = centro.lng;
+                fincaActual.zoom_mapa = zoom;
+
+                const badgeZ = document.getElementById('txtZoomActual');
+                if (badgeZ) badgeZ.textContent = 'Zoom: ' + zoom;
+
+                mostrarToast(`📌 ¡Vista y Zoom guardados! (Centro: ${centro.lat.toFixed(5)}, ${centro.lng.toFixed(5)} | Zoom ${zoom}). Se mantendrá esta vista exacta al abrir la finca.`, false, 4500);
+            } else {
+                mostrarToast(data.message || 'Error al fijar la vista.', true);
+            }
+        })
+        .catch(err => {
+            if (btnPin) {
+                btnPin.disabled = false;
+                btnPin.innerHTML = iconoOriginal;
+            }
+            mostrarToast("Error de conexión al fijar la vista.", true);
         });
     }
 
@@ -1904,6 +2038,10 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
         document.getElementById('zona_color_hex').value = color;
         document.querySelectorAll('#paletaColoresZona .color-swatch').forEach(s => s.classList.remove('active'));
         if (element) element.classList.add('active');
+    }
+
+    function cambiarExplotacion(idExplotacion) {
+        window.location.href = `${window.APP_URL}/mapas?explotacion_id=${idExplotacion}`;
     }
 
     function cambiarFinca(idFinca) {

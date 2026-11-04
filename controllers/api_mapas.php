@@ -38,8 +38,8 @@ try {
                          FROM fincas f
                          LEFT JOIN parajes pa ON f.id_paraje = pa.id_paraje
                          WHERE f.id_finca = :id AND f.activo = 1";
-            if ($tenantId && !$isSuperAdmin) {
-                $sqlFinca .= " AND (f.id_propietario = " . (int)$tenantId . " OR f.id_propietario IS NULL)";
+            if ($tenantId) {
+                $sqlFinca .= " AND f.id_propietario = " . (int)$tenantId;
             }
             $stmtF = $db->prepare($sqlFinca);
             $stmtF->execute(array(':id' => $idFinca));
@@ -583,12 +583,34 @@ try {
             }
 
             $idFinca = (int)(isset($input['id_finca']) ? $input['id_finca'] : 0);
-            $lat = (float)(isset($input['latitud_centro']) ? $input['latitud_centro'] : 0);
-            $lng = (float)(isset($input['longitud_centro']) ? $input['longitud_centro'] : 0);
-            $zoom = (int)(isset($input['zoom_mapa']) ? $input['zoom_mapa'] : 17);
+            $lat = isset($input['latitud_centro']) ? (float)$input['latitud_centro'] : null;
+            $lng = isset($input['longitud_centro']) ? (float)$input['longitud_centro'] : null;
+            $zoom = isset($input['zoom_mapa']) ? (int)round($input['zoom_mapa']) : 18;
             $perimetro = isset($input['geojson_perimetro']) ? $input['geojson_perimetro'] : null;
 
-            if ($idFinca <= 0 || $lat == 0 || $lng == 0) {
+            if ($idFinca <= 0) {
+                echo json_encode(array('success' => false, 'message' => 'ID de finca no válido.'));
+                exit;
+            }
+
+            if ($tenantId && !$isSuperAdmin) {
+                $checkF = $db->prepare("SELECT 1 FROM fincas WHERE id_finca = :id AND id_propietario = :tid");
+                $checkF->execute(array(':id' => $idFinca, ':tid' => $tenantId));
+                if (!$checkF->fetchColumn()) {
+                    echo json_encode(array('success' => false, 'message' => 'Sin permisos sobre esta finca.'));
+                    exit;
+                }
+            }
+
+            // Si solo se proporciona geojson_perimetro y no coordenadas válidas
+            if (($lat === null || $lat == 0 || $lng === null || $lng == 0) && !empty($perimetro)) {
+                $stmtUpdF = $db->prepare("UPDATE fincas SET geojson_perimetro = :perim WHERE id_finca = :id");
+                $stmtUpdF->execute(array(':perim' => $perimetro, ':id' => $idFinca));
+                echo json_encode(array('success' => true, 'message' => 'Perímetro catastral guardado.'));
+                exit;
+            }
+
+            if ($lat == 0 || $lng == 0) {
                 echo json_encode(array('success' => false, 'message' => 'Coordenadas no válidas para la finca.'));
                 exit;
             }
@@ -609,7 +631,10 @@ try {
 
             echo json_encode(array(
                 'success' => true,
-                'message' => 'Centro y zoom de la finca guardados para futuras aperturas.'
+                'zoom' => $zoom,
+                'lat' => $lat,
+                'lng' => $lng,
+                'message' => "Vista fijada con éxito (Zoom nivel {$zoom})."
             ));
             break;
 
@@ -623,17 +648,21 @@ try {
                 exit;
             }
 
-            $stmtF = $db->prepare("
+            $sqlLoc = "
                 SELECT f.*, pa.nombre_paraje, pa.termino_municipal, pa.provincia
                 FROM fincas f
                 LEFT JOIN parajes pa ON f.id_paraje = pa.id_paraje
                 WHERE f.id_finca = :id AND f.activo = 1
-            ");
+            ";
+            if ($tenantId) {
+                $sqlLoc .= " AND f.id_propietario = " . (int)$tenantId;
+            }
+            $stmtF = $db->prepare($sqlLoc);
             $stmtF->execute(array(':id' => $idFinca));
             $finca = $stmtF->fetch();
 
             if (!$finca) {
-                echo json_encode(array('success' => false, 'message' => 'Finca no encontrada.'));
+                echo json_encode(array('success' => false, 'message' => 'Finca no encontrada o sin permisos en la explotación activa.'));
                 exit;
             }
 
@@ -703,8 +732,14 @@ try {
                             $geojson = json_encode($geojsonArray);
 
                             // Guardar en base de datos para no tener que consultar cada vez
-                            $db->prepare("UPDATE fincas SET latitud_centro = :lat, longitud_centro = :lng, geojson_perimetro = :geo WHERE id_finca = :id")
-                               ->execute(array(':lat' => $lat, ':lng' => $lng, ':geo' => $geojson, ':id' => $idFinca));
+                            // Preservar latitud_centro y longitud_centro si ya fueron fijados por el usuario
+                            $db->prepare("
+                                UPDATE fincas 
+                                SET geojson_perimetro = :geo,
+                                    latitud_centro = COALESCE(NULLIF(latitud_centro, 0), :lat),
+                                    longitud_centro = COALESCE(NULLIF(longitud_centro, 0), :lng)
+                                WHERE id_finca = :id
+                            ")->execute(array(':lat' => $lat, ':lng' => $lng, ':geo' => $geojson, ':id' => $idFinca));
                         }
                     }
                 }
@@ -726,8 +761,12 @@ try {
                         $lat = (float)$mY[1];
 
                         if ($lat != 0 && $lng != 0) {
-                            $db->prepare("UPDATE fincas SET latitud_centro = :lat, longitud_centro = :lng WHERE id_finca = :id")
-                               ->execute(array(':lat' => $lat, ':lng' => $lng, ':id' => $idFinca));
+                            $db->prepare("
+                                UPDATE fincas 
+                                SET latitud_centro = COALESCE(NULLIF(latitud_centro, 0), :lat),
+                                    longitud_centro = COALESCE(NULLIF(longitud_centro, 0), :lng)
+                                WHERE id_finca = :id
+                            ")->execute(array(':lat' => $lat, ':lng' => $lng, ':id' => $idFinca));
                         }
                     }
                 }
