@@ -161,6 +161,9 @@ $plantaciones = $stmtPl->fetchAll();
             $reportFilename = 'plantaciones_cultivos_' . date('Y-m-d') . '.pdf';
             require VIEWS_PATH . '/layouts/toolbar_informes.php';
             ?>
+            <a href="<?= APP_URL ?>/mapas<?= $filtroFinca ? '?finca_id=' . $filtroFinca : '' ?>" class="btn btn-outline-primary shadow-sm" title="Ver y delimitar plantaciones en el Mapa Satelital">
+                <i class="fa-solid fa-map-location-dot me-1"></i> Ver en Mapa SIG
+            </a>
             <a href="<?= APP_URL ?>/plantaciones/nueva" class="btn btn-ag shadow-sm">
                 <i class="fa-solid fa-plus-circle me-1"></i> Nueva Plantación
             </a>

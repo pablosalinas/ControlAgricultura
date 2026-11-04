@@ -26,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fechaSiembra = !empty($_POST['fecha_siembra']) ? $_POST['fecha_siembra'] : null;
     $fechaTrans = !empty($_POST['fecha_transplante']) ? $_POST['fecha_transplante'] : null;
     $fechaFin = !empty($_POST['fecha_estimada_fin']) ? $_POST['fecha_estimada_fin'] : null;
+    $tipoPlantacion = isset($_POST['tipo_plantacion']) ? $_POST['tipo_plantacion'] : 'temporada';
+    $diaMesRecoleccion = !empty($fechaFin) ? date('m-d', strtotime($fechaFin)) : null;
     $estado = isset($_POST['estado']) ? $_POST['estado'] : 'en_crecimiento';
     $notas = trim(isset($_POST['notas']) ? $_POST['notas'] : '');
 
@@ -37,11 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 INSERT INTO plantaciones (
                     id_finca, id_cultivo, identificador_cuadro, campana_ano, superficie_ocupada_ha,
                     num_arboles_o_plantas, marco_plantacion, fecha_siembra, fecha_transplante,
-                    fecha_estimada_fin, estado, notas
+                    fecha_estimada_fin, tipo_plantacion, dia_mes_recoleccion, estado, notas
                 ) VALUES (
                     :finca, :cultivo, :cuadro, :campana, :sup,
                     :num, :marco, :siembra, :trans,
-                    :fin, :estado, :notas
+                    :fin, :tipo, :diames, :estado, :notas
                 )
             ");
             $stmt->execute([
@@ -55,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':siembra'  => $fechaSiembra,
                 ':trans'    => $fechaTrans,
                 ':fin'      => $fechaFin,
+                ':tipo'     => $tipoPlantacion,
+                ':diames'   => $diaMesRecoleccion,
                 ':estado'   => $estado,
                 ':notas'    => $notas
             ]);
@@ -127,6 +131,13 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Campaña / Año</label>
                             <input type="number" name="campana_ano" class="form-control" value="<?= date('Y') ?>" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Régimen / Tipo</label>
+                            <select name="tipo_plantacion" class="form-select fw-semibold">
+                                <option value="temporada" selected>🌱 De temporada (hortalizas...)</option>
+                                <option value="fija">🌳 Fija / Anual (árboles, olivar...)</option>
+                            </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Estado Actual</label>

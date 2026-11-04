@@ -431,6 +431,13 @@ $fincas = $stmtF->fetchAll();
                                                 <span class="visually-hidden">Mapas</span>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 small" style="min-width: 260px;">
+                                                <li>
+                                                    <a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/mapas?finca_id=<?= $f['id_finca'] ?>">
+                                                        <i class="fa-solid fa-map-location-dot me-2 text-primary"></i><strong>Mapa SIG AgroDietario</strong>
+                                                        <div class="small text-muted ps-4">Delimitar hortalizas y arboleda</div>
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider my-1"></li>
                                                 <li><h6 class="dropdown-header text-uppercase text-muted fw-bold py-1" style="font-size:0.7rem;"><i class="fa-solid fa-satellite me-1 text-primary"></i>Visores Cartográficos Oficiales</h6></li>
                                                 <li>
                                                     <a class="dropdown-item py-2" href="<?= $urlMapaCatastro ?>" target="_blank">

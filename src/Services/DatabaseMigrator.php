@@ -67,6 +67,54 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'fincas', 'coste_anual_derrama', 'DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             self::addColumnIfNotExists($pdo, 'fincas', 'id_comunidad', 'INT NULL');
             self::addColumnIfNotExists($pdo, 'fincas', 'descripcion', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'fincas', 'latitud_centro', 'DECIMAL(11,8) NULL');
+            self::addColumnIfNotExists($pdo, 'fincas', 'longitud_centro', 'DECIMAL(11,8) NULL');
+            self::addColumnIfNotExists($pdo, 'fincas', 'zoom_mapa', 'INT NULL DEFAULT 16');
+            self::addColumnIfNotExists($pdo, 'fincas', 'geojson_perimetro', 'LONGTEXT NULL');
+
+            // 2.1 Tablas para Mapeo SIG, Zonas Delimitadas y Árboles Individuales
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS plantaciones_geometria (
+                    id_geometria INT AUTO_INCREMENT PRIMARY KEY,
+                    id_plantacion INT NOT NULL,
+                    id_finca INT NOT NULL,
+                    nombre_zona VARCHAR(150) NULL,
+                    tipo_geometria VARCHAR(50) NOT NULL DEFAULT 'polygon',
+                    geojson LONGTEXT NOT NULL,
+                    color_hex VARCHAR(20) NOT NULL DEFAULT '#10b981',
+                    superficie_m2 DECIMAL(12,2) NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    actualizado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_geom_plantacion (id_plantacion),
+                    INDEX idx_geom_finca (id_finca),
+                    INDEX idx_geom_activo (activo)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS arboles_individuales (
+                    id_arbol INT AUTO_INCREMENT PRIMARY KEY,
+                    id_finca INT NOT NULL,
+                    id_plantacion INT NULL,
+                    id_cultivo INT NULL,
+                    codigo_arbol VARCHAR(50) NOT NULL,
+                    especie_variedad VARCHAR(150) NULL,
+                    latitud DECIMAL(11,8) NOT NULL,
+                    longitud DECIMAL(11,8) NOT NULL,
+                    ano_plantacion INT NULL,
+                    estado_salud ENUM('vigoroso', 'bueno', 'regular', 'enfermo', 'seco', 'arrancado') NOT NULL DEFAULT 'bueno',
+                    patron_portainjerto VARCHAR(100) NULL,
+                    notas TEXT NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    actualizado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_arbol_finca (id_finca),
+                    INDEX idx_arbol_plantacion (id_plantacion),
+                    INDEX idx_arbol_cultivo (id_cultivo),
+                    INDEX idx_arbol_activo (activo)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
 
             // 2b. Columnas agronómicas e IA en CULTIVOS
             self::addColumnIfNotExists($pdo, 'cultivos', 'descripcion', 'TEXT NULL');
@@ -104,10 +152,12 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'recolecciones', 'herramientas_transporte', 'VARCHAR(150) NULL');
             self::addColumnIfNotExists($pdo, 'recolecciones', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
 
-            // 2g. Columnas en PLANTACIONES (Soft delete y notas)
+            // 2g. Columnas en PLANTACIONES (Soft delete, tipo fija/temporada y fecha recolección adaptable)
             self::addColumnIfNotExists($pdo, 'plantaciones', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::addColumnIfNotExists($pdo, 'plantaciones', 'notas', 'TEXT NULL');
             self::addColumnIfNotExists($pdo, 'plantaciones', 'notas_cuaderno', 'TEXT NULL');
+            self::addColumnIfNotExists($pdo, 'plantaciones', 'tipo_plantacion', "VARCHAR(30) NOT NULL DEFAULT 'temporada'");
+            self::addColumnIfNotExists($pdo, 'plantaciones', 'dia_mes_recoleccion', "VARCHAR(10) NULL");
 
             // 3. Columnas en PROPIETARIOS (Explotaciones)
             self::addColumnIfNotExists($pdo, 'propietarios', 'logo', 'VARCHAR(255) NULL');

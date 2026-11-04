@@ -308,6 +308,11 @@
                         <a class="nav-link" href="<?= APP_URL ?>/dashboard"><i class="fa-solid fa-chart-pie me-1 text-info"></i> Panel</a>
                     </li>
 
+                    <!-- Acceso Directo al Visor Cartográfico SIG -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= APP_URL ?>/mapas"><i class="fa-solid fa-map-location-dot me-1 text-info"></i> Mapa SIG</a>
+                    </li>
+
                     <!-- Fincas con icono de teledetección/capas SIG -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -316,6 +321,7 @@
                         <ul class="dropdown-menu shadow border-0 rounded-3">
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas"><i class="fa-solid fa-draw-polygon me-2 text-primary"></i>Mis Fincas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/fincas/nueva"><i class="fa-solid fa-plus-circle me-2 text-primary"></i>Nueva Finca</a></li>
+                            <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/mapas"><i class="fa-solid fa-map-location-dot me-2"></i>Visor Cartográfico y Árboles</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/parajes"><i class="fa-solid fa-location-crosshairs me-2 text-info"></i>Maestro de Parajes y Paradas</a></li>
                         </ul>
@@ -330,6 +336,7 @@
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/cultivos"><i class="fa-solid fa-book-bookmark me-2 text-primary"></i>Catálogo Botánico</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones"><i class="fa-solid fa-cubes-stacked me-2 text-info"></i>Plantaciones Activas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones/nueva"><i class="fa-solid fa-plus me-2 text-info"></i>Nueva Plantación</a></li>
+                            <li><a class="dropdown-item py-2 fw-semibold text-info" href="<?= APP_URL ?>/mapas"><i class="fa-solid fa-map-location-dot me-2"></i>Mapa de Cultivos y Arboleda</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2 fw-semibold text-success" href="<?= APP_URL ?>/plan-labores"><i class="fa-solid fa-clipboard-list me-2"></i>Plan de Tratamientos y Labores</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/diario"><i class="fa-solid fa-camera-retro me-2 text-warning"></i>Diario y Fotos</a></li>

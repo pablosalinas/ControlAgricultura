@@ -80,8 +80,11 @@ $ultimosRiegos = $stmtRiegos->fetchAll();
             $urlMapaCatastro = !empty($refDirectaCatastro) ? "https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=" . urlencode($refDirectaCatastro) : "https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx";
         ?>
         <div class="d-flex gap-2 mt-3 mt-md-0">
+            <a href="<?= APP_URL ?>/mapas?finca_id=<?= $finca['id_finca'] ?>" class="btn btn-primary fw-semibold" title="Abrir en Visor SIG y delimitar cultivos o árboles">
+                <i class="fa-solid fa-map-location-dot me-1"></i> Mapa SIG Cultivos
+            </a>
             <a href="<?= $urlMapaCatastro ?>" target="_blank" class="btn btn-outline-primary" title="Localización Directa en Catastro (Pol <?= htmlspecialchars($finca['poligono'] ?: '-') ?> Parc <?= htmlspecialchars($finca['parcela'] ?: '-') ?>)">
-                <i class="fa-solid fa-layer-group me-1"></i> Ver Parcela en Catastro
+                <i class="fa-solid fa-layer-group me-1"></i> Catastro
             </a>
             <a href="https://sigpac.mapa.gob.es/fega/visor/" target="_blank" class="btn btn-outline-success" title="Visor SIGPAC Oficial (FEGA)">
                 <i class="fa-solid fa-map-location-dot me-1"></i> SIGPAC (FEGA)

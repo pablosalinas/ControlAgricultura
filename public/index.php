@@ -381,6 +381,28 @@ switch ($route) {
         require_once ROOT_PATH . '/controllers/api_fitosanitarios_ia.php';
         break;
 
+    // Visor Cartográfico SIG y Gestión de Cultivos/Árboles en Mapa
+    case 'mapas':
+    case 'mapa-cultivos':
+    case 'visor-sig':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/mapas/index.php';
+        break;
+
+    // API para Visor Cartográfico SIG (Geometrías, Árboles y Coordenadas)
+    case 'api/mapas':
+    case 'api/mapas/datos':
+    case 'api/mapas/guardar-zona':
+    case 'api/mapas/borrar-zona':
+    case 'api/mapas/guardar-arbol':
+    case 'api/mapas/borrar-arbol':
+    case 'api/mapas/centro':
+        require_once ROOT_PATH . '/controllers/api_mapas.php';
+        break;
+
     default:
         http_response_code(404);
         $pageTitle = "Página no encontrada - " . APP_NAME;
