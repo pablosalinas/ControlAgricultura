@@ -1832,6 +1832,7 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
     function editarDatosArbol(arbol) {
         bootstrap.Offcanvas.getInstance(document.getElementById('offcanvasDetalle')).hide();
 
+        document.getElementById('modalArbolTitle').innerHTML = `<i class="fa-solid fa-pen-to-square me-2"></i>Modificar Árbol: <strong>${arbol.codigo_arbol}</strong>`;
         document.getElementById('arbol_id').value = arbol.id_arbol;
         document.getElementById('arbol_lat').value = arbol.latitud;
         document.getElementById('arbol_lng').value = arbol.longitud;
@@ -1844,6 +1845,11 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
 
         if (arbol.id_plantacion) {
             alSeleccionarPlantacionArbol(arbol.id_plantacion);
+            // Asegurar que el código y especie corresponden fielmente al árbol seleccionado
+            document.getElementById('arbol_codigo').value = arbol.codigo_arbol;
+            if (arbol.especie_variedad) {
+                document.getElementById('arbol_especie').value = arbol.especie_variedad;
+            }
         } else {
             document.getElementById('cajaInfoPlantacionArbol').classList.add('d-none');
         }
@@ -2047,13 +2053,17 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
                 </div>
             `;
 
-            // Autocargar especie y variedad en el árbol
-            inputEspecie.value = `${p.nombre_comun}${p.variedad ? ' ' + p.variedad : ''}`.trim();
+            // Si estamos EDITANDO un árbol existente (arbol_id > 0), NUNCA sobreescribir su código ni especie
+            const idArbolActual = document.getElementById('arbol_id').value;
+            if (!idArbolActual) {
+                // Autocargar especie y variedad en el árbol nuevo
+                inputEspecie.value = `${p.nombre_comun}${p.variedad ? ' ' + p.variedad : ''}`.trim();
 
-            // Código sugerido inteligente con las siglas del cultivo (ej: OLI-001, LIM-005, ALM-012)
-            const siglas = (p.nombre_comun || 'ARB').substring(0, 3).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            const numArb = capaArboles.getLayers().length + 1;
-            inputCodigo.value = `${siglas}-${String(numArb).padStart(3, '0')}`;
+                // Código sugerido inteligente con las siglas del cultivo SOLO para nuevos árboles
+                const siglas = (p.nombre_comun || 'ARB').substring(0, 3).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const numArb = capaArboles.getLayers().length + 1;
+                inputCodigo.value = `${siglas}-${String(numArb).padStart(3, '0')}`;
+            }
 
             if (!document.getElementById('arbol_ano').value && p.campana_ano) {
                 document.getElementById('arbol_ano').value = p.campana_ano;
