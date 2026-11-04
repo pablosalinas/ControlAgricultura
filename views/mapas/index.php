@@ -483,9 +483,10 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Plantación / Cultivo en esta Zona <span class="text-danger">*</span></label>
-                        <select id="zona_id_plantacion" class="form-select fw-semibold" required>
+                        <select id="zona_id_plantacion" class="form-select fw-semibold" onchange="alSeleccionarPlantacionZona(this.value)" required>
                             <option value="">-- Seleccionar cultivo/plantación --</option>
                         </select>
+                        <div id="cajaInfoPlantacionZona" class="alert alert-light border py-2 px-3 small mt-2 d-none"></div>
                     </div>
 
                     <div class="mb-3">
@@ -555,9 +556,10 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold small">Plantación Asociada</label>
-                            <select id="arbol_id_plantacion" class="form-select">
+                            <select id="arbol_id_plantacion" class="form-select fw-semibold" onchange="alSeleccionarPlantacionArbol(this.value)">
                                 <option value="">-- Sin vincular a plantación --</option>
                             </select>
+                            <div id="cajaInfoPlantacionArbol" class="alert alert-light border py-2 px-3 small mt-2 d-none"></div>
                         </div>
                         <div class="col-md-8">
                             <label class="form-label fw-semibold small">Variedad o Especie</label>
@@ -1475,6 +1477,18 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
         document.getElementById('zona_lbl_superficie').textContent = supM2 > 0 ? 
             `${Math.round(supM2)} m² (${(supM2 / 10000).toFixed(3)} ha)` : 'Área libre';
 
+        // Si solo hay una plantación en la finca, preseleccionarla automáticamente
+        const selZ = document.getElementById('zona_id_plantacion');
+        if (plantacionesActuales.length === 1) {
+            selZ.value = plantacionesActuales[0].id_plantacion;
+            alSeleccionarPlantacionZona(plantacionesActuales[0].id_plantacion);
+        } else if (selZ.value) {
+            alSeleccionarPlantacionZona(selZ.value);
+        } else {
+            document.getElementById('cajaInfoPlantacionZona').classList.add('d-none');
+            document.getElementById('zona_nombre').value = '';
+        }
+
         new bootstrap.Modal(document.getElementById('modalGuardarZona')).show();
     }
 
@@ -1492,6 +1506,10 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
         document.getElementById('zona_color_hex').value = geometria.color_hex || '#10b981';
         document.getElementById('zona_superficie_m2').value = geometria.superficie_m2 || 0;
         document.getElementById('zona_lbl_superficie').textContent = geometria.superficie_m2 ? `${Math.round(geometria.superficie_m2)} m²` : '-';
+
+        if (geometria.id_plantacion) {
+            alSeleccionarPlantacionZona(geometria.id_plantacion);
+        }
 
         new bootstrap.Modal(document.getElementById('modalGuardarZona')).show();
     }
@@ -1576,6 +1594,18 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
         document.getElementById('arbol_ano').value = new Date().getFullYear();
         document.getElementById('arbol_notas').value = '';
 
+        // Si hay una plantación de arboleda / fija o solo hay una, seleccionarla por defecto
+        const selA = document.getElementById('arbol_id_plantacion');
+        const plantacionArbol = plantacionesActuales.find(p => p.es_fija_anual) || (plantacionesActuales.length === 1 ? plantacionesActuales[0] : null);
+        if (plantacionArbol) {
+            selA.value = plantacionArbol.id_plantacion;
+            alSeleccionarPlantacionArbol(plantacionArbol.id_plantacion);
+        } else if (selA.value) {
+            alSeleccionarPlantacionArbol(selA.value);
+        } else {
+            document.getElementById('cajaInfoPlantacionArbol').classList.add('d-none');
+        }
+
         new bootstrap.Modal(document.getElementById('modalGuardarArbol')).show();
     }
 
@@ -1591,6 +1621,12 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
         document.getElementById('arbol_especie').value = arbol.especie_variedad || '';
         document.getElementById('arbol_ano').value = arbol.ano_plantacion || '';
         document.getElementById('arbol_notas').value = arbol.notas || '';
+
+        if (arbol.id_plantacion) {
+            alSeleccionarPlantacionArbol(arbol.id_plantacion);
+        } else {
+            document.getElementById('cajaInfoPlantacionArbol').classList.add('d-none');
+        }
 
         new bootstrap.Modal(document.getElementById('modalGuardarArbol')).show();
     }
@@ -1696,6 +1732,78 @@ $fincaSeleccionadaId = isset($_GET['finca_id']) ? (int)$_GET['finca_id'] : (!emp
             selZona.innerHTML += `<option value="${p.id_plantacion}">${label}</option>`;
             selArb.innerHTML += `<option value="${p.id_plantacion}">${label}</option>`;
         });
+    }
+
+    /**
+     * Carga automáticamente todos los datos del cultivo/plantación en la zona seleccionada
+     */
+    function alSeleccionarPlantacionZona(idPlantacion) {
+        const p = plantacionesActuales.find(item => item.id_plantacion == idPlantacion);
+        const caja = document.getElementById('cajaInfoPlantacionZona');
+        const inputNombre = document.getElementById('zona_nombre');
+
+        if (p) {
+            caja.classList.remove('d-none');
+            caja.innerHTML = `
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="fw-bold text-dark"><i class="fa-solid fa-leaf text-success me-1"></i>${p.nombre_comun} ${p.variedad ? '(' + p.variedad + ')' : ''}</span>
+                    <span class="badge ${p.es_fija_anual ? 'bg-success' : 'bg-primary'}">${p.es_fija_anual ? 'Plantación Fija' : 'De temporada'}</span>
+                </div>
+                <div class="text-muted" style="font-size:0.75rem;">
+                    Cuadro: <strong>${p.identificador_cuadro}</strong> &bull; Campaña: <strong>${p.campana_ano}</strong> &bull; Marco: <strong>${p.marco_plantacion || 'Libre'}</strong>
+                </div>
+            `;
+
+            // Cargar nombre sugerido si está vacío o por defecto
+            if (!inputNombre.value || inputNombre.value.startsWith('Bancal') || inputNombre.value.startsWith('Zona') || inputNombre.value.includes('- Cuadro')) {
+                inputNombre.value = `${p.nombre_comun}${p.variedad ? ' ' + p.variedad : ''} - ${p.identificador_cuadro}`;
+            }
+
+            // Seleccionar color temático del cultivo automáticamente
+            const color = COLORES_CULTIVO[p.tipo_cultivo] || '#10b981';
+            seleccionarColorZona(color, null);
+        } else {
+            caja.classList.add('d-none');
+            caja.innerHTML = '';
+        }
+    }
+
+    /**
+     * Carga automáticamente todos los datos del cultivo/plantación en el árbol seleccionado
+     */
+    function alSeleccionarPlantacionArbol(idPlantacion) {
+        const p = plantacionesActuales.find(item => item.id_plantacion == idPlantacion);
+        const caja = document.getElementById('cajaInfoPlantacionArbol');
+        const inputEspecie = document.getElementById('arbol_especie');
+        const inputCodigo = document.getElementById('arbol_codigo');
+
+        if (p) {
+            caja.classList.remove('d-none');
+            caja.innerHTML = `
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="fw-bold text-dark"><i class="fa-solid fa-tree text-success me-1"></i>${p.nombre_comun} ${p.variedad ? '(' + p.variedad + ')' : ''}</span>
+                    <span class="badge ${p.es_fija_anual ? 'bg-success' : 'bg-primary'}">${p.es_fija_anual ? 'Arboleda Fija' : 'Temporada'}</span>
+                </div>
+                <div class="text-muted" style="font-size:0.75rem;">
+                    Cuadro: <strong>${p.identificador_cuadro}</strong> &bull; Marco: <strong>${p.marco_plantacion || 'Libre'}</strong> &bull; Campaña: <strong>${p.campana_ano}</strong>
+                </div>
+            `;
+
+            // Autocargar especie y variedad en el árbol
+            inputEspecie.value = `${p.nombre_comun}${p.variedad ? ' ' + p.variedad : ''}`.trim();
+
+            // Código sugerido inteligente con las siglas del cultivo (ej: OLI-001, LIM-005, ALM-012)
+            const siglas = (p.nombre_comun || 'ARB').substring(0, 3).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const numArb = capaArboles.getLayers().length + 1;
+            inputCodigo.value = `${siglas}-${String(numArb).padStart(3, '0')}`;
+
+            if (!document.getElementById('arbol_ano').value && p.campana_ano) {
+                document.getElementById('arbol_ano').value = p.campana_ano;
+            }
+        } else {
+            caja.classList.add('d-none');
+            caja.innerHTML = '';
+        }
     }
 
     function actualizarLeyendaCultivos(plantaciones) {
