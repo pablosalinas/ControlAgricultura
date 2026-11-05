@@ -380,7 +380,15 @@ $tratamientos = $stmtTrat->fetchAll();
                         <!-- Indicador de carga -->
                         <div id="ia_producto_spinner" class="mt-3 text-center py-2 d-none">
                             <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                            <span class="text-primary fw-semibold small">Consultando Registro Oficial Fitosanitario y analizando ficha técnica...</span>
+                            <span class="text-primary fw-semibold small">Consultando Registro Oficial Fitosanitario, Trampas y Biorreguladores...</span>
+                        </div>
+
+                        <!-- Opciones múltiples encontradas para seleccionar -->
+                        <div id="ia_producto_opciones_wrapper" class="mt-3 d-none">
+                            <div class="small fw-bold text-dark mb-2" id="ia_producto_opciones_count">
+                                <i class="fa-solid fa-list-check me-1 text-primary"></i>Selecciona la opción más adecuada para este tratamiento:
+                            </div>
+                            <div id="ia_producto_opciones_list" class="d-flex flex-column gap-2 mb-2" style="max-height: 250px; overflow-y: auto;"></div>
                         </div>
 
                         <!-- Tarjeta con Resultado Encontrado y Botón de Relleno Automático -->
@@ -984,21 +992,72 @@ function seleccionarPildora(nombre) {
     }
 }
 
+let opcionesTratamientoIa = [];
+
+function mostrarFichaDetalleIa(d) {
+    datosIaCargados = d;
+    const resBox = document.getElementById('ia_producto_resultado');
+
+    document.getElementById('res_ia_nombre').textContent = d.nombre_comercial_producto || '';
+    const badgeEco = document.getElementById('res_ia_badge_eco');
+    if (d.es_ecologico) {
+        badgeEco.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill';
+        badgeEco.innerHTML = '<i class="fa-solid fa-leaf me-1"></i>Apto Ecológico (Bio)';
+    } else {
+        badgeEco.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill';
+        badgeEco.innerHTML = '<i class="fa-solid fa-flask me-1"></i>Convencional';
+    }
+
+    document.getElementById('res_ia_fuente').textContent = d.fuente || 'Registro Fitosanitario';
+    document.getElementById('res_ia_materia').textContent = d.materia_activa || 'No especificada';
+    document.getElementById('res_ia_registro').textContent = d.num_registro_oficial || 'En trámite / Básico';
+    document.getElementById('res_ia_tipo').textContent = d.tipo_producto || '-';
+    document.getElementById('res_ia_plaga').textContent = d.plaga_o_enfermedad_objetivo || d.plagas_objetivo || '-';
+    document.getElementById('res_ia_dosis').textContent = (d.dosis_recomendada_ha || '1.5') + ' ' + (d.unidad_dosis || 'l/ha');
+    document.getElementById('res_ia_plazo').textContent = (d.plazo_seguridad_dias !== undefined) ? d.plazo_seguridad_dias : '0';
+    document.getElementById('res_ia_obs').textContent = d.observaciones_tecnicas || (d.modo_accion || '');
+
+    resBox.classList.remove('d-none');
+}
+
+function seleccionarOpcionTratamientoIa(idx) {
+    if (!opcionesTratamientoIa || !opcionesTratamientoIa[idx]) return;
+    mostrarFichaDetalleIa(opcionesTratamientoIa[idx]);
+
+    // Resaltar tarjeta seleccionada
+    opcionesTratamientoIa.forEach((_, i) => {
+        const c = document.getElementById('trat_opt_' + i);
+        if (c) {
+            c.classList.remove('border-primary', 'bg-primary-subtle');
+            c.classList.add('bg-white');
+        }
+    });
+    const sel = document.getElementById('trat_opt_' + idx);
+    if (sel) {
+        sel.classList.remove('bg-white');
+        sel.classList.add('border-primary', 'bg-primary-subtle');
+    }
+}
+
 function consultarProductoIa() {
     const qInp = document.getElementById('ia_producto_busqueda');
     if (!qInp) return;
     const q = qInp.value.trim();
     if (!q) {
-        alert("Por favor, introduce el nombre del producto, materia activa o plaga a consultar.");
+        alert("Por favor, introduce el nombre del producto, trampa, hormona, materia activa o plaga a consultar.");
         return;
     }
 
     const spinner = document.getElementById('ia_producto_spinner');
     const resBox = document.getElementById('ia_producto_resultado');
     const btn = document.getElementById('btnConsultarIaProducto');
+    const wrapper = document.getElementById('ia_producto_opciones_wrapper');
+    const list = document.getElementById('ia_producto_opciones_list');
+    const countLbl = document.getElementById('ia_producto_opciones_count');
 
     spinner.classList.remove('d-none');
     resBox.classList.add('d-none');
+    if (wrapper) wrapper.classList.add('d-none');
     btn.disabled = true;
 
     fetch('<?= APP_URL ?>/api/fitosanitarios/consultar-ia?q=' + encodeURIComponent(q))
@@ -1007,39 +1066,48 @@ function consultarProductoIa() {
             spinner.classList.add('d-none');
             btn.disabled = false;
 
-            if (res.success && res.data) {
-                const d = res.data;
-                datosIaCargados = d;
-
-                document.getElementById('res_ia_nombre').textContent = d.nombre_comercial_producto || q;
-                const badgeEco = document.getElementById('res_ia_badge_eco');
-                if (d.es_ecologico) {
-                    badgeEco.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill';
-                    badgeEco.innerHTML = '<i class="fa-solid fa-leaf me-1"></i>Apto Ecológico (Bio)';
-                } else {
-                    badgeEco.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill';
-                    badgeEco.innerHTML = '<i class="fa-solid fa-flask me-1"></i>Convencional';
+            if (res.success && res.opciones && res.opciones.length > 0) {
+                opcionesTratamientoIa = res.opciones;
+                
+                if (wrapper && list && res.opciones.length > 1) {
+                    list.innerHTML = '';
+                    countLbl.innerHTML = '<i class="fa-solid fa-list-check me-1 text-primary"></i>Se han encontrado <strong>' + res.opciones.length + ' opciones</strong>. Selecciona la más adecuada:';
+                    
+                    res.opciones.forEach((opt, idx) => {
+                        const card = document.createElement('div');
+                        card.id = 'trat_opt_' + idx;
+                        card.className = 'card p-2 border bg-white shadow-sm cursor-pointer';
+                        card.style.cursor = 'pointer';
+                        
+                        const esEco = parseInt(opt.es_ecologico) === 1;
+                        const ecoBadge = esEco ? '<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small">Ecológico</span>' : '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill small">Convencional</span>';
+                        
+                        card.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="text-primary">${opt.nombre_comercial_producto}</strong> ${ecoBadge}
+                                    <div class="small text-muted">${opt.materia_activa || ''} | <span class="text-dark">${opt.plagas_objetivo || opt.plaga_o_enfermedad_objetivo || ''}</span></div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="event.stopPropagation(); seleccionarOpcionTratamientoIa(${idx});">Elegir</button>
+                            </div>
+                        `;
+                        card.onclick = () => seleccionarOpcionTratamientoIa(idx);
+                        list.appendChild(card);
+                    });
+                    wrapper.classList.remove('d-none');
                 }
-
-                document.getElementById('res_ia_fuente').textContent = d.fuente || 'Registro Fitosanitario';
-                document.getElementById('res_ia_materia').textContent = d.materia_activa || 'No especificada';
-                document.getElementById('res_ia_registro').textContent = d.num_registro_oficial || 'En trámite / Básico';
-                document.getElementById('res_ia_tipo').textContent = d.tipo_producto || '-';
-                document.getElementById('res_ia_plaga').textContent = d.plaga_o_enfermedad_objetivo || '-';
-                document.getElementById('res_ia_dosis').textContent = (d.dosis_recomendada_ha || '1.5') + ' ' + (d.unidad_dosis || 'l/ha');
-                document.getElementById('res_ia_plazo').textContent = (d.plazo_seguridad_dias !== undefined) ? d.plazo_seguridad_dias : '0';
-                document.getElementById('res_ia_obs').textContent = d.observaciones_tecnicas || (d.modo_accion || '');
-
-                resBox.classList.remove('d-none');
+                
+                // Mostrar la primera opción en la ficha
+                seleccionarOpcionTratamientoIa(0);
             } else {
-                alert(res.message || "No se obtuvieron resultados para el producto indicado.");
+                alert(res.message || "No se encontró ningún producto fitosanitario, trampa u hormona registrada para este término.");
             }
         })
         .catch(err => {
             spinner.classList.add('d-none');
             btn.disabled = false;
             console.error(err);
-            alert("Error al conectar con el asistente de fitosanitarios.");
+            alert("Error al conectar con el asistente de fitosanitarios: " + err.message);
         });
 }
 

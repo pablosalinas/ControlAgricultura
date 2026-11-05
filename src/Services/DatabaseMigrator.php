@@ -551,6 +551,120 @@ class DatabaseMigrator {
                     SET dosis_calculada_cuba = dosis_calculada_cuba / 1000.0 
                     WHERE dosis_calculada_cuba >= 50.0
                 ");
+
+                // Sembrar trampas y hormonas de frutales si no existen (estrictamente aditivo)
+                $stmtCheckPf = $pdo->prepare("SELECT COUNT(*) FROM productos_fitosanitarios WHERE nombre_comercial = :nom");
+                $trampasYHormonas = array(
+                    array(
+                        'nom' => 'Trampa Conetrap Ceratitis / Magnet MED',
+                        'mat' => 'Acetato de amonio + Clorhidrato de trimetilamina + Deltametrina interior',
+                        'reg' => 'ES-00045 (Homologado Trampeo Masivo MAPA)',
+                        'tipo' => 'Trampa / Feromona / Atrayente',
+                        'eco' => 1,
+                        'cult' => 'Frutales de hueso, Pepita, Cítricos, Higuera',
+                        'plagas' => 'Mosca de la fruta (Ceratitis capitata)',
+                        'modo' => 'Atracción y muerte (Attract & Kill). Colocar 40-50 días antes del cambio de color del fruto.',
+                        'd100' => 0.000, 'unid' => 'trampas/ha', 'dha' => 50.000, 'pseg' => 0, 'intv' => 120,
+                        'vmoch' => 16.00, 'dmoch' => 0.00, 'vcuba' => 1000.00, 'dcuba' => 0.00, 'vpulv' => 100.00, 'dpulv' => 0.00,
+                        'desc' => 'Modo de empleo: Colocar a media altura del árbol (1,5-2m) en la cara sur/sureste de la copa a la sombra. Densidad: 45-70 trampas/ha para captura masiva o 2-4 trampas/ha para monitoreo. Duración: 100-120 días.'
+                    ),
+                    array(
+                        'nom' => 'Mosquero Olipe / Conetrap Dacus (Mosca del olivo)',
+                        'mat' => 'Fosfato diamónico 4% + Feromona sexual específica',
+                        'reg' => 'BioTrampa MAPA (Producción Ecológica)',
+                        'tipo' => 'Trampa / Feromona / Atrayente',
+                        'eco' => 1,
+                        'cult' => 'Olivar (aceituna de mesa y almazara)',
+                        'plagas' => 'Mosca del olivo (Bactrocera oleae / Dacus oleae)',
+                        'modo' => 'Atracción alimenticia y sexual para captura masiva en masa arbórea.',
+                        'd100' => 0.000, 'unid' => 'trampas/ha', 'dha' => 50.000, 'pseg' => 0, 'intv' => 90,
+                        'vmoch' => 16.00, 'dmoch' => 0.00, 'vcuba' => 1000.00, 'dcuba' => 0.00, 'vpulv' => 100.00, 'dpulv' => 0.00,
+                        'desc' => 'Modo de empleo: Colocar en junio/julio al endurecimiento del hueso. Densidad: 40-60 trampas/ha en la cara sur del árbol a media altura resguardado del sol.'
+                    ),
+                    array(
+                        'nom' => 'Ácido Giberélico GA3 (Berelex / Gibb Plus)',
+                        'mat' => 'Ácido giberélico (GA3) 40% [SG] p/p (Giberelina vegetal)',
+                        'reg' => '18.490',
+                        'tipo' => 'Fitorregulador / Hormona vegetal',
+                        'eco' => 0,
+                        'cult' => 'Frutales de hueso, Pepita, Cítricos, Vid',
+                        'plagas' => 'Cuajado de frutos, retención de fruta, prevención del rajado (cracking) y retraso de senescencia',
+                        'modo' => 'Estimulación de elongación y división celular. Mejora de retención y consistencia.',
+                        'd100' => 0.005, 'unid' => 'kg', 'dha' => 0.050, 'pseg' => 7, 'intv' => 14,
+                        'vmoch' => 16.00, 'dmoch' => 0.80, 'vcuba' => 1000.00, 'dcuba' => 0.05, 'vpulv' => 100.00, 'dpulv' => 5.00,
+                        'desc' => 'Modo de empleo: Aplicar en pulverización foliar muy fina desde plena floración (70-80% caída pétalos) hasta cuajado. Temperatura idónea: 15-25ºC. pH de caldo: 5.5-6.5.'
+                    ),
+                    array(
+                        'nom' => 'Ácido 1-Naftilacético ANA 1% (Fruitone / Tre-Hold)',
+                        'mat' => 'Ácido 1-naftilacético (ANA / NAA) 1% [SL] p/v (Auxina)',
+                        'reg' => '16.732',
+                        'tipo' => 'Fitorregulador / Hormona vegetal',
+                        'eco' => 0,
+                        'cult' => 'Manzano, Peral, Frutales de hueso',
+                        'plagas' => 'Anticaída pre-cosecha de frutos y aclareo químico de frutos',
+                        'modo' => 'Regulador auxínico para prevenir la formación de la zona de abscisión.',
+                        'd100' => 0.040, 'unid' => 'l', 'dha' => 0.400, 'pseg' => 14, 'intv' => 21,
+                        'vmoch' => 16.00, 'dmoch' => 6.40, 'vcuba' => 1000.00, 'dcuba' => 0.40, 'vpulv' => 100.00, 'dpulv' => 40.00,
+                        'desc' => 'Modo de empleo: 1) Anticaída: aplicar 15-20 días antes de cosecha. 2) Aclareo: tratar cuando el fruto central mida 10-12 mm. Pulverizar con abundante caldo.'
+                    ),
+                    array(
+                        'nom' => 'Bioestimulante Citoquininas y Auxinas (Kelpak / Cytoplant)',
+                        'mat' => 'Citoquininas y auxinas naturales de Ecklonia maxima',
+                        'reg' => 'Bioestimulante Fisiológico CE',
+                        'tipo' => 'Fitorregulador / Hormona vegetal',
+                        'eco' => 1,
+                        'cult' => 'Frutales, Cítricos, Olivo, Vid, Hortícolas',
+                        'plagas' => 'Multiplicación celular post-cuajado, engorde y homogeneidad de calibre',
+                        'modo' => 'División celular hormonal acelerada durante la fase inicial de crecimiento del fruto.',
+                        'd100' => 0.200, 'unid' => 'l', 'dha' => 2.000, 'pseg' => 0, 'intv' => 15,
+                        'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
+                        'desc' => 'Apto para Agricultura Ecológica. Modo de empleo: 1º al 80% caída de pétalos, 2º a la caída fisiológica (fruto avellana), 3º al inicio del engorde activo.'
+                    )
+                );
+
+                $stmtInsTrampa = $pdo->prepare("
+                    INSERT INTO productos_fitosanitarios (
+                        nombre_comercial, materia_activa, num_registro_oficial, tipo_producto, es_ecologico,
+                        cultivos_autorizados, plagas_objetivo, modo_accion_uso, dosis_etiqueta_100l, unidad_dosis,
+                        dosis_por_hectarea, plazo_seguridad_dias, intervalo_repeticion_dias, volumen_mochila_l,
+                        dosis_calculada_mochila, volumen_cuba_l, dosis_calculada_cuba, volumen_pulverizador_l,
+                        dosis_calculada_pulv, descripcion_advertencias, activo
+                    ) VALUES (
+                        :nom, :mat, :reg, :tipo, :eco,
+                        :cult, :plagas, :modo, :d100, :unid,
+                        :dha, :pseg, :intv, :vmoch,
+                        :dmoch, :vcuba, :dcuba, :vpulv,
+                        :dpulv, :desc, 1
+                    )
+                ");
+
+                foreach ($trampasYHormonas as $th) {
+                    $stmtCheckPf->execute(array(':nom' => $th['nom']));
+                    if ((int)$stmtCheckPf->fetchColumn() === 0) {
+                        $stmtInsTrampa->execute(array(
+                            ':nom'   => $th['nom'],
+                            ':mat'   => $th['mat'],
+                            ':reg'   => $th['reg'],
+                            ':tipo'  => $th['tipo'],
+                            ':eco'   => $th['eco'],
+                            ':cult'  => $th['cult'],
+                            ':plagas'=> $th['plagas'],
+                            ':modo'  => $th['modo'],
+                            ':d100'  => $th['d100'],
+                            ':unid'  => $th['unid'],
+                            ':dha'   => $th['dha'],
+                            ':pseg'  => $th['pseg'],
+                            ':intv'  => $th['intv'],
+                            ':vmoch' => $th['vmoch'],
+                            ':dmoch' => $th['dmoch'],
+                            ':vcuba' => $th['vcuba'],
+                            ':dcuba' => $th['dcuba'],
+                            ':vpulv' => $th['vpulv'],
+                            ':dpulv' => $th['dpulv'],
+                            ':desc'  => $th['desc']
+                        ));
+                    }
+                }
             } catch (Exception $ePf) {}
 
             // Cargar credenciales SMTP iniciales si están vacías

@@ -281,39 +281,282 @@ class PhytosanitaryAiService {
                 'unidad_dosis'              => 'l/ha',
                 'plazo_seguridad_dias'      => 0,
                 'observaciones_tecnicas'    => 'Apto para Agricultura Ecológica. Aplicar desde inicio de engorde del fruto hasta 15 días antes de cosecha.'
+            ),
+
+            // --- TRAMPAS, FEROMONAS Y ATRAYENTES PARA FRUTALES ---
+            'trampa mosca fruta' => array(
+                'nombre_comercial_producto' => 'Trampa Conetrap Ceratitis / Magnet MED',
+                'materia_activa'            => 'Atrayente alimenticio específico (Acetato de amonio + Clorhidrato de trimetilamina) + Deltametrina (placa insecticida interior)',
+                'num_registro_oficial'      => 'ES-00045 (Homologado Trampeo Masivo MAPA)',
+                'es_ecologico'              => 1,
+                'tipo_producto'             => 'Trampa / Feromona / Atrayente',
+                'modo_accion'               => 'Atracción y muerte (Attract & Kill). Difusión continua de atrayentes alimenticios que atraen hembras y machos hacia la trampa.',
+                'plaga_o_enfermedad_objetivo'=> 'Mosca de la fruta (Ceratitis capitata) en melocotonero, albaricoquero, ciruelo, peral, manzano, higuera y cítricos',
+                'dosis_recomendada_ha'      => 50.000,
+                'unidad_dosis'              => 'trampas/ha',
+                'dosis_etiqueta_100l'       => 0,
+                'dosis_calculada_mochila'   => 0,
+                'dosis_calculada_pulv'      => 0,
+                'dosis_calculada_cuba'      => 0,
+                'plazo_seguridad_dias'      => 0,
+                'intervalo_repeticion_dias' => 120,
+                'observaciones_tecnicas'    => 'Modo de empleo y colocación: 1) Densidad: 45 a 75 trampas/ha para captura masiva (o 2 a 4 trampas/ha para monitoreo de vuelo). 2) Ubicación: Colgar a media altura del árbol (1,5 a 2 m), en la cara SUR / SURESTE dentro de la copa a la sombra. 3) Momento: Instalar 40-50 días antes del inicio de maduración del fruto (cambio de color) y mantener hasta finalizar cosecha. Duración efectiva: 100-120 días.'
+            ),
+            'trampa mosca olivo' => array(
+                'nombre_comercial_producto' => 'Mosquero Olipe / Conetrap Dacus (Mosca del olivo)',
+                'materia_activa'            => 'Fosfato diamónico 4% + Feromona sexual (1,7-dioxaspiro[5.5]undecano)',
+                'num_registro_oficial'      => 'BioTrampa MAPA (Producción Ecológica)',
+                'es_ecologico'              => 1,
+                'tipo_producto'             => 'Trampa / Feromona / Atrayente',
+                'modo_accion'               => 'Captura masiva y trampeo por atracción alimenticia y feromona sexual específica.',
+                'plaga_o_enfermedad_objetivo'=> 'Mosca del olivo (Bactrocera oleae / Dacus oleae)',
+                'dosis_recomendada_ha'      => 50.000,
+                'unidad_dosis'              => 'trampas/ha',
+                'dosis_etiqueta_100l'       => 0,
+                'dosis_calculada_mochila'   => 0,
+                'dosis_calculada_pulv'      => 0,
+                'dosis_calculada_cuba'      => 0,
+                'plazo_seguridad_dias'      => 0,
+                'intervalo_repeticion_dias' => 90,
+                'observaciones_tecnicas'    => 'Modo de empleo y colocación: Instalar a principios de verano (junio-julio), cuando el hueso de la aceituna empieza a endurecer (tamaño > 8-10 mm). Densidad recomendada: 40 a 60 mosqueros/ha en masa arbórea o 1 mosquero por cada 2-3 olivos. Colocar en la cara sur de la copa resguardado del sol cenital. Rellenar o inspeccionar mensualmente.'
+            ),
+            'proteina hidrolizada' => array(
+                'nombre_comercial_producto' => 'Proteína Hidrolizada Cebo (Buminal / CeraTrap)',
+                'materia_activa'            => 'Proteína hidrolizada líquida enriquecida 30% [SL]',
+                'num_registro_oficial'      => 'Atrayente cebo registrado MAPA',
+                'es_ecologico'              => 1,
+                'tipo_producto'             => 'Trampa / Feromona / Atrayente',
+                'modo_accion'               => 'Atracción trófica y alimentaria intensa de dípteros adultos (moscas de fruta y olivo).',
+                'plaga_o_enfermedad_objetivo'=> 'Mosca de la fruta (Ceratitis capitata) y Mosca del olivo (Bactrocera oleae)',
+                'dosis_recomendada_ha'      => 1.000,
+                'unidad_dosis'              => 'l/ha',
+                'dosis_etiqueta_100l'       => 1.000,
+                'plazo_seguridad_dias'      => 0,
+                'intervalo_repeticion_dias' => 14,
+                'observaciones_tecnicas'    => 'Modo de empleo: 1) En trampas mosqueros: verter entre 250 y 400 ml de producto por trampa cada 20-30 días. 2) En pulverización cebo con insecticida autorizado (Spintor / Deltametrina): mezclar al 1-2% y pulverizar a bandas o parches tratando sólo 1 o 2 m² de la cara sur de cada árbol con gota gruesa.'
+            ),
+
+            // --- HORMONAS Y FITORREGULADORES PARA FRUTALES ---
+            'acido giberelico' => array(
+                'nombre_comercial_producto' => 'Ácido Giberélico GA3 (Berelex / Gibb Plus)',
+                'materia_activa'            => 'Ácido giberélico (GA3) 40% [SG] p/p (Giberelina vegetal)',
+                'num_registro_oficial'      => '18.490 (Fitorregulador Homologado MAPA)',
+                'es_ecologico'              => 0,
+                'tipo_producto'             => 'Fitorregulador / Hormona vegetal',
+                'modo_accion'               => 'Hormona vegetal de crecimiento. Estimula la división y elongación celular, favorece el cuajado partenocárpico y retrasa el envejecimiento de la piel/corteza.',
+                'plaga_o_enfermedad_objetivo'=> 'Mejora del cuajado de fruto, prevención del rajado (cracking) y retención de fruta en hueso, pepita, cítricos y vid',
+                'dosis_recomendada_ha'      => 0.050,
+                'unidad_dosis'              => 'kg/ha',
+                'dosis_etiqueta_100l'       => 0.005,
+                'plazo_seguridad_dias'      => 7,
+                'intervalo_repeticion_dias' => 14,
+                'observaciones_tecnicas'    => 'Modo de empleo: Aplicar en pulverización foliar fina mojando homogéneamente las flores y frutitos. Momento clave: desde plena floración (70-80% caída de pétalos) hasta el cuajado visible. Temperatura óptima de aplicación: entre 15ºC y 25ºC (nunca con calor excesivo). Mantener el caldo a pH ligeramente ácido (5.5 - 6.5).'
+            ),
+            'acido naftilacetico' => array(
+                'nombre_comercial_producto' => 'Ácido 1-Naftilacético ANA 1% (Fruitone / Tre-Hold)',
+                'materia_activa'            => 'Ácido 1-naftilacético (ANA / NAA) 1% [SL] p/v (Auxina sintética)',
+                'num_registro_oficial'      => '16.732 (Fitorregulador Auxínico)',
+                'es_ecologico'              => 0,
+                'tipo_producto'             => 'Fitorregulador / Hormona vegetal',
+                'modo_accion'               => 'Regulador de auxinas. A dosis baja previene la formación de la capa de abscisión (evita la caída prematura de frutos); a dosis de aclareo promueve la caída de frutos débiles.',
+                'plaga_o_enfermedad_objetivo'=> 'Anticaída pre-cosecha de frutos y aclareo químico en manzano, peral y frutales de hueso',
+                'dosis_recomendada_ha'      => 0.400,
+                'unidad_dosis'              => 'l/ha',
+                'dosis_etiqueta_100l'       => 0.040,
+                'plazo_seguridad_dias'      => 14,
+                'intervalo_repeticion_dias' => 21,
+                'observaciones_tecnicas'    => 'Modo de empleo: 1) Para evitar la caída pre-cosecha: tratar 15 a 20 días antes de la fecha estimada de recolección. 2) Para aclareo químico: aplicar cuando el fruto central del corimbo alcance entre 10 y 12 mm de diámetro. Aplicar con abundante agua (800-1.000 L/ha) mojando el interior de la copa.'
+            ),
+            'citoquininas' => array(
+                'nombre_comercial_producto' => 'Bioestimulante Citoquininas y Auxinas Naturales (Kelpak / Cytoplant)',
+                'materia_activa'            => 'Citoquininas naturales 100 mg/L + Auxinas naturales de extracto de Ecklonia maxima',
+                'num_registro_oficial'      => 'Bioestimulante Fisiológico CE',
+                'es_ecologico'              => 1,
+                'tipo_producto'             => 'Fitorregulador / Hormona vegetal',
+                'modo_accion'               => 'Hormona vegetal de división celular. Acelera el número de células en la etapa post-cuajado aumentando el calibre final y consistencia del fruto.',
+                'plaga_o_enfermedad_objetivo'=> 'Aumento de calibre de fruto, división celular post-fecundación, uniformidad de cosecha y superación de estrés térmico',
+                'dosis_recomendada_ha'      => 2.000,
+                'unidad_dosis'              => 'l/ha',
+                'dosis_etiqueta_100l'       => 0.200,
+                'plazo_seguridad_dias'      => 0,
+                'intervalo_repeticion_dias' => 15,
+                'observaciones_tecnicas'    => 'Apto para Agricultura Ecológica. Modo de empleo: Realizar 2 a 3 pases foliares: 1º al 80% de caída de pétalos, 2º a la caída fisiológica de frutos (tamaño avellana), 3º al inicio del engorde activo del fruto.'
             )
         );
     }
 
     /**
-     * Búsqueda en catálogo base local con correspondencia difusa y análisis semántico
+     * Normaliza los datos de un producto fitosanitario para garantizar consistencia y cálculo de dosis
      */
-    public static function searchInLocalCatalog($query) {
-        $q = mb_strtolower(trim($query), 'UTF-8');
-        if (empty($q)) {
-            return null;
+    public static function normalizeProductData(array $p) {
+        $nom = isset($p['nombre_comercial_producto']) ? $p['nombre_comercial_producto'] : (isset($p['nombre_comercial']) ? $p['nombre_comercial'] : '');
+        $mat = isset($p['materia_activa']) ? $p['materia_activa'] : '';
+        $reg = isset($p['num_registro_oficial']) ? $p['num_registro_oficial'] : '';
+        $tipo = isset($p['tipo_producto']) ? $p['tipo_producto'] : 'Fungicida';
+        $eco = !empty($p['es_ecologico']) ? 1 : 0;
+        $cult = isset($p['cultivos_autorizados']) ? $p['cultivos_autorizados'] : 'Olivo, Almendro, Frutales, Cítricos, Tomate, Vid';
+        $plagas = isset($p['plagas_objetivo']) ? $p['plagas_objetivo'] : (isset($p['plaga_o_enfermedad_objetivo']) ? $p['plaga_o_enfermedad_objetivo'] : '');
+        $modo = isset($p['modo_accion_uso']) ? $p['modo_accion_uso'] : (isset($p['modo_accion']) ? $p['modo_accion'] : '');
+        $unid = isset($p['unidad_dosis']) ? trim($p['unidad_dosis']) : 'kg/hl';
+        
+        $d100 = isset($p['dosis_etiqueta_100l']) ? (float)$p['dosis_etiqueta_100l'] : 0.0;
+        $dha = isset($p['dosis_por_hectarea']) ? (float)$p['dosis_por_hectarea'] : (isset($p['dosis_recomendada_ha']) ? (float)$p['dosis_recomendada_ha'] : 0.0);
+        
+        // Si no se proporcionó dosis por 100L pero sí por hectárea, inferir d100 (asumiendo 1.000L caldo/ha)
+        if ($d100 <= 0 && $dha > 0) {
+            $d100 = ($dha * 1000.0) / 10.0; // g/hl
+            $unid = 'g/hl';
         }
 
+        // Determinar si la unidad de dosis es mayor (kg, L, %)
+        $uLower = mb_strtolower($unid, 'UTF-8');
+        $esMayor = (strpos($uLower, 'kg') !== false || strpos($uLower, 'l/hl') !== false || strpos($uLower, '%') !== false || $uLower === 'l');
+        if ($esMayor || ($d100 > 0 && $d100 < 10.0)) {
+            $gPor100 = $d100 * 1000.0;
+        } else {
+            $gPor100 = $d100;
+        }
+
+        $dMoch = isset($p['dosis_calculada_mochila']) ? (float)$p['dosis_calculada_mochila'] : 0.0;
+        $dPulv = isset($p['dosis_calculada_pulv']) ? (float)$p['dosis_calculada_pulv'] : 0.0;
+        $dCuba = isset($p['dosis_calculada_cuba']) ? (float)$p['dosis_calculada_cuba'] : 0.0;
+
+        // Mochila 16L en g o ml
+        if ($dMoch <= 0 && $gPor100 > 0) {
+            $dMoch = round($gPor100 * 0.16, 1);
+        } elseif ($dMoch > 0 && $dMoch < 1.0) {
+            $dMoch = round($dMoch * 1000.0, 1);
+        }
+
+        // Pulverizador 100L en g o ml
+        if ($dPulv <= 0 && $gPor100 > 0) {
+            $dPulv = round($gPor100, 0);
+        } elseif ($dPulv > 0 && $dPulv < 1.0) {
+            $dPulv = round($dPulv * 1000.0, 0);
+        }
+
+        // Cuba 1.000L en kg o L (debe ser el total para 1.000L, ej: 3.00 kg)
+        if ($dCuba >= 50.0) {
+            $dCuba = round($dCuba / 1000.0, 2);
+        } elseif ($dCuba <= 0 && $gPor100 > 0) {
+            $dCuba = round(($gPor100 * 10.0) / 1000.0, 2);
+        }
+
+        if ($dha <= 0 && $dCuba > 0) {
+            $dha = $dCuba;
+        }
+
+        $pseg = isset($p['plazo_seguridad_dias']) ? (int)$p['plazo_seguridad_dias'] : ($eco ? 0 : 14);
+        $intv = isset($p['intervalo_repeticion_dias']) ? (int)$p['intervalo_repeticion_dias'] : 14;
+        $obs = isset($p['descripcion_advertencias']) ? $p['descripcion_advertencias'] : (isset($p['observaciones_tecnicas']) ? $p['observaciones_tecnicas'] : '');
+        $fuente = isset($p['fuente']) ? $p['fuente'] : 'Registro Oficial de Productos Fitosanitarios';
+
+        return array(
+            'id_producto'                 => isset($p['id_producto']) ? (int)$p['id_producto'] : null,
+            'nombre_comercial_producto'   => $nom,
+            'materia_activa'              => $mat,
+            'num_registro_oficial'        => $reg,
+            'tipo_producto'               => $tipo,
+            'es_ecologico'                => $eco,
+            'cultivos_autorizados'        => $cult,
+            'plagas_objetivo'             => $plagas,
+            'plaga_o_enfermedad_objetivo' => $plagas,
+            'modo_accion'                 => $modo,
+            'dosis_etiqueta_100l'         => $d100,
+            'unidad_dosis'                => $unid,
+            'dosis_recomendada_ha'        => $dha,
+            'plazo_seguridad_dias'        => $pseg,
+            'intervalo_repeticion_dias'   => $intv,
+            'dosis_calculada_mochila'     => $dMoch,
+            'dosis_calculada_pulv'        => $dPulv,
+            'dosis_calculada_cuba'        => $dCuba,
+            'observaciones_tecnicas'      => $obs,
+            'fuente'                      => $fuente
+        );
+    }
+
+    /**
+     * Elimina tildes y diacríticos para búsquedas semánticas insensibles a acentos
+     */
+    private static function cleanAccents($str) {
+        $str = (string)$str;
+        $unwanted = array(
+            'Š'=>'S', 'š'=>'s', 'Ž'=>'Z', 'ž'=>'z', 'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C',
+            'È'=>'E', 'É'=>'E', 'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O',
+            'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss',
+            'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e', 'ê'=>'e', 'ë'=>'e',
+            'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o', 'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o',
+            'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ü'=>'u', 'ý'=>'y', 'þ'=>'b', 'ÿ'=>'y'
+        );
+        return strtr($str, $unwanted);
+    }
+
+    /**
+     * Búsqueda en catálogo base local con correspondencia difusa devolviendo múltiples coincidencias
+     */
+    public static function searchInLocalCatalogMultiple($query, $forceEco = null) {
+        $rawQ = trim($query);
+        if (empty($rawQ)) {
+            return array();
+        }
+
+        $q = mb_strtolower(self::cleanAccents($rawQ), 'UTF-8');
         $catalog = self::getBaseCatalog();
+        $matches = array();
 
-        // 1. Coincidencia exacta de clave
-        if (isset($catalog[$q])) {
-            return $catalog[$q];
+        // Expansión semántica básica de términos agronómicos
+        $synonyms = array();
+        if (strpos($q, 'cobre') !== false) {
+            $synonyms = array('cuproso', 'cuprocol', 'cuproc', 'cobre');
+        } elseif (strpos($q, 'hormona') !== false || strpos($q, 'regulador') !== false) {
+            $synonyms = array('hormona', 'fitorregulador', 'giberel', 'auxin', 'citoquin', 'naftil');
+        } elseif (strpos($q, 'trampa') !== false || strpos($q, 'feromona') !== false || strpos($q, 'mosquero') !== false) {
+            $synonyms = array('trampa', 'conetrap', 'olipe', 'feromona', 'atrayente');
+        } elseif (strpos($q, 'mosca') !== false) {
+            $synonyms = array('mosca', 'ceratitis', 'bactrocera', 'dacus', 'conetrap', 'olipe');
         }
 
-        // 2. Coincidencia de subcadena en nombre comercial, materia activa o plagas
         foreach ($catalog as $key => $item) {
-            $nom = mb_strtolower($item['nombre_comercial_producto'], 'UTF-8');
-            $mat = mb_strtolower($item['materia_activa'], 'UTF-8');
-            $pla = mb_strtolower($item['plaga_o_enfermedad_objetivo'], 'UTF-8');
-            $fun = mb_strtolower($item['tipo_producto'], 'UTF-8');
+            if ($forceEco === true && empty($item['es_ecologico'])) {
+                continue;
+            }
 
-            if (strpos($nom, $q) !== false || strpos($mat, $q) !== false || strpos($pla, $q) !== false || strpos($fun, $q) !== false || strpos($q, $key) !== false) {
-                return $item;
+            $keyClean = mb_strtolower(self::cleanAccents($key), 'UTF-8');
+            $nom = mb_strtolower(self::cleanAccents($item['nombre_comercial_producto']), 'UTF-8');
+            $mat = mb_strtolower(self::cleanAccents($item['materia_activa']), 'UTF-8');
+            $pla = mb_strtolower(self::cleanAccents($item['plaga_o_enfermedad_objetivo']), 'UTF-8');
+            $fun = mb_strtolower(self::cleanAccents($item['tipo_producto']), 'UTF-8');
+            $obs = mb_strtolower(self::cleanAccents($item['observaciones_tecnicas']), 'UTF-8');
+
+            $matched = false;
+
+            if ($keyClean === $q || strpos($keyClean, $q) !== false || strpos($nom, $q) !== false || strpos($mat, $q) !== false || strpos($pla, $q) !== false || strpos($fun, $q) !== false || strpos($obs, $q) !== false) {
+                $matched = true;
+            }
+
+            if (!$matched && !empty($synonyms)) {
+                foreach ($synonyms as $syn) {
+                    if (strpos($keyClean, $syn) !== false || strpos($nom, $syn) !== false || strpos($mat, $syn) !== false || strpos($pla, $syn) !== false || strpos($fun, $syn) !== false) {
+                        $matched = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($matched) {
+                $matches[] = $item;
             }
         }
 
-        return null;
+        return $matches;
+    }
+
+    /**
+     * Búsqueda simple de 1 elemento en catálogo local (mantenida por compatibilidad)
+     */
+    public static function searchInLocalCatalog($query) {
+        $multi = self::searchInLocalCatalogMultiple($query);
+        return !empty($multi) ? $multi[0] : null;
     }
 
     /**
@@ -322,11 +565,16 @@ class PhytosanitaryAiService {
     public static function getSuggestedProducts() {
         return array(
             array('nombre' => 'Nordox 75 WG', 'categoria' => 'Fungicida Cúprico (Bio)', 'eco' => 1),
+            array('nombre' => 'Trampas Mosca Fruta (Conetrap)', 'categoria' => 'Trampeo Masivo Ceratitis', 'eco' => 1),
+            array('nombre' => 'Ácido Giberélico GA3', 'categoria' => 'Hormona / Cuajado Frutal', 'eco' => 0),
             array('nombre' => 'Spintor 480 SC', 'categoria' => 'Insecticida Orugas/Trips (Bio)', 'eco' => 1),
             array('nombre' => 'Bacillus thuringiensis', 'categoria' => 'Bioinsecticida Orugas', 'eco' => 1),
+            array('nombre' => 'Mosquero Mosca Olivo (Olipe)', 'categoria' => 'Trampa Masiva Dacus', 'eco' => 1),
+            array('nombre' => 'Citoquininas y Auxinas', 'categoria' => 'Hormona / Engorde Fruto (Bio)', 'eco' => 1),
             array('nombre' => 'Kumulus DF (Azufre)', 'categoria' => 'Fungicida / Antioídio (Bio)', 'eco' => 1),
             array('nombre' => 'Jabón Potásico', 'categoria' => 'Insecticida Pulgón/Mosca (Bio)', 'eco' => 1),
             array('nombre' => 'Cuprocol', 'categoria' => 'Cobre Líquido Repilo (Bio)', 'eco' => 1),
+            array('nombre' => 'Ácido Naftilacético (ANA)', 'categoria' => 'Hormona / Anticaída Pre-Cosecha', 'eco' => 0),
             array('nombre' => 'Score 25 EC', 'categoria' => 'Fungicida Sistémico Curativo', 'eco' => 0),
             array('nombre' => 'Karate Zeon', 'categoria' => 'Insecticida de Choque', 'eco' => 0),
             array('nombre' => 'Movento 150', 'categoria' => 'Sistémico Cochinillas/Pulgón', 'eco' => 0),
@@ -337,117 +585,162 @@ class PhytosanitaryAiService {
     }
 
     /**
-     * Consulta principal: Resuelve un producto fitosanitario mediante IA o registro oficial
+     * Consulta principal: Resuelve y busca productos fitosanitarios mediante IA y registros oficiales.
+     * Si no encuentra nada, informa claramente al usuario sin inventar datos falsos.
+     * Si encuentra opciones, devuelve la lista completa de opciones para que el usuario seleccione la más conveniente.
      *
      * @param string $query Nombre del producto comercial, materia activa o plaga
      * @param bool|null $forceEco Si se solicita forzar variante ecológica
-     * @return array Datos completos normalizados para la BD
+     * @return array Resultado con lista de opciones homologadas o mensaje explicativo
      */
     public static function consultProduct($query, $forceEco = null) {
         $query = trim($query);
         if (empty($query)) {
-            return array('success' => false, 'message' => 'Por favor, introduce el nombre del producto o plaga.');
+            return array(
+                'success'  => false,
+                'total'    => 0,
+                'opciones' => array(),
+                'message'  => 'Por favor, introduce el nombre del producto, materia activa o plaga a consultar.'
+            );
         }
 
-        // 0. Intentar resolver primero desde la tabla oficial de productos_fitosanitarios en BD
+        $opciones = array();
+        $keysSeen = array();
+
+        // 1. Buscar en la tabla oficial de productos_fitosanitarios en Base de Datos
         try {
             $db = Database::getConnection();
-            $stmt = $db->prepare("
+            $sql = "
                 SELECT * FROM productos_fitosanitarios 
                 WHERE activo = 1 
-                  AND (nombre_comercial LIKE :q1 OR materia_activa LIKE :q2 OR plagas_objetivo LIKE :q3)
-                LIMIT 1
-            ");
+                  AND (
+                      nombre_comercial LIKE :q1 
+                      OR materia_activa LIKE :q2 
+                      OR plagas_objetivo LIKE :q3 
+                      OR cultivos_autorizados LIKE :q4
+                      OR tipo_producto LIKE :q5
+                  )
+            ";
+            if ($forceEco === true) {
+                $sql .= " AND es_ecologico = 1 ";
+            }
+            $sql .= " ORDER BY (nombre_comercial LIKE :q_exact) DESC, es_ecologico DESC LIMIT 8";
+            
+            $stmt = $db->prepare($sql);
             $searchTerm = '%' . $query . '%';
             $stmt->execute(array(
                 ':q1' => $searchTerm,
                 ':q2' => $searchTerm,
-                ':q3' => $searchTerm
+                ':q3' => $searchTerm,
+                ':q4' => $searchTerm,
+                ':q5' => $searchTerm,
+                ':q_exact' => $query . '%'
             ));
-            $dbProd = $stmt->fetch();
-            if ($dbProd) {
-                return array(
-                    'success' => true,
-                    'data' => array(
-                        'id_producto'                 => (int)$dbProd['id_producto'],
-                        'nombre_comercial_producto'   => $dbProd['nombre_comercial'],
-                        'materia_activa'              => $dbProd['materia_activa'],
-                        'num_registro_oficial'        => $dbProd['num_registro_oficial'],
-                        'tipo_producto'               => $dbProd['tipo_producto'],
-                        'es_ecologico'                => (int)$dbProd['es_ecologico'],
-                        'cultivos_autorizados'        => $dbProd['cultivos_autorizados'],
-                        'plagas_objetivo'             => $dbProd['plagas_objetivo'],
-                        'plaga_o_enfermedad_objetivo' => $dbProd['plagas_objetivo'],
-                        'modo_accion'                 => $dbProd['modo_accion_uso'],
-                        'dosis_etiqueta_100l'         => (float)$dbProd['dosis_etiqueta_100l'],
-                        'unidad_dosis'                => $dbProd['unidad_dosis'],
-                        'dosis_recomendada_ha'        => (float)$dbProd['dosis_por_hectarea'],
-                        'plazo_seguridad_dias'        => (int)$dbProd['plazo_seguridad_dias'],
-                        'intervalo_repeticion_dias'   => (int)$dbProd['intervalo_repeticion_dias'],
-                        'dosis_calculada_mochila'     => (float)$dbProd['dosis_calculada_mochila'],
-                        'dosis_calculada_cuba'        => (float)$dbProd['dosis_calculada_cuba'],
-                        'dosis_calculada_pulv'        => (float)$dbProd['dosis_calculada_pulv'],
-                        'observaciones_tecnicas'      => $dbProd['descripcion_advertencias'],
-                        'fuente'                      => 'Registro Oficial de Productos Fitosanitarios (Base de Datos)'
-                    )
-                );
+            $rows = $stmt->fetchAll();
+            foreach ($rows as $row) {
+                $norm = self::normalizeProductData($row);
+                $norm['fuente'] = 'Registro Oficial de Productos Fitosanitarios (Base de Datos)';
+                $k = mb_strtolower($norm['nombre_comercial_producto'], 'UTF-8');
+                if (!isset($keysSeen[$k])) {
+                    $keysSeen[$k] = true;
+                    $opciones[] = $norm;
+                }
             }
-        } catch (Exception $e) {
-            // Silencioso, pasará a catálogo local o IA
+        } catch (Exception $e) {}
+
+        // 2. Buscar coincidencias en el catálogo agronómico base de referencia
+        $catalogMatches = self::searchInLocalCatalogMultiple($query, $forceEco);
+        foreach ($catalogMatches as $item) {
+            $norm = self::normalizeProductData($item);
+            $norm['fuente'] = 'Registro Oficial Fitosanitario (AgroDietario Expert DB)';
+            $k = mb_strtolower($norm['nombre_comercial_producto'], 'UTF-8');
+            if (!isset($keysSeen[$k])) {
+                $keysSeen[$k] = true;
+                $opciones[] = $norm;
+            }
         }
 
-        // 1. Intentar resolver primero desde el registro agronómico local de alta fidelidad
-        $local = self::searchInLocalCatalog($query);
-        if ($local !== null) {
-            $res = $local;
-            $res['fuente'] = 'Registro Oficial Fitosanitario (AgroDietario Expert DB)';
-            return array('success' => true, 'data' => $res);
-        }
-
-        // 2. Intentar llamar al modelo Gemini / IA generativa externa si hay API Key disponible
+        // 3. Si no hay suficientes coincidencias locales y hay API Key de Gemini, consultar IA externa
         $apiKey = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : getenv('GEMINI_API_KEY');
-        if (!empty($apiKey)) {
-            $aiData = self::queryGeminiApi($query, $apiKey, $forceEco);
-            if ($aiData !== null) {
-                $aiData['fuente'] = 'Inteligencia Artificial Gemini (Análisis Técnico MAPA / UE)';
-                return array('success' => true, 'data' => $aiData);
+        if (empty($apiKey) && function_exists('env')) {
+            $apiKey = env('GEMINI_API_KEY', '');
+        }
+
+        if (!empty($apiKey) && count($opciones) < 3) {
+            $aiItems = self::queryGeminiApiMultiple($query, $apiKey, $forceEco);
+            if (!empty($aiItems)) {
+                foreach ($aiItems as $aiItem) {
+                    $norm = self::normalizeProductData($aiItem);
+                    $norm['fuente'] = 'Inteligencia Artificial Gemini (Análisis Oficial MAPA / UE)';
+                    $k = mb_strtolower($norm['nombre_comercial_producto'], 'UTF-8');
+                    if (!isset($keysSeen[$k])) {
+                        $keysSeen[$k] = true;
+                        $opciones[] = $norm;
+                    }
+                }
             }
         }
 
-        // 3. Motor de inferencia agronómica inteligente (offline / fallback universal)
-        $inferred = self::inferProductData($query, $forceEco);
-        $inferred['fuente'] = 'Inferencia Botánica y Agronómica Especializada';
-        return array('success' => true, 'data' => $inferred);
+        // 4. Si NO se ha encontrado nada: decir claramente que no se encuentra, NO inventar datos
+        if (empty($opciones)) {
+            return array(
+                'success'  => false,
+                'total'    => 0,
+                'opciones' => array(),
+                'message'  => 'No se ha encontrado ningún producto fitosanitario registrado o información técnica oficial para "' . htmlspecialchars($query) . '". Comprueba la ortografía o introduce los datos manualmente en la ficha.'
+            );
+        }
+
+        return array(
+            'success'  => true,
+            'total'    => count($opciones),
+            'opciones' => $opciones,
+            'data'     => $opciones[0] // Compatibilidad con vistas que consumen res.data
+        );
     }
 
     /**
-     * Consulta técnica estructurada a la API de Google Gemini
+     * Consulta técnica estructurada a la API de Google Gemini devolviendo múltiples opciones
      */
-    private static function queryGeminiApi($query, $apiKey, $forceEco = null) {
+    private static function queryGeminiApiMultiple($query, $apiKey, $forceEco = null) {
         try {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($apiKey);
 
             $ecoInstruction = "";
             if ($forceEco === true) {
-                $ecoInstruction = "IMPORTANTE: El usuario requiere un producto estrictamente APTO PARA AGRICULTURA ECOLÓGICA (Reglamento UE 2018/848). Si el producto solicitado es químico de síntesis, proporciona la alternativa ecológica homologada equivalente.";
+                $ecoInstruction = "IMPORTANTE: El usuario requiere exclusivamente productos APTO PARA AGRICULTURA ECOLÓGICA (Reglamento UE 2018/848). Si el producto buscado es convencional, proporciona las alternativas ecológicas homologadas equivalentes.";
             }
 
-            $prompt = "Actúa como un Ingeniero Agrónomo experto en el Registro Oficial de Productos Fitosanitarios del Ministerio de Agricultura de España (MAPA) y la Unión Europea.\n" .
-                      "Proporciona la ficha técnica oficial y funcional del siguiente producto fitosanitario, materia activa o tratamiento: '{$query}'.\n" .
+            $prompt = "Actúa como un Ingeniero Agrónomo experto en el Registro Oficial de Productos Fitosanitarios del Ministerio de Agricultura (MAPA) de España y la Unión Europea.\n" .
+                      "El usuario busca información fitosanitaria con este término: '{$query}'.\n" .
                       $ecoInstruction . "\n" .
-                      "Responde ÚNICAMENTE con un objeto JSON válido (sin markdown ```json) con los siguientes campos exactos:\n" .
+                      "AMPLITUD DE REGISTRO FITOSANITARIO AGRÍCOLA:\n" .
+                      "- Considera como fitosanitarios y herramientas homologadas de control tanto fungicidas, insecticidas y herbicidas, como TRAMPAS, FEROMONAS Y ATRAYENTES PARA MOSCAS DE FRUTALES (Ceratitis capitata, Bactrocera oleae, Rhagoletis, trampeo masivo / atrayente y muerte) y HORMONAS VEGETALES / FITORREGULADORES (ácido giberélico GA3, auxinas, citoquininas, ANA para cuajado, engorde y aclareo).\n" .
+                      "- Para trampas y hormonas, especifica obligatoriamente en 'observaciones_tecnicas' y 'modo_accion' su MODO DE EMPLEO DETALLADO: densidad de trampas/ha, colocación a media altura en la cara sur/sureste de la copa a la sombra, momento de instalación previo a la maduración y manejo adecuado.\n" .
+                      "REGLA CRUCIAL DE VERACIDAD:\n" .
+                      "1. Si el término introducido NO corresponde a ningún producto comercial fitosanitario real, ni trampa/hormona agrícola, ni materia activa registrada, ni plaga, hongo, enfermedad o cultivo real (o si son palabras sin sentido), responde ÚNICAMENTE con: {\"no_encontrado\": true}\n" .
+                      "2. Si el término sí corresponde a un producto real, trampa, hormona, materia activa o plaga/enfermedad/cultivo, proporciona hasta 4 opciones comerciales u oficiales homologadas y convenientes para tratarlo en España/UE.\n" .
+                      "Responde ÚNICAMENTE con un objeto JSON válido (sin bloques ```json ni texto adicional) con el siguiente formato:\n" .
                       "{\n" .
-                      '  "nombre_comercial_producto": "Nombre comercial oficial del producto fitosanitario",' . "\n" .
-                      '  "materia_activa": "Materia activa principal con porcentaje y formulación (ej: Oxicloruro de cobre 50% [WP])",' . "\n" .
-                      '  "num_registro_oficial": "Número de registro oficial MAPA en España (ej: ES-00123 o número de 5 cifras)",' . "\n" .
-                      '  "es_ecologico": 1 o 0 (1 si está certificado y autorizado en agricultura ecológica UE, 0 si es convencional),' . "\n" .
-                      '  "tipo_producto": "Fungicida, Insecticida, Acaricida, Herbicida, Bioestimulante o Biorregulador",' . "\n" .
-                      '  "modo_accion": "Mecanismo y modo de acción (ej: Sistémico translaminar, Contacto superficial, Ingestión, etc.)",' . "\n" .
-                      '  "plaga_o_enfermedad_objetivo": "Plagas, hongos o enfermedades diana principales que combate",' . "\n" .
-                      '  "dosis_recomendada_ha": número decimal estimado de dosis por hectárea (ej: 2.500),' . "\n" .
-                      '  "unidad_dosis": "uno de: l/ha, kg/ha, cc/hl, g/hl",' . "\n" .
-                      '  "plazo_seguridad_dias": número entero de días de plazo de seguridad antes de recolección (ej: 14, 21 o 0 si está exento),' . "\n" .
-                      '  "observaciones_tecnicas": "Pautas de aplicación recomendadas, condiciones óptimas, compatibilidad y precauciones para fauna útil/abejas"' . "\n" .
+                      '  "no_encontrado": false,' . "\n" .
+                      '  "productos": [' . "\n" .
+                      '    {' . "\n" .
+                      '      "nombre_comercial_producto": "Nombre comercial oficial en España",' . "\n" .
+                      '      "materia_activa": "Materia activa o atrayente con % y formulación (ej: Óxido cuproso 75% [WG] o Acetato de amonio + Deltametrina)",' . "\n" .
+                      '      "num_registro_oficial": "Nº registro oficial MAPA (ej: ES-00145 o 22.145)",' . "\n" .
+                      '      "es_ecologico": 1 o 0 (1 si está autorizado en agricultura ecológica UE, 0 si es convencional),' . "\n" .
+                      '      "tipo_producto": "Fungicida, Insecticida, Acaricida, Herbicida, Bioestimulante, Trampa / Feromona / Atrayente o Fitorregulador / Hormona",' . "\n" .
+                      '      "cultivos_autorizados": "Cultivos autorizados (ej: Olivo, Frutales de hueso, Pepita, Cítricos, Vid, Tomate)",' . "\n" .
+                      '      "plagas_objetivo": "Plagas, hongos, enfermedades o fin fisiológico que combate",' . "\n" .
+                      '      "modo_accion": "Mecanismo de acción (ej: Trampeo masivo Attract & Kill, Contacto preventivo multisitio, Regulador de crecimiento)",' . "\n" .
+                      '      "dosis_etiqueta_100l": número (ej: 0.200 si es kg/hl, 200 si es g/hl, o 0 si es trampa fija),' . "\n" .
+                      '      "unidad_dosis": "kg/hl, l/hl, g/hl, cc/hl o trampas/ha",' . "\n" .
+                      '      "dosis_recomendada_ha": número decimal por hectárea (ej: 2.000 o 50 para trampas/ha),' . "\n" .
+                      '      "plazo_seguridad_dias": número entero de días (0 si exento o trampa),' . "\n" .
+                      '      "intervalo_repeticion_dias": número entero de días,' . "\n" .
+                      '      "observaciones_tecnicas": "Modo de empleo y colocación detallado, pautas de aplicación y precauciones"' . "\n" .
+                      '    }' . "\n" .
+                      '  ]' . "\n" .
                       "}";
 
             $payload = json_encode(array(
@@ -455,8 +748,8 @@ class PhytosanitaryAiService {
                     array('parts' => array(array('text' => $prompt)))
                 ),
                 'generationConfig' => array(
-                    'temperature' => 0.2,
-                    'maxOutputTokens' => 1000
+                    'temperature' => 0.1,
+                    'maxOutputTokens' => 1200
                 )
             ));
 
@@ -480,94 +773,29 @@ class PhytosanitaryAiService {
                     $rawText = preg_replace('/\s*```$/', '', $rawText);
                     $parsed = json_decode(trim($rawText), true);
 
-                    if (is_array($parsed) && isset($parsed['nombre_comercial_producto'])) {
-                        return array(
-                            'nombre_comercial_producto'   => $parsed['nombre_comercial_producto'],
-                            'materia_activa'              => isset($parsed['materia_activa']) ? $parsed['materia_activa'] : '',
-                            'num_registro_oficial'        => isset($parsed['num_registro_oficial']) ? $parsed['num_registro_oficial'] : '',
-                            'es_ecologico'                => !empty($parsed['es_ecologico']) ? 1 : 0,
-                            'tipo_producto'               => isset($parsed['tipo_producto']) ? $parsed['tipo_producto'] : 'Tratamiento Fitosanitario',
-                            'modo_accion'                 => isset($parsed['modo_accion']) ? $parsed['modo_accion'] : '',
-                            'plaga_o_enfermedad_objetivo' => isset($parsed['plaga_o_enfermedad_objetivo']) ? $parsed['plaga_o_enfermedad_objetivo'] : '',
-                            'dosis_recomendada_ha'        => isset($parsed['dosis_recomendada_ha']) ? (float)$parsed['dosis_recomendada_ha'] : 1.500,
-                            'unidad_dosis'                => isset($parsed['unidad_dosis']) ? $parsed['unidad_dosis'] : 'l/ha',
-                            'plazo_seguridad_dias'        => isset($parsed['plazo_seguridad_dias']) ? (int)$parsed['plazo_seguridad_dias'] : 14,
-                            'observaciones_tecnicas'      => isset($parsed['observaciones_tecnicas']) ? $parsed['observaciones_tecnicas'] : ''
-                        );
+                    if (is_array($parsed)) {
+                        if (!empty($parsed['no_encontrado'])) {
+                            return array();
+                        }
+                        if (isset($parsed['productos']) && is_array($parsed['productos'])) {
+                            return $parsed['productos'];
+                        }
+                        if (isset($parsed['nombre_comercial_producto'])) {
+                            return array($parsed);
+                        }
                     }
                 }
             }
-        } catch (Exception $e) {
-            // Silencioso, pasará a inferencia
-        }
+        } catch (Exception $e) {}
 
-        return null;
+        return array();
     }
 
     /**
-     * Inferencia heurística avanzada según términos fitosanitarios
+     * Consulta simple para compatibilidad
      */
-    private static function inferProductData($query, $forceEco = null) {
-        $q = mb_strtolower($query, 'UTF-8');
-
-        // Detectar si contiene palabras clave biológicas o ecológicas
-        $isBio = false;
-        if (preg_match('/(cobre|azufre|bacillus|jabon|jabón|potasico|potásico|neem|azadiract|parafina|aceite blanco|ortiga|cola de caballo|extracto|piretrina natural|feromona|quelato)/i', $q) || $forceEco === true) {
-            $isBio = true;
-        }
-
-        // Tipo de tratamiento
-        $tipo = 'Fitosanitario de Acción Específica';
-        $modo = 'Contacto preventivo y curativo superficial.';
-        $dosis = 2.000;
-        $unidad = 'l/ha';
-        $plazo = $isBio ? 3 : 14;
-        $plagas = 'Control fitosanitario de plagas y patógenos en el cultivo';
-
-        if (preg_match('/(cobre|mildiu|repilo|moteado|oidio|oídio|fungi|botrytis|monilia|roya|abolladura)/i', $q)) {
-            $tipo = 'Fungicida Agrícola';
-            $modo = 'Preventivo de contacto y antisporulante contra hongos patógenos.';
-            $plagas = 'Repilo, Oídio, Mildiu, Monilia y enfermedades fúngicas';
-            $dosis = 2.500;
-            $unidad = strpos($q, 'polvo') !== false || strpos($q, 'wg') !== false ? 'kg/ha' : 'l/ha';
-        } elseif (preg_match('/(pulgon|pulgón|mosca|oruga|trip|araña|acaro|ácaro|insect|cochinilla|tuta)/i', $q)) {
-            $tipo = 'Insecticida / Acaricida';
-            $modo = 'Contacto e ingestión con derribo y regulación de poblaciones.';
-            $plagas = 'Pulgón, Orugas defoliadoras, Mosca de la fruta y Trips';
-            $dosis = 1.000;
-            $unidad = 'l/ha';
-        } elseif (preg_match('/(hierba|herbicida|glifosato|maleza|desbroce|adventic)/i', $q)) {
-            $tipo = 'Herbicida para Control de Malas Hierbas';
-            $modo = 'Sistémico o de contacto foliar en post-emergencia.';
-            $plagas = 'Malas hierbas gramíneas y dicotiledóneas en ruedos y calles';
-            $dosis = 3.500;
-            $unidad = 'l/ha';
-            $isBio = false; // Los herbicidas convencionales no son ecológicos
-            $plazo = 7;
-        } elseif (preg_match('/(abono|foliar|amino|calcio|alga|bioestimulante|vigor)/i', $q)) {
-            $tipo = 'Bioestimulante Foliar y Nutrición Vegetal';
-            $modo = 'Nutrición directa y activación de defensas vegetales.';
-            $plagas = 'Prevención de carencias nutricionales y alivio del estrés ambiental';
-            $dosis = 2.500;
-            $unidad = 'l/ha';
-            $isBio = true;
-            $plazo = 0;
-        }
-
-        $formattedName = mb_convert_case($query, MB_CASE_TITLE, 'UTF-8');
-
-        return array(
-            'nombre_comercial_producto'   => $formattedName,
-            'materia_activa'              => $formattedName . ' formulado comercial homologado',
-            'num_registro_oficial'        => 'ES-' . rand(11000, 29000),
-            'es_ecologico'                => $isBio ? 1 : 0,
-            'tipo_producto'               => $tipo,
-            'modo_accion'                 => $modo,
-            'plaga_o_enfermedad_objetivo' => $plagas,
-            'dosis_recomendada_ha'        => $dosis,
-            'unidad_dosis'                => $unidad,
-            'plazo_seguridad_dias'        => $plazo,
-            'observaciones_tecnicas'      => ($isBio ? '[Manejo Ecológico] ' : '[Convencional] ') . "Aplicar en las primeras horas de la mañana o al atardecer para maximizar la eficacia foliar y evitar horas de máximo calor. Respetar las dosis homologadas en la etiqueta oficial."
-        );
+    private static function queryGeminiApi($query, $apiKey, $forceEco = null) {
+        $items = self::queryGeminiApiMultiple($query, $apiKey, $forceEco);
+        return !empty($items) ? $items[0] : null;
     }
 }

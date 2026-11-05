@@ -296,6 +296,8 @@ foreach ($productos as $p) {
                     <option value="Insecticida" <?= $filtroTipo === 'Insecticida' ? 'selected' : '' ?>>🐛 Insecticidas / Acaricidas</option>
                     <option value="Herbicida" <?= $filtroTipo === 'Herbicida' ? 'selected' : '' ?>>🚜 Herbicidas</option>
                     <option value="Bioestimulante" <?= $filtroTipo === 'Bioestimulante' ? 'selected' : '' ?>>🌿 Bioestimulantes / Nutrición</option>
+                    <option value="Fitorregulador" <?= strpos($filtroTipo, 'Fitorregulador') !== false ? 'selected' : '' ?>>🌱 Hormonas / Fitorreguladores</option>
+                    <option value="Trampa" <?= strpos($filtroTipo, 'Trampa') !== false ? 'selected' : '' ?>>🪤 Trampas / Feromonas / Atrayentes</option>
                 </select>
             </div>
             <div class="col-md-1 d-flex gap-1">
@@ -566,15 +568,15 @@ foreach ($productos as $p) {
                 <div class="modal-body p-4">
 
                     <!-- SECCIÓN ASISTENTE IA PARA AUTOCOMPLETAR -->
-                    <div class="card p-3 mb-4 border border-primary border-opacity-25" style="background: linear-gradient(135deg, #f0f7ff, #ffffff);">
+                    <div class="card p-3 mb-4 border border-primary border-opacity-25 shadow-sm" style="background: linear-gradient(135deg, #f0f7ff, #ffffff);">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold text-primary small">
                                 <i class="fa-solid fa-wand-magic-sparkles me-1 text-warning"></i> Asistente IA de Localización Fitosanitaria
                             </span>
-                            <span class="badge bg-primary bg-opacity-10 text-primary small">Registro MAPA y Dosis</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary small">Registro MAPA, Trampas y Dosis</span>
                         </div>
                         <div class="input-group">
-                            <input type="text" id="ia_fito_busqueda" class="form-control" placeholder="Escribe el nombre del producto (ej: Nordox, Spintor, Score, Bacillus, Cobre, Jabón...)">
+                            <input type="text" id="ia_fito_busqueda" class="form-control" placeholder="Escribe producto, materia, plaga, trampa u hormona (ej: Nordox, Trampa mosca, Giberélico, Cobre, Spintor, ANA, Repilo, Pulgón...)" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); consultarIaFitosanitario(); }">
                             <button type="button" class="btn btn-primary fw-bold" onclick="consultarIaFitosanitario()">
                                 <i class="fa-solid fa-bolt me-1 text-warning"></i> Localizar con IA
                             </button>
@@ -583,18 +585,33 @@ foreach ($productos as $p) {
                             <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                             <span class="small text-primary fw-semibold">Consultando registro agronómico oficial...</span>
                         </div>
-                        <div id="ia_fito_feedback" class="small mt-2 text-success fw-semibold d-none"></div>
+                        <div id="ia_fito_feedback" class="small mt-2 d-none"></div>
+
+                        <!-- CONTENEDOR DE OPCIONES ENCONTRADAS PARA SELECCIONAR -->
+                        <div id="ia_fito_opciones_wrapper" class="mt-3 d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                <span class="small fw-bold text-dark" id="ia_fito_opciones_count">
+                                    <i class="fa-solid fa-list-check me-1 text-primary"></i>Selecciona la opción más adecuada:
+                                </span>
+                                <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none p-0 small" onclick="cerrarOpcionesIa()">
+                                    <i class="fa-solid fa-xmark me-1"></i>Ocultar
+                                </button>
+                            </div>
+                            <div id="ia_fito_opciones_list" class="d-flex flex-column gap-2" style="max-height: 320px; overflow-y: auto;">
+                                <!-- Se inyectan las opciones interactivas -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Datos Generales -->
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Nombre Comercial <span class="text-danger">*</span></label>
-                            <input type="text" name="nombre_comercial" id="fito_nombre_comercial" class="form-control" required placeholder="Ej: Nordox 75 WG">
+                            <input type="text" name="nombre_comercial" id="fito_nombre_comercial" class="form-control" required placeholder="Ej: Nordox 75 WG o Trampa Conetrap">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold">Materia Activa</label>
-                            <input type="text" name="materia_activa" id="fito_materia_activa" class="form-control" placeholder="Ej: Óxido cuproso 75%">
+                            <label class="form-label small fw-semibold">Materia Activa / Atrayente</label>
+                            <input type="text" name="materia_activa" id="fito_materia_activa" class="form-control" placeholder="Ej: Óxido cuproso 75% o Acetato de amonio">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-semibold">Nº Registro Oficial (MAPA)</label>
@@ -609,6 +626,8 @@ foreach ($productos as $p) {
                                 <option value="Herbicida">🚜 Herbicida</option>
                                 <option value="Bactericida">🧫 Bactericida</option>
                                 <option value="Bioestimulante">🌿 Bioestimulante Foliar</option>
+                                <option value="Fitorregulador / Hormona">🌱 Fitorregulador / Hormona vegetal</option>
+                                <option value="Trampa / Feromona / Atrayente">🪤 Trampa / Feromona / Atrayente</option>
                                 <option value="Sustancia Básica">🧼 Sustancia Básica</option>
                             </select>
                         </div>
@@ -626,11 +645,11 @@ foreach ($productos as $p) {
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Cultivos Autorizados</label>
-                            <input type="text" name="cultivos_autorizados" id="fito_cultivos" class="form-control" placeholder="Ej: Olivo, Almendro, Vid, Nogal, Cítricos, Tomate">
+                            <input type="text" name="cultivos_autorizados" id="fito_cultivos" class="form-control" placeholder="Ej: Olivo, Frutales de hueso, Pepita, Cítricos, Tomate">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold">Plagas / Enfermedades Diana</label>
-                            <input type="text" name="plagas_objetivo" id="fito_plagas" class="form-control" placeholder="Ej: Repilo, Oídio, Mosca, Barrenador, Cochinilla">
+                            <label class="form-label small fw-semibold">Plagas / Enfermedades Diana o Fin Fisiológico</label>
+                            <input type="text" name="plagas_objetivo" id="fito_plagas" class="form-control" placeholder="Ej: Mosca de la fruta, Repilo, Cuajado, Engorde...">
                         </div>
                     </div>
 
@@ -654,9 +673,10 @@ foreach ($productos as $p) {
                                         <option value="%">% caldo</option>
                                         <option value="kg">kg</option>
                                         <option value="l">L</option>
+                                        <option value="trampas/ha">trampas/ha</option>
                                     </select>
                                 </div>
-                                <div class="form-text text-muted" style="font-size: 0.72rem;">Ej: 0.300 kg/hl (0.3%) ó 300 g/hl</div>
+                                <div class="form-text text-muted" style="font-size: 0.72rem;">Ej: 0.300 kg/hl (0.3%), 300 g/hl, ó 0 si es trampa fija</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-semibold">Dosis Estimada por Hectárea (ha)</label>
@@ -664,7 +684,7 @@ foreach ($productos as $p) {
                                     <input type="number" step="0.001" name="dosis_por_hectarea" id="fito_dosis_ha" class="form-control font-monospace" placeholder="3.000">
                                     <span class="input-group-text small bg-white text-dark fw-semibold" id="lbl_unidad_ha">kg o L/ha</span>
                                 </div>
-                                <div class="form-text text-muted" style="font-size: 0.72rem;">Calculada para gasto medio de 1.000 L de caldo/ha</div>
+                                <div class="form-text text-muted" style="font-size: 0.72rem;">Para pulverizaciones o trampas por hectárea</div>
                             </div>
                         </div>
 
@@ -726,8 +746,8 @@ foreach ($productos as $p) {
 
                     <!-- Modo de Acción y Advertencias -->
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Modo de Acción y Pautas de Aplicación</label>
-                        <textarea name="modo_accion_uso" id="fito_modo_accion" rows="2" class="form-control small" placeholder="Ej: Contacto preventivo superficial multisitio. Tratar con vegetación seca y sin viento."></textarea>
+                        <label class="form-label small fw-semibold">Modo de Acción, Modo de Empleo y Colocación (Trampas / Hormonas)</label>
+                        <textarea name="modo_accion_uso" id="fito_modo_accion" rows="2" class="form-control small" placeholder="Ej: Trampas: Colocar 45-75 trampas/ha a media altura en la cara sur/sureste de la copa 40-50 días antes del cambio de color. / Hormonas: Aplicar en floración o cuajado."></textarea>
                     </div>
 
                     <div class="mb-0">
@@ -899,95 +919,216 @@ function calcularDosisRecipientes() {
     }
 }
 
+// Utilidad para escapar texto en HTML de forma segura
+function escapeHtml(text) {
+    if (!text && text !== 0) return '';
+    var map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Almacén en memoria de las opciones devueltas por la consulta IA
+window.fitoOpcionesActuales = [];
+
+// Cierra el contenedor de opciones
+function cerrarOpcionesIa() {
+    var wrapper = document.getElementById('ia_fito_opciones_wrapper');
+    if (wrapper) wrapper.classList.add('d-none');
+}
+
+// Renderiza la lista interactiva de opciones encontradas para que el usuario elija
+function renderizarOpcionesIa(opciones) {
+    window.fitoOpcionesActuales = opciones;
+    var list = document.getElementById('ia_fito_opciones_list');
+    var wrapper = document.getElementById('ia_fito_opciones_wrapper');
+    var countLbl = document.getElementById('ia_fito_opciones_count');
+    
+    list.innerHTML = '';
+    
+    if (opciones.length === 1) {
+        countLbl.innerHTML = '<i class="fa-solid fa-circle-check me-1 text-success"></i>1 opción homologada encontrada en el registro oficial:';
+    } else {
+        countLbl.innerHTML = '<i class="fa-solid fa-list-check me-1 text-primary"></i>Se han encontrado <strong>' + opciones.length + ' opciones</strong>. Selecciona la más adecuada para tu tratamiento:';
+    }
+
+    opciones.forEach(function(opt, idx) {
+        var card = document.createElement('div');
+        card.className = 'card p-2 border bg-white shadow-sm option-item transition-all';
+        card.style.cursor = 'pointer';
+        card.id = 'opt_card_' + idx;
+
+        var esEco = parseInt(opt.es_ecologico) === 1;
+        var badgeEco = esEco 
+            ? '<span class="badge bg-success text-white py-1 px-2"><i class="fa-solid fa-leaf me-1"></i>ECOLÓGICO</span>' 
+            : '<span class="badge bg-secondary text-white py-1 px-2"><i class="fa-solid fa-wheat-awn me-1"></i>CONVENCIONAL</span>';
+
+        var d100Txt = (opt.dosis_etiqueta_100l && parseFloat(opt.dosis_etiqueta_100l) > 0)
+            ? opt.dosis_etiqueta_100l + ' ' + (opt.unidad_dosis || '')
+            : (opt.dosis_recomendada_ha ? opt.dosis_recomendada_ha + ' ' + (opt.unidad_dosis || 'kg/ha') : 'Según etiqueta');
+
+        card.innerHTML = 
+            '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div class="flex-grow-1">' +
+                    '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+                        '<strong class="text-primary fs-6"><i class="fa-solid fa-bottle-droplet me-1 text-danger"></i>' + escapeHtml(opt.nombre_comercial_producto) + '</strong>' +
+                        badgeEco +
+                        '<span class="badge bg-light text-dark border small">' + escapeHtml(opt.tipo_producto || 'Tratamiento') + '</span>' +
+                        (opt.num_registro_oficial ? '<span class="badge bg-light text-muted font-monospace border small">Reg: ' + escapeHtml(opt.num_registro_oficial) + '</span>' : '') +
+                    '</div>' +
+                    '<div class="small text-muted mt-1">' +
+                        '<strong>Materia/Atrayente:</strong> ' + escapeHtml(opt.materia_activa || 'No especificada') + ' | ' +
+                        '<strong>Dosis ref:</strong> <span class="text-dark fw-semibold">' + escapeHtml(d100Txt) + '</span>' +
+                    '</div>' +
+                    (opt.plagas_objetivo ? '<div class="small text-secondary mt-1"><i class="fa-solid fa-bullseye me-1 text-danger"></i><strong>Diana / Uso:</strong> ' + escapeHtml(opt.plagas_objetivo) + '</div>' : '') +
+                    (opt.cultivos_autorizados ? '<div class="small text-muted"><i class="fa-solid fa-seedling me-1 text-success"></i><strong>Cultivos:</strong> ' + escapeHtml(opt.cultivos_autorizados) + '</div>' : '') +
+                    (opt.observaciones_tecnicas ? '<div class="small text-dark mt-1 fst-italic" style="font-size: 0.76rem;"><i class="fa-solid fa-circle-info me-1 text-info"></i>' + escapeHtml(opt.observaciones_tecnicas.substring(0, 150)) + (opt.observaciones_tecnicas.length > 150 ? '...' : '') + '</div>' : '') +
+                '</div>' +
+                '<div class="ms-2 align-self-center">' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary fw-bold text-nowrap" onclick="event.stopPropagation(); aplicarOpcionSeleccionada(' + idx + ');">' +
+                        '<i class="fa-solid fa-check me-1"></i> Seleccionar' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+
+        card.onclick = function() {
+            aplicarOpcionSeleccionada(idx);
+        };
+
+        list.appendChild(card);
+    });
+
+    wrapper.classList.remove('d-none');
+}
+
+// Aplica los datos de una opción seleccionada a la ficha del modal
+function aplicarOpcionSeleccionada(idx) {
+    if (!window.fitoOpcionesActuales || !window.fitoOpcionesActuales[idx]) return;
+    var d = window.fitoOpcionesActuales[idx];
+
+    // Marcar visualmente la tarjeta activa
+    window.fitoOpcionesActuales.forEach(function(_, i) {
+        var c = document.getElementById('opt_card_' + i);
+        if (c) {
+            c.classList.remove('border-primary', 'bg-primary-subtle');
+            c.classList.add('bg-white');
+        }
+    });
+    var selCard = document.getElementById('opt_card_' + idx);
+    if (selCard) {
+        selCard.classList.remove('bg-white');
+        selCard.classList.add('border-primary', 'bg-primary-subtle');
+    }
+
+    // Volcar datos al formulario
+    document.getElementById('fito_nombre_comercial').value = d.nombre_comercial_producto || '';
+    document.getElementById('fito_materia_activa').value = d.materia_activa || '';
+    document.getElementById('fito_num_registro').value = d.num_registro_oficial || '';
+    
+    if (d.tipo_producto) {
+        var tipoSelect = document.getElementById('fito_tipo_producto');
+        for (var i = 0; i < tipoSelect.options.length; i++) {
+            if (d.tipo_producto.toLowerCase().indexOf(tipoSelect.options[i].value.toLowerCase()) !== -1 ||
+                tipoSelect.options[i].value.toLowerCase().indexOf(d.tipo_producto.toLowerCase()) !== -1) {
+                tipoSelect.selectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    document.getElementById('fito_es_ecologico').checked = (parseInt(d.es_ecologico) === 1);
+    document.getElementById('fito_cultivos').value = d.cultivos_autorizados || 'Olivo, Almendro, Frutales, Vid';
+    document.getElementById('fito_plagas').value = d.plagas_objetivo || d.plaga_o_enfermedad_objetivo || '';
+    document.getElementById('fito_modo_accion').value = d.modo_accion || '';
+    document.getElementById('fito_plazo_seguridad').value = (d.plazo_seguridad_dias !== undefined) ? d.plazo_seguridad_dias : 0;
+    document.getElementById('fito_intervalo_rep').value = (d.intervalo_repeticion_dias !== undefined) ? d.intervalo_repeticion_dias : 14;
+    document.getElementById('fito_advertencias').value = d.observaciones_tecnicas || '';
+
+    // Dosis
+    if (d.dosis_etiqueta_100l !== undefined && parseFloat(d.dosis_etiqueta_100l) >= 0) {
+        document.getElementById('fito_dosis_100l').value = d.dosis_etiqueta_100l;
+    } else if (d.dosis_recomendada_ha && parseFloat(d.dosis_recomendada_ha) > 0) {
+        document.getElementById('fito_dosis_ha').value = d.dosis_recomendada_ha;
+        var d100Est = (parseFloat(d.dosis_recomendada_ha) * 1000) / 10;
+        document.getElementById('fito_dosis_100l').value = d100Est.toFixed(1);
+    }
+
+    if (d.dosis_recomendada_ha) {
+        document.getElementById('fito_dosis_ha').value = d.dosis_recomendada_ha;
+    }
+
+    if (d.unidad_dosis) {
+        var uniSel = document.getElementById('fito_unidad_dosis');
+        var uNorm = d.unidad_dosis.toLowerCase().trim();
+        var found = false;
+        for (var j = 0; j < uniSel.options.length; j++) {
+            if (uniSel.options[j].value.toLowerCase() === uNorm) {
+                uniSel.selectedIndex = j;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            if (uNorm.indexOf('trampa') !== -1) uniSel.value = 'trampas/ha';
+            else if (uNorm.indexOf('kg') !== -1) uniSel.value = 'kg/hl';
+            else if (uNorm.indexOf('l') !== -1) uniSel.value = 'l/hl';
+            else if (uNorm.indexOf('g') !== -1) uniSel.value = 'g/hl';
+            else uniSel.value = 'cc/hl';
+        }
+    }
+
+    calcularDosisRecipientes();
+
+    var feedback = document.getElementById('ia_fito_feedback');
+    feedback.innerHTML = '<div class="alert alert-success py-2 px-3 mb-0 small"><i class="fa-solid fa-circle-check me-1"></i> Ficha autocompletada con el producto <strong>' + escapeHtml(d.nombre_comercial_producto) + '</strong> (' + (d.fuente || 'Registro Oficial') + '). Modo de empleo y dosis cargados.</div>';
+    feedback.classList.remove('d-none');
+}
+
 // Consulta de producto con IA
 function consultarIaFitosanitario() {
     var q = document.getElementById('ia_fito_busqueda').value.trim();
     if (!q) {
-        alert("Por favor, introduce el nombre del producto, materia activa o plaga a consultar.");
+        alert("Por favor, introduce el nombre del producto, materia activa, trampa, hormona o plaga a consultar.");
         return;
     }
 
     var spinner = document.getElementById('ia_fito_spinner');
     var feedback = document.getElementById('ia_fito_feedback');
+    var wrapper = document.getElementById('ia_fito_opciones_wrapper');
 
     spinner.classList.remove('d-none');
     feedback.classList.add('d-none');
+    if (wrapper) wrapper.classList.add('d-none');
 
     fetch('<?= APP_URL ?>/api/fitosanitarios/consultar-ia?q=' + encodeURIComponent(q))
         .then(function(r) { return r.json(); })
         .then(function(res) {
             spinner.classList.add('d-none');
-            if (res && res.success && res.data) {
-                var d = res.data;
-                document.getElementById('fito_nombre_comercial').value = d.nombre_comercial_producto || q;
-                document.getElementById('fito_materia_activa').value = d.materia_activa || '';
-                document.getElementById('fito_num_registro').value = d.num_registro_oficial || '';
+            if (res && res.success && res.opciones && res.opciones.length > 0) {
+                renderizarOpcionesIa(res.opciones);
                 
-                if (d.tipo_producto) {
-                    var tipoSelect = document.getElementById('fito_tipo_producto');
-                    for (var i = 0; i < tipoSelect.options.length; i++) {
-                        if (d.tipo_producto.toLowerCase().indexOf(tipoSelect.options[i].value.toLowerCase()) !== -1) {
-                            tipoSelect.selectedIndex = i;
-                            break;
-                        }
-                    }
+                // Si solo hay una opción encontrada, se aplica directamente
+                if (res.opciones.length === 1) {
+                    aplicarOpcionSeleccionada(0);
+                } else {
+                    feedback.innerHTML = '<div class="alert alert-info py-2 px-3 mb-0 small"><i class="fa-solid fa-hand-pointer me-1"></i> Se han encontrado varias opciones registradas. Elige arriba la más conveniente para tu explotación.</div>';
+                    feedback.classList.remove('d-none');
                 }
-
-                document.getElementById('fito_es_ecologico').checked = (parseInt(d.es_ecologico) === 1);
-                document.getElementById('fito_cultivos').value = d.cultivos_autorizados || 'Olivo, Almendro, Frutales, Vid';
-                document.getElementById('fito_plagas').value = d.plaga_o_enfermedad_objetivo || d.plagas_objetivo || '';
-                document.getElementById('fito_modo_accion').value = d.modo_accion || '';
-                document.getElementById('fito_plazo_seguridad').value = d.plazo_seguridad_dias || 0;
-                document.getElementById('fito_intervalo_rep').value = d.intervalo_repeticion_dias || 14;
-                document.getElementById('fito_advertencias').value = d.observaciones_tecnicas || '';
-
-                // Dosis
-                if (d.dosis_etiqueta_100l) {
-                    document.getElementById('fito_dosis_100l').value = d.dosis_etiqueta_100l;
-                } else if (d.dosis_recomendada_ha) {
-                    document.getElementById('fito_dosis_ha').value = d.dosis_recomendada_ha;
-                    // Estimar dosis por 100L (asumiendo 1000L caldo/ha)
-                    var d100Est = (parseFloat(d.dosis_recomendada_ha) * 1000) / 10;
-                    document.getElementById('fito_dosis_100l').value = d100Est.toFixed(1);
-                }
-
-                if (d.unidad_dosis) {
-                    var uniSel = document.getElementById('fito_unidad_dosis');
-                    var uNorm = d.unidad_dosis.toLowerCase();
-                    if (uNorm.indexOf('kg') !== -1 || uNorm.indexOf('%') !== -1) {
-                        uniSel.value = 'kg/hl';
-                    } else if (uNorm.indexOf('g') !== -1) {
-                        uniSel.value = 'g/hl';
-                    } else if (uNorm.indexOf('l') !== -1) {
-                        uniSel.value = 'l/hl';
-                    } else {
-                        uniSel.value = 'cc/hl';
-                    }
-                }
-
-                calcularDosisRecipientes();
-
-                feedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Ficha autocompletada por IA desde ' + (d.fuente || 'Registro Oficial');
-                feedback.classList.remove('d-none');
             } else {
-                alert("No se encontró información técnica para este término. Puedes rellenar la ficha manualmente.");
+                // Si no se encuentra nada: decirlo claramente y NO inventar datos
+                var msg = (res && res.message) ? res.message : ('No se encontró ningún producto fitosanitario registrado o información técnica para "' + q + '". Puedes rellenar la ficha manualmente.');
+                feedback.innerHTML = '<div class="alert alert-warning py-2 px-3 mb-0 small"><i class="fa-solid fa-triangle-exclamation me-1"></i> ' + escapeHtml(msg) + '</div>';
+                feedback.classList.remove('d-none');
             }
         })
         .catch(function(err) {
             spinner.classList.add('d-none');
-            alert("Error al conectar con el servicio IA: " + err.message);
-        });
-}
-
-                feedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Ficha autocompletada por IA desde ' + (d.fuente || 'Registro Oficial');
-                feedback.classList.remove('d-none');
-            } else {
-                alert("No se encontró información técnica para este término. Puedes rellenar la ficha manualmente.");
-            }
-        })
-        .catch(function(err) {
-            spinner.classList.add('d-none');
-            alert("Error al conectar con el servicio IA: " + err.message);
+            feedback.innerHTML = '<div class="alert alert-danger py-2 px-3 mb-0 small"><i class="fa-solid fa-circle-exclamation me-1"></i> Error al conectar con el asistente de fitosanitarios: ' + escapeHtml(err.message) + '</div>';
+            feedback.classList.remove('d-none');
         });
 }
 </script>
