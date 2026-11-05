@@ -23,7 +23,7 @@ class Mailer {
         if (strpos($plainText, 'ENCv1:') === 0) return $plainText;
 
         $key = hash('sha256', MM_CRYPTO_SECRET, true);
-        $iv = random_bytes(16);
+        $iv = function_exists('random_bytes') ? random_bytes(16) : openssl_random_pseudo_bytes(16);
         $cipher = openssl_encrypt($plainText, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
         $mac = hash_hmac('sha256', $iv . $cipher, $key, true);
         return 'ENCv1:' . base64_encode($iv . $mac . $cipher);
@@ -115,11 +115,31 @@ class Mailer {
     }
 
     /**
+     * Escribe todos los bytes en el socket de forma segura (fragmentando para enlaces TLS/SSL con adjuntos grandes)
+     */
+    private static function smtpWrite($socket, $data) {
+        $total = strlen($data);
+        $written = 0;
+        $chunkSize = 8192;
+        while ($written < $total) {
+            $chunk = substr($data, $written, $chunkSize);
+            $bytes = @fwrite($socket, $chunk);
+            if ($bytes === false || $bytes === 0) {
+                $meta = stream_get_meta_data($socket);
+                $timedOut = !empty($meta['timed_out']) ? ' (Timeout de red)' : '';
+                throw new Exception("Error al transmitir datos al servidor SMTP{$timedOut} (enviados {$written} de {$total} bytes).");
+            }
+            $written += $bytes;
+        }
+        @fflush($socket);
+    }
+
+    /**
      * Envía comando SMTP y verifica código
      */
     private static function smtpCmd($socket, $cmd, $expected = array(250)) {
         if ($cmd !== null) {
-            fwrite($socket, $cmd . "\r\n");
+            self::smtpWrite($socket, $cmd . "\r\n");
         }
         $resp = self::smtpRead($socket);
         $code = (int)substr($resp, 0, 3);
@@ -153,12 +173,12 @@ class Mailer {
 
         $errno = 0;
         $errstr = '';
-        $socket = @stream_socket_client($remote, $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $context);
+        $socket = @stream_socket_client($remote, $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $context);
         if (!$socket) {
             throw new Exception("No se pudo conectar al servidor SMTP $remote ($errno: $errstr)");
         }
 
-        stream_set_timeout($socket, 15);
+        stream_set_timeout($socket, 60);
 
         try {
             self::smtpCmd($socket, null, array(220));

@@ -514,7 +514,8 @@ const ReportExport = (function() {
                         pdf.text('Documento oficial generado electrónicamente por AgroDietario', 8, pageHeight - 4.5);
                         pdf.text('Página ' + i + ' de ' + totalPages, pageWidth - 8, pageHeight - 4.5, { align: 'right' });
                     }
-                }).save();
+                    pdf.save(opt.filename);
+                });
             } catch (err) {
                 alert('Error al generar PDF: ' + err.message);
             }
@@ -545,14 +546,17 @@ const ReportExport = (function() {
                 if (!printable) throw new Error('No se pudo capturar el contenido del informe.');
 
                 const opt = getPdfConfig(filename, isLandscape);
+                // Optimizar compresión para envío rápido por correo sin superar límites POST/SMTP del servidor
+                opt.image = { type: 'jpeg', quality: 0.82 };
+                opt.html2canvas = { scale: 1.5, useCORS: true, logging: false, letterRendering: true };
 
                 const fechaEmision = new Date().toLocaleDateString('es-ES', { 
                     day: '2-digit', month: '2-digit', year: 'numeric', 
                     hour: '2-digit', minute: '2-digit' 
                 });
 
-                // Generar PDF en Base64 con cabeceras y pies en todos los saltos de página
-                const pdfBase64 = await html2pdf().set(opt).from(printable).toPdf().get('pdf').then(function(pdf) {
+                // Generar PDF como Blob binario con cabeceras y pies en todos los saltos de página
+                const pdfBlob = await html2pdf().set(opt).from(printable).toPdf().get('pdf').then(function(pdf) {
                     const totalPages = pdf.internal.getNumberOfPages();
                     const pageWidth = pdf.internal.pageSize.getWidth();
                     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -591,14 +595,15 @@ const ReportExport = (function() {
                         pdf.text('Documento oficial generado electrónicamente por AgroDietario', 8, pageHeight - 4.5);
                         pdf.text('Página ' + i + ' de ' + totalPages, pageWidth - 8, pageHeight - 4.5, { align: 'right' });
                     }
-                }).outputPdf('datauristring');
+                    return pdf.output('blob');
+                });
 
-                // Enviar al backend vía API
+                // Enviar al backend vía API como archivo binario adjunto
+                const cleanFilename = (filename || 'informe.pdf').toLowerCase().endsWith('.pdf') ? (filename || 'informe.pdf') : ((filename || 'informe') + '.pdf');
                 const formData = new FormData();
                 formData.append('titulo', title);
-                formData.append('nombre_archivo', filename || 'informe.pdf');
-                formData.append('pdf_base64', pdfBase64);
-                formData.append('contenido_html', printable.innerHTML);
+                formData.append('nombre_archivo', cleanFilename);
+                formData.append('pdf_file', pdfBlob, cleanFilename);
 
                 const appUrl = (typeof window.APP_URL !== 'undefined') ? window.APP_URL : '';
                 const endpoint = (appUrl ? appUrl : '') + '/api/informe/enviar-email';
@@ -613,7 +618,8 @@ const ReportExport = (function() {
                 try {
                     json = JSON.parse(text);
                 } catch (e) {
-                    throw new Error('Respuesta del servidor no válida: ' + text.substring(0, 150));
+                    const detail = text ? text.substring(0, 150) : ('HTTP ' + response.status + ' ' + (response.statusText || 'Sin respuesta'));
+                    throw new Error('Respuesta del servidor no válida (' + detail + ')');
                 }
 
                 if (json.success) {

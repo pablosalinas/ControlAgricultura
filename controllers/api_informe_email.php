@@ -4,9 +4,32 @@
  * al usuario autenticado
  */
 
+@ini_set('memory_limit', '256M');
+@set_time_limit(120);
+ob_start();
+
 header('Content-Type: application/json; charset=utf-8');
 
+// Capturar posibles errores fatales de memoria o tiempo de ejecución para devolver siempre JSON válido
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR))) {
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(500);
+        }
+        echo json_encode(array(
+            'success' => false,
+            'message' => 'Error interno del servidor al procesar el informe: ' . $err['message']
+        ));
+    }
+});
+
 if (!class_exists('Auth') || !Auth::check()) {
+    ob_end_clean();
     http_response_code(401);
     echo json_encode(array('success' => false, 'message' => 'No autorizado. Debe iniciar sesión en el portal.'));
     exit;
@@ -17,6 +40,7 @@ $userEmail = !empty($u['email']) ? trim($u['email']) : '';
 $userName = !empty($u['nombre_completo']) ? trim($u['nombre_completo']) : 'Usuario';
 
 if (empty($userEmail) || !filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
+    ob_end_clean();
     http_response_code(400);
     echo json_encode(array('success' => false, 'message' => 'Tu usuario no tiene configurada una dirección de correo electrónico válida.'));
     exit;
@@ -25,22 +49,31 @@ if (empty($userEmail) || !filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
 $titulo = !empty($_POST['titulo']) ? trim($_POST['titulo']) : 'Informe Oficial de AgroDietario';
 $nombreArchivo = !empty($_POST['nombre_archivo']) ? trim($_POST['nombre_archivo']) : 'informe_' . date('Ymd_His') . '.pdf';
 $pdfBase64 = !empty($_POST['pdf_base64']) ? $_POST['pdf_base64'] : '';
-$contenidoHtml = !empty($_POST['contenido_html']) ? $_POST['contenido_html'] : '';
 
 $attachments = array();
-if (!empty($pdfBase64)) {
-    if (strpos($pdfBase64, 'base64,') !== false) {
-        $parts = explode('base64,', $pdfBase64);
-        $bin = base64_decode($parts[1]);
+
+// 1. Priorizar archivo binario subido como Blob (mucho más ligero en red y memoria RAM)
+if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK && is_uploaded_file($_FILES['pdf_file']['tmp_name'])) {
+    $attachments[] = array(
+        'name' => $nombreArchivo,
+        'path' => $_FILES['pdf_file']['tmp_name'],
+        'mime' => 'application/pdf'
+    );
+}
+// 2. Fallback: PDF codificado en Base64
+elseif (!empty($pdfBase64)) {
+    $commaPos = strpos($pdfBase64, 'base64,');
+    if ($commaPos !== false) {
+        $bin = base64_decode(substr($pdfBase64, $commaPos + 7));
     } else {
         $bin = base64_decode($pdfBase64);
     }
+    unset($pdfBase64);
     if ($bin !== false && strlen($bin) > 0) {
         $attachments[] = array(
-            'name'    => $nombreArchivo,
-            'data'    => $bin,
-            'content' => $bin,
-            'mime'    => 'application/pdf'
+            'name' => $nombreArchivo,
+            'data' => $bin,
+            'mime' => 'application/pdf'
         );
     }
 }
@@ -94,13 +127,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
 
 try {
     require_once SRC_PATH . '/Services/Mailer.php';
-    Mailer::send($userEmail, $asunto, $cuerpoHtml, $attachments);
+    $res = Mailer::send($userEmail, $asunto, $cuerpoHtml, $attachments);
+    if (is_array($res) && isset($res['success']) && !$res['success']) {
+        throw new Exception(!empty($res['message']) ? $res['message'] : 'Fallo en la entrega SMTP.');
+    }
 
+    if (ob_get_length() > 0) {
+        ob_clean();
+    }
     echo json_encode(array(
         'success' => true,
         'message' => "Informe enviado con éxito a tu correo electrónico (" . $userEmail . ")"
     ));
 } catch (Exception $e) {
+    if (ob_get_length() > 0) {
+        ob_clean();
+    }
     http_response_code(500);
     echo json_encode(array(
         'success' => false,
