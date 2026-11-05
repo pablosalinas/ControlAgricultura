@@ -18,6 +18,17 @@ $isSuperAdmin = Auth::isSuperAdmin();
 
 $action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : '');
 
+if (empty($action)) {
+    $uriPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if (strpos($uriPath, 'plantaciones/guardar-rapida') !== false) {
+        $action = 'guardar_plantacion';
+    } elseif (strpos($uriPath, 'cultivos/guardar-rapido') !== false) {
+        $action = 'guardar_cultivo';
+    } elseif (strpos($uriPath, 'cultivos/listar') !== false) {
+        $action = 'obtener_cultivos';
+    }
+}
+
 try {
     switch ($action) {
 
@@ -786,6 +797,177 @@ try {
                 'longitud' => $lng,
                 'geojson_perimetro' => $geojson
             ));
+            break;
+
+        // =========================================================================
+        // 11. CREACIÓN RÁPIDA DE PLANTACIÓN DESDE EL VISOR CARTOGRÁFICO
+        // =========================================================================
+        case 'guardar_plantacion':
+            $raw = file_get_contents('php://input');
+            $data = json_decode($raw, true);
+            if (!$data) $data = $_POST;
+
+            $idFinca = isset($data['id_finca']) ? (int)$data['id_finca'] : 0;
+            $idCultivo = isset($data['id_cultivo']) ? (int)$data['id_cultivo'] : 0;
+            $cuadro = trim(isset($data['identificador_cuadro']) ? $data['identificador_cuadro'] : 'Cuadro 1');
+            $campana = (int)(isset($data['campana_ano']) ? $data['campana_ano'] : date('Y'));
+            $tipoPlantacion = isset($data['tipo_plantacion']) ? $data['tipo_plantacion'] : 'temporada';
+            $superficie = (float)(isset($data['superficie_ocupada_ha']) ? str_replace(',', '.', (string)$data['superficie_ocupada_ha']) : 0);
+            $numPlantas = !empty($data['num_arboles_o_plantas']) ? (int)$data['num_arboles_o_plantas'] : null;
+            $marco = trim(isset($data['marco_plantacion']) ? $data['marco_plantacion'] : '');
+            $siembra = !empty($data['fecha_siembra']) ? $data['fecha_siembra'] : null;
+            $trans = !empty($data['fecha_transplante']) ? $data['fecha_transplante'] : null;
+            $fin = !empty($data['fecha_estimada_fin']) ? $data['fecha_estimada_fin'] : null;
+            $estado = isset($data['estado']) ? $data['estado'] : 'en_crecimiento';
+            $notas = trim(isset($data['notas']) ? $data['notas'] : '');
+            $diaMesRecoleccion = !empty($fin) ? date('m-d', strtotime($fin)) : null;
+
+            if ($idFinca <= 0 || $idCultivo <= 0) {
+                echo json_encode(array('success' => false, 'message' => 'Debes indicar una finca y un cultivo obligatoriamente.'));
+                exit;
+            }
+
+            // Verificar pertenencia si aplica
+            if ($tenantId) {
+                $checkFinca = $db->prepare("SELECT id_finca FROM fincas WHERE id_finca = :id AND (id_propietario = :t OR id_propietario IS NULL) AND activo = 1");
+                $checkFinca->execute(array(':id' => $idFinca, ':t' => (int)$tenantId));
+                if (!$checkFinca->fetch()) {
+                    echo json_encode(array('success' => false, 'message' => 'Finca no encontrada o sin permiso de acceso.'));
+                    exit;
+                }
+            }
+
+            $stmtIns = $db->prepare("
+                INSERT INTO plantaciones (
+                    id_finca, id_cultivo, identificador_cuadro, campana_ano, superficie_ocupada_ha,
+                    num_arboles_o_plantas, marco_plantacion, fecha_siembra, fecha_transplante,
+                    fecha_estimada_fin, tipo_plantacion, dia_mes_recoleccion, estado, notas, activo
+                ) VALUES (
+                    :finca, :cultivo, :cuadro, :campana, :sup,
+                    :num, :marco, :siembra, :trans,
+                    :fin, :tipo, :diames, :estado, :notas, 1
+                )
+            ");
+            $stmtIns->execute(array(
+                ':finca'    => $idFinca,
+                ':cultivo'  => $idCultivo,
+                ':cuadro'   => $cuadro,
+                ':campana'  => $campana,
+                ':sup'      => $superficie,
+                ':num'      => $numPlantas,
+                ':marco'    => $marco ?: null,
+                ':siembra'  => $siembra,
+                ':trans'    => $trans,
+                ':fin'      => $fin,
+                ':tipo'     => $tipoPlantacion,
+                ':diames'   => $diaMesRecoleccion,
+                ':estado'   => $estado,
+                ':notas'    => $notas ?: null
+            ));
+            $newId = (int)$db->lastInsertId();
+
+            // Obtener datos del cultivo recién vinculado
+            $stmtC = $db->prepare("SELECT id_cultivo, nombre_comun, nombre_cientifico, variedad, tipo_cultivo, es_ecologico FROM cultivos WHERE id_cultivo = :id");
+            $stmtC->execute(array(':id' => $idCultivo));
+            $cultivoData = $stmtC->fetch();
+
+            echo json_encode(array(
+                'success' => true,
+                'message' => 'Plantación creada con éxito.',
+                'plantacion' => array(
+                    'id_plantacion' => $newId,
+                    'id_finca' => $idFinca,
+                    'id_cultivo' => $idCultivo,
+                    'identificador_cuadro' => $cuadro,
+                    'campana_ano' => $campana,
+                    'tipo_plantacion' => $tipoPlantacion,
+                    'superficie_ocupada_ha' => $superficie,
+                    'num_arboles_o_plantas' => $numPlantas,
+                    'marco_plantacion' => $marco,
+                    'fecha_siembra' => $siembra,
+                    'fecha_transplante' => $trans,
+                    'fecha_estimada_fin' => $fin,
+                    'estado' => $estado,
+                    'notas' => $notas,
+                    'nombre_comun' => isset($cultivoData['nombre_comun']) ? $cultivoData['nombre_comun'] : '',
+                    'nombre_cientifico' => isset($cultivoData['nombre_cientifico']) ? $cultivoData['nombre_cientifico'] : '',
+                    'variedad' => isset($cultivoData['variedad']) ? $cultivoData['variedad'] : '',
+                    'tipo_cultivo' => isset($cultivoData['tipo_cultivo']) ? $cultivoData['tipo_cultivo'] : 'frutal'
+                )
+            ));
+            break;
+
+        // =========================================================================
+        // 12. ALTA RÁPIDA DE CULTIVO / PLANTA EN EL CATÁLOGO BOTÁNICO
+        // =========================================================================
+        case 'guardar_cultivo':
+            $raw = file_get_contents('php://input');
+            $data = json_decode($raw, true);
+            if (!$data) $data = $_POST;
+
+            $nombreComun = trim(isset($data['nombre_comun']) ? $data['nombre_comun'] : '');
+            $nombreCientifico = trim(isset($data['nombre_cientifico']) ? $data['nombre_cientifico'] : '');
+            $variedad = trim(isset($data['variedad']) ? $data['variedad'] : '');
+            $diasCiclo = !empty($data['dias_ciclo_aprox']) ? (int)$data['dias_ciclo_aprox'] : null;
+            $tipoCultivo = isset($data['tipo_cultivo']) ? $data['tipo_cultivo'] : 'frutal';
+            $esEcologico = (!empty($data['es_ecologico']) && ($data['es_ecologico'] == '1' || $data['es_ecologico'] === true)) ? 1 : 0;
+            $descripcion = trim(isset($data['descripcion']) ? $data['descripcion'] : '');
+            $formatoSiembra = trim(isset($data['formato_siembra']) ? $data['formato_siembra'] : '');
+            $requerimientos = trim(isset($data['requerimientos_tecnicos']) ? $data['requerimientos_tecnicos'] : '');
+            $urlConsulta = trim(isset($data['url_consulta_botanica']) ? $data['url_consulta_botanica'] : '');
+
+            if (empty($nombreComun)) {
+                echo json_encode(array('success' => false, 'message' => 'El nombre común del cultivo es obligatorio.'));
+                exit;
+            }
+
+            $stmtInsC = $db->prepare("
+                INSERT INTO cultivos (
+                    nombre_comun, nombre_cientifico, variedad, dias_ciclo_aprox,
+                    tipo_cultivo, es_ecologico, descripcion, formato_siembra,
+                    requerimientos_tecnicos, url_consulta_botanica, activo
+                ) VALUES (
+                    :comun, :cien, :var, :ciclo,
+                    :tipo, :eco, :desc, :formato,
+                    :req, :url, 1
+                )
+            ");
+            $stmtInsC->execute(array(
+                ':comun'    => $nombreComun,
+                ':cien'     => $nombreCientifico ?: null,
+                ':var'      => $variedad ?: null,
+                ':ciclo'    => $diasCiclo,
+                ':tipo'     => $tipoCultivo,
+                ':eco'      => $esEcologico,
+                ':desc'     => $descripcion ?: null,
+                ':formato'  => $formatoSiembra ?: null,
+                ':req'      => $requerimientos ?: null,
+                ':url'      => $urlConsulta ?: null
+            ));
+            $newCultivoId = (int)$db->lastInsertId();
+
+            echo json_encode(array(
+                'success' => true,
+                'message' => 'Planta dada de alta correctamente en el catálogo botánico.',
+                'cultivo' => array(
+                    'id_cultivo' => $newCultivoId,
+                    'nombre_comun' => $nombreComun,
+                    'nombre_cientifico' => $nombreCientifico,
+                    'variedad' => $variedad,
+                    'tipo_cultivo' => $tipoCultivo,
+                    'dias_ciclo_aprox' => $diasCiclo,
+                    'es_ecologico' => $esEcologico
+                )
+            ));
+            break;
+
+        // =========================================================================
+        // 13. OBTENER LISTA DE CULTIVOS DEL CATÁLOGO BOTÁNICO
+        // =========================================================================
+        case 'obtener_cultivos':
+            $stmtCult = $db->query("SELECT id_cultivo, nombre_comun, nombre_cientifico, variedad, tipo_cultivo, dias_ciclo_aprox FROM cultivos WHERE activo = 1 ORDER BY nombre_comun ASC");
+            $listaCultivos = $stmtCult->fetchAll();
+            echo json_encode(array('success' => true, 'cultivos' => $listaCultivos));
             break;
 
         default:

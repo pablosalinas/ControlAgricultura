@@ -359,16 +359,26 @@ $plantaciones = $stmtPl->fetchAll();
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-success">
-                                <i class="fa-solid fa-seedling me-1"></i>Cultivo / Especie *
-                            </label>
-                            <select name="id_cultivo" id="edit_id_cultivo" class="form-select fw-semibold" required>
-                                <?php foreach ($cultivosList as $cl): ?>
-                                    <option value="<?= $cl['id_cultivo'] ?>">
-                                        <?= htmlspecialchars($cl['nombre_comun'] . ($cl['variedad'] ? ' (' . $cl['variedad'] . ')' : '')) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold small text-success mb-0">
+                                    <i class="fa-solid fa-seedling me-1"></i>Cultivo / Especie *
+                                </label>
+                                <button type="button" class="btn btn-link btn-sm text-success p-0 fw-bold text-decoration-none" onclick="abrirModalNuevoCultivoRapido('edit_plantacion')">
+                                    <i class="fa-solid fa-plus-circle me-1"></i>+ Nueva Planta
+                                </button>
+                            </div>
+                            <div class="input-group">
+                                <select name="id_cultivo" id="edit_id_cultivo" class="form-select fw-semibold" required>
+                                    <?php foreach ($cultivosList as $cl): ?>
+                                        <option value="<?= $cl['id_cultivo'] ?>">
+                                            <?= htmlspecialchars($cl['nombre_comun'] . ($cl['variedad'] ? ' (' . $cl['variedad'] . ')' : '')) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="abrirModalNuevoCultivoRapido('edit_plantacion')" title="Crear nueva planta en el catálogo botánico sin salir">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -481,4 +491,7 @@ function abrirModalEditarPlantacion(pl) {
 }
 </script>
 
-<?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>
+<?php 
+require_once VIEWS_PATH . '/plantaciones/modal_nuevo_cultivo.php';
+require_once VIEWS_PATH . '/layouts/footer.php'; 
+?>

@@ -90,6 +90,7 @@ CREATE TABLE configuracion_web (
     mensaje_pendiente_aprobacion TEXT NULL,
     color_primario VARCHAR(20) DEFAULT '#2e7d32',
     fanegas_por_hectarea DECIMAL(8,4) NOT NULL DEFAULT 3.0000,
+    tiempo_inactividad_minutos INT NOT NULL DEFAULT 30,
     actualizado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

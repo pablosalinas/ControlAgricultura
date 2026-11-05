@@ -71,5 +71,44 @@ $contadorVisitas = class_exists('AccessTracker') ? AccessTracker::getTotalVisits
 
 <!-- Bootstrap 5 Bundle JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<?php if (class_exists('Auth') && Auth::check()): ?>
+<?php 
+    $timeoutMinutos = method_exists('Auth', 'getSessionTimeoutMinutes') ? Auth::getSessionTimeoutMinutes() : 30;
+    $timeoutMs = $timeoutMinutos * 60 * 1000;
+?>
+<script>
+(function() {
+    // Control de inactividad de sesión (<?= $timeoutMinutos ?> minutos configurables en administración)
+    const timeoutMs = <?= (int)$timeoutMs ?>;
+    let temporizadorInactividad;
+    let ultimoRegistroActividad = Date.now();
+
+    function reiniciarTemporizadorInactividad() {
+        const ahora = Date.now();
+        // Throttle para no saturar con mousemove continuos
+        if (ahora - ultimoRegistroActividad < 10000) return;
+        ultimoRegistroActividad = ahora;
+
+        if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
+        temporizadorInactividad = setTimeout(function() {
+            // Notificar al usuario y redirigir
+            window.location.href = "<?= APP_URL ?>/login";
+        }, timeoutMs);
+    }
+
+    // Eventos que representan actividad del usuario (ratón, teclado y toques en pantallas móviles)
+    const eventosActividad = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    eventosActividad.forEach(function(evt) {
+        window.addEventListener(evt, reiniciarTemporizadorInactividad, { passive: true });
+    });
+
+    // Iniciar temporizador al cargar la página
+    temporizadorInactividad = setTimeout(function() {
+        window.location.href = "<?= APP_URL ?>/login";
+    }, timeoutMs);
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>

@@ -111,15 +111,26 @@ require_once VIEWS_PATH . '/layouts/header.php';
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Cultivo y Variedad <span class="text-danger">*</span></label>
-                            <select name="id_cultivo" class="form-select" required>
-                                <option value="">-- Seleccionar Cultivo --</option>
-                                <?php foreach ($cultivos as $c): ?>
-                                    <option value="<?= $c['id_cultivo'] ?>">
-                                        <?= htmlspecialchars($c['nombre_comun'] . ($c['variedad'] ? ' - ' . $c['variedad'] : '')) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">Cultivo y Variedad <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-link btn-sm text-success p-0 fw-bold text-decoration-none" onclick="abrirModalNuevoCultivoRapido('form_plantacion')">
+                                    <i class="fa-solid fa-plus-circle me-1"></i>+ Nueva Planta / Especie
+                                </button>
+                            </div>
+                            <div class="input-group">
+                                <select name="id_cultivo" id="select_id_cultivo" class="form-select" required>
+                                    <option value="">-- Seleccionar Cultivo --</option>
+                                    <?php foreach ($cultivos as $c): ?>
+                                        <option value="<?= $c['id_cultivo'] ?>">
+                                            <?= htmlspecialchars($c['nombre_comun'] . ($c['variedad'] ? ' - ' . $c['variedad'] : '')) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" class="btn btn-outline-success fw-semibold" onclick="abrirModalNuevoCultivoRapido('form_plantacion')" title="Crear nueva planta en el catálogo botánico sin salir de la ventana">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="form-text small">¿No está en el catálogo? Créala al vuelo pulsando en <strong>+ Nueva Planta / Especie</strong> sin salir de esta ventana.</div>
                         </div>
                     </div>
 
@@ -197,4 +208,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
     </div>
 </div>
 
-<?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>
+<?php 
+require_once VIEWS_PATH . '/plantaciones/modal_nuevo_cultivo.php';
+require_once VIEWS_PATH . '/layouts/footer.php'; 
+?>

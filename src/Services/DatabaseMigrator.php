@@ -187,6 +187,7 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'smtp_pass_enc', "TEXT NULL");
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'email_remitente', "VARCHAR(150) NOT NULL DEFAULT 'info@moratalla-murcia.com'");
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'email_comunidad', "VARCHAR(150) NOT NULL DEFAULT 'alharabemoratalla@gmail.com'");
+            self::addColumnIfNotExists($pdo, 'configuracion_web', 'tiempo_inactividad_minutos', 'INT NOT NULL DEFAULT 30');
 
             // Cargar credenciales SMTP iniciales si están vacías
             $cfgRow = $pdo->query("SELECT * FROM configuracion_web LIMIT 1")->fetch();

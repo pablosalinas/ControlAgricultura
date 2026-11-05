@@ -40,6 +40,10 @@ switch ($route) {
 
         $error = '';
         $info = '';
+        if (!empty($_SESSION['mensaje_expirada'])) {
+            $info = $_SESSION['mensaje_expirada'];
+            unset($_SESSION['mensaje_expirada']);
+        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $captchaInput = isset($_POST['captcha_math']) ? $_POST['captcha_math'] : '';
             if (!Captcha::validateMath($captchaInput)) {
@@ -400,6 +404,9 @@ switch ($route) {
     case 'api/mapas/guardar-arbol':
     case 'api/mapas/borrar-arbol':
     case 'api/mapas/centro':
+    case 'api/plantaciones/guardar-rapida':
+    case 'api/cultivos/guardar-rapido':
+    case 'api/cultivos/listar':
         require_once ROOT_PATH . '/controllers/api_mapas.php';
         break;
 

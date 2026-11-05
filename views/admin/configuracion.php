@@ -35,6 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $smtpPassPlain = trim(isset($_POST['smtp_pass']) ? $_POST['smtp_pass'] : '');
 
         $idReganteDefecto = !empty($_POST['id_regante_defecto']) ? (int)$_POST['id_regante_defecto'] : null;
+        $tiempoInactividad = isset($_POST['tiempo_inactividad_minutos']) ? (int)$_POST['tiempo_inactividad_minutos'] : 30;
+        if ($tiempoInactividad < 1) {
+            $tiempoInactividad = 30;
+        }
 
         try {
             $sqlUpd = "
@@ -48,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     usar_captcha = :cap,
                     fanegas_por_hectarea = :fanegas,
                     id_regante_defecto = :regdef,
+                    tiempo_inactividad_minutos = :tinac,
                     smtp_host = :shost,
                     smtp_port = :sport,
                     smtp_encryption = :senc,
@@ -63,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':cap'   => $usarCaptcha,
                 ':fanegas' => $fanegasPorHa,
                 ':regdef'  => $idReganteDefecto,
+                ':tinac'   => $tiempoInactividad,
                 ':shost' => $smtpHost,
                 ':sport' => $smtpPort,
                 ':senc'  => $smtpEnc,
@@ -253,6 +259,18 @@ $userDescifrado = !empty($cfg['smtp_user_enc']) ? Mailer::decrypt($cfg['smtp_use
                         <div class="col-md-6">
                             <label class="form-label fw-semibold small">Email de Contacto</label>
                             <input type="email" name="email_contacto" class="form-control" value="<?= htmlspecialchars(isset($cfg['email_contacto']) ? $cfg['email_contacto'] : '') ?>">
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">
+                                <i class="fa-solid fa-clock-rotate-left text-warning me-1"></i>Tiempo de Cierre de Sesión por Inactividad
+                            </label>
+                            <div class="input-group">
+                                <input type="number" name="tiempo_inactividad_minutos" min="1" max="1440" step="1" class="form-control fw-bold font-monospace" value="<?= (int)(isset($cfg['tiempo_inactividad_minutos']) ? $cfg['tiempo_inactividad_minutos'] : 30) ?>" required>
+                                <span class="input-group-text fw-semibold">minutos</span>
+                            </div>
+                            <div class="form-text small">Cierra automáticamente las sesiones de administración si no hay actividad en el dispositivo. Configurado por defecto a 30 minutos.</div>
                         </div>
                     </div>
                     <div class="mb-3">

@@ -73,6 +73,8 @@ class Auth {
 
         $_SESSION['id_propietario'] = $activePropId;
         $_SESSION['nombre_propietario'] = $activePropNombre ?: 'Sin asignar';
+        $_SESSION['ultimo_acceso_tiempo'] = time();
+        unset($_SESSION['cfg_timeout_minutos']);
 
         return array('success' => true, 'user' => $user);
     }
@@ -135,7 +137,68 @@ class Auth {
     }
 
     public static function check() {
-        return !empty($_SESSION['user_id']);
+        if (empty($_SESSION['user_id'])) {
+            return false;
+        }
+        return self::verifySessionTimeout();
+    }
+
+    /**
+     * Comprueba si la sesión ha expirado por tiempo sin uso de forma automática.
+     * Cierra la sesión y almacena el aviso para el usuario.
+     */
+    public static function verifySessionTimeout() {
+        if (empty($_SESSION['user_id'])) {
+            return false;
+        }
+
+        $ahora = time();
+        $minutosLimite = self::getSessionTimeoutMinutes();
+
+        if ($minutosLimite > 0 && isset($_SESSION['ultimo_acceso_tiempo'])) {
+            $segundosLimite = $minutosLimite * 60;
+            $tiempoInactivo = $ahora - (int)$_SESSION['ultimo_acceso_tiempo'];
+
+            if ($tiempoInactivo > $segundosLimite) {
+                // Sesión expirada por inactividad
+                self::logout();
+                if (session_status() === PHP_SESSION_NONE) {
+                    @session_start();
+                }
+                $_SESSION['mensaje_expirada'] = "Tu sesión ha expirado automáticamente por inactividad ({$minutosLimite} minutos sin uso). Por seguridad, vuelve a iniciar sesión.";
+                return false;
+            }
+        }
+
+        // Actualizar último momento de actividad
+        $_SESSION['ultimo_acceso_tiempo'] = $ahora;
+        return true;
+    }
+
+    /**
+     * Obtiene el tiempo límite de inactividad en minutos (configurable por el superusuario)
+     */
+    public static function getSessionTimeoutMinutes() {
+        if (isset($_SESSION['cfg_timeout_minutos']) && is_numeric($_SESSION['cfg_timeout_minutos'])) {
+            return (int)$_SESSION['cfg_timeout_minutos'];
+        }
+
+        $minutos = 30; // 30 minutos por defecto
+        try {
+            $db = Database::getConnection();
+            if ($db) {
+                $stmt = $db->query("SELECT tiempo_inactividad_minutos FROM configuracion_web LIMIT 1");
+                $val = $stmt->fetchColumn();
+                if ($val !== false && $val !== null && is_numeric($val) && (int)$val > 0) {
+                    $minutos = (int)$val;
+                }
+            }
+        } catch (Exception $e) {
+            $minutos = 30;
+        }
+
+        $_SESSION['cfg_timeout_minutos'] = $minutos;
+        return $minutos;
     }
 
     public static function user() {

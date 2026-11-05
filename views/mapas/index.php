@@ -42,6 +42,9 @@ $idsFincasValidas = array_map(function($item) { return (int)$item['id_finca']; }
 if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValidas)) {
     $fincaSeleccionadaId = !empty($fincasDisponibles) ? (int)$fincasDisponibles[0]['id_finca'] : 0;
 }
+
+// Catálogo botánico de cultivos disponibles para creación rápida de plantaciones
+$cultivosDisponibles = $db->query("SELECT id_cultivo, nombre_comun, nombre_cientifico, variedad, tipo_cultivo FROM cultivos WHERE activo = 1 ORDER BY nombre_comun ASC")->fetchAll();
 ?>
 
 <!-- Hojas de Estilo para Leaflet y Geoman -->
@@ -206,6 +209,30 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         transition: all 0.2s ease;
     }
 
+    /* Elementos interactivos de la Leyenda de Cultivos */
+    .item-cultivo-leyenda {
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border-radius: 6px;
+        padding: 5px 6px;
+        border: 1px solid transparent;
+    }
+    .item-cultivo-leyenda:hover {
+        background-color: rgba(16, 185, 129, 0.12);
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+    .item-cultivo-leyenda.seleccionado {
+        background-color: rgba(37, 99, 235, 0.12);
+        border-color: rgba(37, 99, 235, 0.4);
+    }
+    .objeto-destacado-pulse {
+        animation: animacionResaltePulse 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes animacionResaltePulse {
+        from { transform: scale(1); filter: drop-shadow(0 0 4px #38bdf8); }
+        to { transform: scale(1.18); filter: drop-shadow(0 0 10px #f59e0b); }
+    }
+
     /* Indicador de Estado Inferior */
     .sig-status-badge {
         position: absolute;
@@ -261,7 +288,13 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
         border: 2px solid #ffffff;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
-        cursor: grab;
+        cursor: pointer;
+    }
+    .modo-mover-activo .tree-pin {
+        cursor: grab !important;
+    }
+    .modo-mover-activo .tree-pin:active {
+        cursor: grabbing !important;
     }
     .tree-pin:hover, .tree-pin:active {
         transform: scale(1.35);
@@ -366,6 +399,11 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             <!-- Botón Localizar Parcela Directo -->
             <button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm" id="btnAutoLocalizar" onclick="forzarLocalizacionCatastral()" title="Buscar y delimitar automáticamente la parcela en Catastro">
                 <i class="fa-solid fa-crosshairs me-1"></i> <span class="d-none d-sm-inline">Localizar Parcela</span>
+            </button>
+
+            <!-- Botón Añadir Plantación Directo -->
+            <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" onclick="abrirModalNuevaPlantacionDesdeMapa()" title="Crear nueva plantación para esta finca">
+                <i class="fa-solid fa-seedling me-1"></i> <span class="d-none d-sm-inline">+ Plantación</span>
             </button>
 
             <!-- Botón Pantalla Completa -->
@@ -521,7 +559,12 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
                         <i class="fa-solid fa-tree me-1"></i><span class="d-none d-md-inline">Árbol</span>
                     </button>
 
-                    <!-- 6. FIJAR VISTA -->
+                    <!-- 6. CREAR NUEVA PLANTACIÓN -->
+                    <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" onclick="abrirModalNuevaPlantacionDesdeMapa()" title="Añadir o crear nueva plantación para esta finca">
+                        <i class="fa-solid fa-seedling me-1"></i><span class="d-none d-md-inline">+ Plantación</span>
+                    </button>
+
+                    <!-- 7. FIJAR VISTA -->
                     <button type="button" id="btnFijarVista" class="btn btn-sm btn-outline-secondary" onclick="guardarCentroActual()" title="Fijar esta vista y nivel de zoom para esta finca">
                         <i class="fa-solid fa-thumbtack text-danger"></i>
                     </button>
@@ -539,9 +582,16 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
                 </div>
             </div>
             <div id="cuerpoLeyenda">
-                <div id="listaLeyendaCultivos" class="small text-muted mb-2">
+                <div class="text-muted mb-2" style="font-size: 0.68rem; line-height: 1.2;">
+                    <i class="fa-solid fa-hand-pointer text-primary me-1"></i>Marca un cultivo para localizar sus objetos o comprobar si está ubicado.
+                </div>
+                <div id="listaLeyendaCultivos" class="small text-muted mb-2" style="max-height: 220px; overflow-y: auto;">
                     Sin plantaciones activas.
                 </div>
+                <div id="panelAvisoCultivoLeyenda" class="d-none"></div>
+                <button type="button" class="btn btn-sm btn-outline-success w-100 py-1 mb-2 fw-semibold" style="font-size: 0.72rem;" onclick="abrirModalNuevaPlantacionDesdeMapa()">
+                    <i class="fa-solid fa-plus-circle me-1"></i>+ Nueva Plantación
+                </button>
                 <hr class="my-1">
                 <div class="fw-bold text-dark mb-1 small"><i class="fa-solid fa-tree me-1 text-success"></i> Salud Arboleda</div>
                 <div class="d-flex flex-wrap gap-1 small">
@@ -558,7 +608,7 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             <span id="txtZoomActual" class="badge bg-primary bg-opacity-75">Zoom: 18</span>
             <span id="txtCoordenadasGPS" class="font-monospace">GPS: -</span>
             <span class="opacity-50 d-none d-sm-inline">|</span>
-            <span id="txtModoActual" class="text-info fw-semibold d-none d-sm-inline">Consulta</span>
+            <span id="txtModoActual" class="text-success fw-semibold"><i class="fa-solid fa-lock me-1"></i>Bloqueado</span>
         </div>
     </div>
 </div>
@@ -585,7 +635,12 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">Plantación / Cultivo en esta Zona <span class="text-danger">*</span></label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-bold small mb-0">Plantación / Cultivo en esta Zona <span class="text-danger">*</span></label>
+                            <button type="button" class="btn btn-link btn-sm text-success p-0 fw-bold text-decoration-none" onclick="abrirModalNuevaPlantacionDesdeMapa('zona')">
+                                <i class="fa-solid fa-plus-circle me-1"></i>+ Crear Plantación
+                            </button>
+                        </div>
                         <select id="zona_id_plantacion" class="form-select fw-semibold" onchange="alSeleccionarPlantacionZona(this.value)" required>
                             <option value="">-- Seleccionar cultivo/plantación --</option>
                         </select>
@@ -658,7 +713,12 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-semibold small">Plantación Asociada</label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold small mb-0">Plantación Asociada</label>
+                                <button type="button" class="btn btn-link btn-sm text-success p-0 fw-bold text-decoration-none" onclick="abrirModalNuevaPlantacionDesdeMapa('arbol')">
+                                    <i class="fa-solid fa-plus-circle me-1"></i>+ Crear Plantación
+                                </button>
+                            </div>
                             <select id="arbol_id_plantacion" class="form-select fw-semibold" onchange="alSeleccionarPlantacionArbol(this.value)">
                                 <option value="">-- Sin vincular a plantación --</option>
                             </select>
@@ -747,6 +807,126 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success fw-bold px-4" id="btnSubmitDuplicar">
                         <i class="fa-solid fa-copy me-1"></i> Generar Copias
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: CREAR NUEVA PLANTACIÓN DESDE EL VISOR CARTOGRÁFICO                 -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalCrearPlantacionRapida" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-seedling me-2"></i>Nueva Plantación en la Finca</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formPlantacionRapida" onsubmit="enviarGuardarPlantacionRapida(event)">
+                <input type="hidden" id="rapida_origen_llamada" value="">
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border d-flex align-items-center justify-content-between py-2 px-3 mb-3">
+                        <div>
+                            <span class="small text-muted">Finca Activa:</span>
+                            <strong class="text-primary ms-1" id="lblFincaPlantacionRapida">-</strong>
+                        </div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary">SIG AgroDietario</span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold small mb-0">Cultivo y Especie Botánica <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-link btn-sm text-success p-0 fw-bold text-decoration-none" onclick="abrirModalNuevoCultivoRapido('mapa')">
+                                    <i class="fa-solid fa-plus-circle me-1"></i>+ Nueva Planta / Especie
+                                </button>
+                            </div>
+                            <div class="input-group">
+                                <select id="rapida_id_cultivo" class="form-select fw-semibold selector-cultivos-dinamico" required>
+                                    <option value="">-- Seleccionar planta o cultivo --</option>
+                                    <?php foreach ($cultivosDisponibles as $c): ?>
+                                        <option value="<?= $c['id_cultivo'] ?>" data-tipo="<?= $c['tipo_cultivo'] ?>">
+                                            <?= htmlspecialchars($c['nombre_comun'] . ($c['variedad'] ? ' - ' . $c['variedad'] : '')) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" class="btn btn-outline-success fw-semibold" onclick="abrirModalNuevoCultivoRapido('mapa')" title="Añadir nueva planta al catálogo botánico sin salir">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="form-text small">¿No encuentras la especie? Pulsa <strong>+ Nueva Planta</strong> para darla de alta en el catálogo botánico sin salir.</div>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold small">Cuadro / Subparcela <span class="text-danger">*</span></label>
+                            <input type="text" id="rapida_identificador_cuadro" class="form-control" placeholder="Ej: Cuadro 1, Sector Norte" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Campaña / Año</label>
+                            <input type="number" id="rapida_campana_ano" class="form-control" value="<?= date('Y') ?>" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Régimen / Tipo</label>
+                            <select id="rapida_tipo_plantacion" class="form-select fw-semibold">
+                                <option value="temporada" selected>🌱 De temporada (hortalizas...)</option>
+                                <option value="fija">🌳 Fija / Anual (árboles, olivar...)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Estado</label>
+                            <select id="rapida_estado" class="form-select">
+                                <option value="en_crecimiento" selected>En crecimiento</option>
+                                <option value="produccion">En producción</option>
+                                <option value="en_descanso">En descanso</option>
+                                <option value="arrancado">Arrancado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Superficie Ocupada (ha)</label>
+                            <input type="number" step="0.0001" id="rapida_superficie_ha" class="form-control" placeholder="0.0000">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Nº de Árboles o Plantas</label>
+                            <input type="number" id="rapida_num_arboles" class="form-control" placeholder="Ej: 50">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Marco de Plantación</label>
+                            <input type="text" id="rapida_marco" class="form-control" placeholder="Ej: 6 x 6 m">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Fecha de Siembra</label>
+                            <input type="date" id="rapida_fecha_siembra" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Fecha Trasplante</label>
+                            <input type="date" id="rapida_fecha_transplante" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Fecha Cosecha Estimada</label>
+                            <input type="date" id="rapida_fecha_cosecha" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold small">Notas agronómicas</label>
+                        <textarea id="rapida_notas" class="form-control" rows="2" placeholder="Observaciones de la plantación..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4" id="btnSubmitPlantacionRapida">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Guardar Plantación
                     </button>
                 </div>
             </form>
@@ -950,17 +1130,39 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         modoMoverActivo = !modoMoverActivo;
 
         const btn = document.getElementById('btnModoMover');
+        const cont = document.getElementById('contenedorMapa');
+
         if (modoMoverActivo) {
             if (modoEditarVerticesActivo) alternarModoEditarVertices();
             mapa.pm.enableGlobalDragMode();
+
+            // Habilitar arrastre solo bajo petición expresa del usuario
+            if (capaArboles) {
+                capaArboles.eachLayer(function(layer) {
+                    if (layer.dragging) layer.dragging.enable();
+                });
+            }
+
+            if (cont) cont.classList.add('modo-mover-activo');
             btn.classList.add('btn-scrub-active');
-            document.getElementById('txtModoActual').textContent = '✋ Modo Scrub (Arrastrar para mover)';
-            mostrarToast("✋ Modo Mover Activo: Haz clic y arrastra cualquier árbol o zona para cambiarlo de sitio.", false, 4000);
+            btn.innerHTML = '<i class="fa-solid fa-lock-open me-1 text-danger"></i><span class="d-none d-md-inline">Moviendo</span>';
+            document.getElementById('txtModoActual').innerHTML = '<i class="fa-solid fa-arrows-up-down-left-right text-warning me-1"></i>Modo Mover Activo';
+            mostrarToast("✋ Modo Mover activado: Ahora puedes arrastrar árboles o zonas para cambiar su posición. Vuelve a pulsar 'Mover' al terminar para bloquear.", false, 4500);
         } else {
             mapa.pm.disableGlobalDragMode();
+
+            // Bloquear arrastre en todos los marcadores para proteger contra movimientos involuntarios (especialmente en móvil)
+            if (capaArboles) {
+                capaArboles.eachLayer(function(layer) {
+                    if (layer.dragging) layer.dragging.disable();
+                });
+            }
+
+            if (cont) cont.classList.remove('modo-mover-activo');
             btn.classList.remove('btn-scrub-active');
-            document.getElementById('txtModoActual').textContent = 'Consulta';
-            mostrarToast("Modo Mover desactivado.", false, 2000);
+            btn.innerHTML = '<i class="fa-solid fa-hand me-1"></i><span class="d-none d-md-inline">Mover</span>';
+            document.getElementById('txtModoActual').innerHTML = '<i class="fa-solid fa-lock text-success me-1"></i>Bloqueado';
+            mostrarToast("🔒 Modo Seguro: Objetos bloqueados contra movimientos accidentales.", false, 2500);
         }
     }
 
@@ -976,13 +1178,13 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             if (modoMoverActivo) alternarModoMover();
             mapa.pm.enableGlobalEditMode();
             btn.classList.add('btn-scrub-active');
-            document.getElementById('txtModoActual').textContent = '✏️ Editando Vértices de Zonas';
+            document.getElementById('txtModoActual').innerHTML = '<i class="fa-solid fa-up-down-left-right text-warning me-1"></i>Editando Vértices';
             mostrarToast("✏️ Modo Vértices Activo: Arrastra las esquinas de los bancales para ajustarlos.", false, 4000);
         } else {
             mapa.pm.disableGlobalEditMode();
             btn.classList.remove('btn-scrub-active');
-            document.getElementById('txtModoActual').textContent = 'Consulta';
-            mostrarToast("Edición de vértices finalizada.", false, 2000);
+            document.getElementById('txtModoActual').innerHTML = '<i class="fa-solid fa-lock text-success me-1"></i>Bloqueado';
+            mostrarToast("Edición de vértices finalizada. Objetos protegidos.", false, 2000);
         }
     }
 
@@ -1039,6 +1241,8 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
      * Carga todos los datos de la finca y ejecuta la localización automática y delimitación
      */
     function cargarDatosFinca(idFinca) {
+        if (modoMoverActivo) alternarModoMover();
+        if (modoEditarVerticesActivo) alternarModoEditarVertices();
         mostrarToast("Cargando finca y localizando linderos...", false);
         document.getElementById('lblFincaActiva').textContent = 'Cargando...';
 
@@ -1470,12 +1674,19 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             iconAnchor: [16, 16]
         });
 
-        // Marcador arrastrable (Draggable) para permitir Scrub
+        // Marcador bloqueado por defecto contra desplazamientos involuntarios (especialmente en móvil)
         const marcador = L.marker([lat, lng], { 
             pane: 'paneArboles',
             icon: icono,
-            draggable: true 
+            draggable: false 
         });
+
+        // Solo permitir arrastre si el usuario ha pulsado expresamente el botón 'Mover'
+        if (modoMoverActivo && marcador.dragging) {
+            marcador.dragging.enable();
+        } else if (marcador.dragging) {
+            marcador.dragging.disable();
+        }
 
         marcador._idArbol = a.id_arbol;
         marcador._datosArbol = a;
@@ -1490,7 +1701,7 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             <div class="fw-bold fs-6 text-success"><i class="fa-solid fa-tree me-1"></i>${a.codigo_arbol}</div>
             <div class="small text-light mt-1"><strong>Especie:</strong> ${a.especie_variedad || a.nombre_cultivo || 'Árbol'}</div>
             <div class="small text-light"><strong>Salud:</strong> ${estado.toUpperCase()}</div>
-            <div class="small text-info mt-1"><i class="fa-solid fa-arrows-up-down-left-right me-1"></i>Arrastra para mover de sitio</div>
+            <div class="small text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Bloqueado (pulsa 'Mover' en la barra para recolocar)</div>
         `;
 
         marcador.bindTooltip(tooltipHtml, { sticky: true, className: 'sig-custom-tooltip' });
@@ -1740,9 +1951,13 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         document.getElementById('zona_lbl_superficie').textContent = supM2 > 0 ? 
             `${Math.round(supM2)} m² (${(supM2 / 10000).toFixed(3)} ha)` : 'Área libre';
 
-        // Si solo hay una plantación en la finca, preseleccionarla automáticamente
+        // Preselección de plantación: si viene de pulsar "Delimitar Zona" desde la leyenda, o si solo hay una
         const selZ = document.getElementById('zona_id_plantacion');
-        if (plantacionesActuales.length === 1) {
+        if (window.plantacionPreseleccionada) {
+            selZ.value = window.plantacionPreseleccionada;
+            alSeleccionarPlantacionZona(window.plantacionPreseleccionada);
+            window.plantacionPreseleccionada = null;
+        } else if (plantacionesActuales.length === 1) {
             selZ.value = plantacionesActuales[0].id_plantacion;
             alSeleccionarPlantacionZona(plantacionesActuales[0].id_plantacion);
         } else if (selZ.value) {
@@ -1857,16 +2072,22 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         document.getElementById('arbol_ano').value = new Date().getFullYear();
         document.getElementById('arbol_notas').value = '';
 
-        // Si hay una plantación de arboleda / fija o solo hay una, seleccionarla por defecto
+        // Si se preseleccionó una plantación desde la leyenda, o si hay una fija/anual
         const selA = document.getElementById('arbol_id_plantacion');
-        const plantacionArbol = plantacionesActuales.find(p => p.es_fija_anual) || (plantacionesActuales.length === 1 ? plantacionesActuales[0] : null);
-        if (plantacionArbol) {
-            selA.value = plantacionArbol.id_plantacion;
-            alSeleccionarPlantacionArbol(plantacionArbol.id_plantacion);
-        } else if (selA.value) {
-            alSeleccionarPlantacionArbol(selA.value);
+        if (window.plantacionPreseleccionada) {
+            selA.value = window.plantacionPreseleccionada;
+            alSeleccionarPlantacionArbol(window.plantacionPreseleccionada);
+            window.plantacionPreseleccionada = null;
         } else {
-            document.getElementById('cajaInfoPlantacionArbol').classList.add('d-none');
+            const plantacionArbol = plantacionesActuales.find(p => p.es_fija_anual) || (plantacionesActuales.length === 1 ? plantacionesActuales[0] : null);
+            if (plantacionArbol) {
+                selA.value = plantacionArbol.id_plantacion;
+                alSeleccionarPlantacionArbol(plantacionArbol.id_plantacion);
+            } else if (selA.value) {
+                alSeleccionarPlantacionArbol(selA.value);
+            } else {
+                document.getElementById('cajaInfoPlantacionArbol').classList.add('d-none');
+            }
         }
 
         new bootstrap.Modal(document.getElementById('modalGuardarArbol')).show();
@@ -2214,31 +2435,343 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
         }
     }
 
+    let plantacionSeleccionadaLeyenda = null;
+    let capasResaltadasCultivo = [];
+
+    /**
+     * Actualiza la leyenda interactiva de cultivos (abajo a la izquierda)
+     * Indica el estado de ubicación de cada cultivo (si tiene zonas/árboles en el mapa o si NO está ubicado)
+     */
     function actualizarLeyendaCultivos(plantaciones) {
         const lista = document.getElementById('listaLeyendaCultivos');
         const totalBadge = document.getElementById('badgeTotalCultivos');
-        totalBadge.textContent = plantaciones.length;
+        if (totalBadge) totalBadge.textContent = plantaciones.length;
 
-        if (plantaciones.length === 0) {
-            lista.innerHTML = 'Sin plantaciones activas en esta finca.';
+        if (!lista) return;
+
+        if (!plantaciones || plantaciones.length === 0) {
+            lista.innerHTML = '<div class="text-muted p-2 text-center small"><i class="fa-solid fa-seedling me-1 text-warning"></i>Sin plantaciones en esta finca.</div>';
+            const panelAviso = document.getElementById('panelAvisoCultivoLeyenda');
+            if (panelAviso) panelAviso.classList.add('d-none');
             return;
         }
 
         let html = '';
         plantaciones.forEach(p => {
             const color = COLORES_CULTIVO[p.tipo_cultivo] || '#10b981';
-            const iconoTipo = p.es_fija_anual ? '<i class="fa-solid fa-tree me-1 text-muted" title="Plantación Fija Anual"></i>' : '<i class="fa-solid fa-seedling me-1 text-muted" title="De temporada"></i>';
+            const iconoTipo = p.es_fija_anual ? '<i class="fa-solid fa-tree me-1 text-muted" title="Plantación Fija / Anual"></i>' : '<i class="fa-solid fa-seedling me-1 text-muted" title="De temporada"></i>';
+
+            // Comprobar objetos asociados en el mapa
+            const zonasAsoc = (objetosMapaMemoria.zonas || []).filter(z => z.geometria && z.geometria.id_plantacion == p.id_plantacion);
+            const arbolesAsoc = (objetosMapaMemoria.arboles || []).filter(a => a.arbol && a.arbol.id_plantacion == p.id_plantacion);
+            const totalObj = zonasAsoc.length + arbolesAsoc.length;
+            const estaUbicado = totalObj > 0;
+
+            const badgeUbicacion = estaUbicado ? 
+                `<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-30" style="font-size:0.68rem;" title="${zonasAsoc.length} zona(s), ${arbolesAsoc.length} árbol(es) en el mapa"><i class="fa-solid fa-check me-1"></i>${totalObj} obj</span>` : 
+                `<span class="badge bg-warning bg-opacity-25 text-dark border border-warning" style="font-size:0.68rem;" title="Este cultivo NO está ubicado en el mapa: No tiene bancales ni árboles delimitados todavía"><i class="fa-solid fa-triangle-exclamation text-danger me-1"></i>No ubicado</span>`;
+
+            const esActivo = (plantacionSeleccionadaLeyenda == p.id_plantacion) ? 'seleccionado' : '';
+
             html += `
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                    <div class="d-flex align-items-center gap-1 text-truncate">
-                        <span class="d-inline-block rounded-circle" style="width: 9px; height: 9px; background-color: ${color};"></span>
-                        <span class="fw-semibold text-dark text-truncate">${iconoTipo}${p.nombre_comun}</span>
+                <div class="item-cultivo-leyenda d-flex align-items-center justify-content-between mb-1 ${esActivo}" id="item_cultivo_${p.id_plantacion}" onclick="marcarCultivoEnMapa(${p.id_plantacion})" title="Pulsa para localizar sus objetos o comprobar si está ubicado">
+                    <div class="d-flex align-items-center gap-1 text-truncate me-1">
+                        <span class="d-inline-block rounded-circle flex-shrink-0" style="width: 10px; height: 10px; background-color: ${color};"></span>
+                        <span class="fw-semibold text-dark text-truncate" style="max-width: 125px;">${iconoTipo}${p.nombre_comun}</span>
                     </div>
-                    <span class="badge bg-light text-dark border">${p.identificador_cuadro}</span>
+                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                        <span class="badge bg-light text-muted border text-truncate" style="max-width: 70px; font-size: 0.68rem;">${p.identificador_cuadro}</span>
+                        ${badgeUbicacion}
+                    </div>
                 </div>
             `;
         });
         lista.innerHTML = html;
+    }
+
+    /**
+     * Al marcar o pulsar un cultivo en la leyenda:
+     * - Si tiene objetos en el mapa: los resalta, centra la vista y muestra detalle interactivo.
+     * - Si NO está ubicado: indica claramente la falta de ubicación y ofrece botones directos para ubicarlo.
+     */
+    function marcarCultivoEnMapa(idPlantacion) {
+        plantacionSeleccionadaLeyenda = idPlantacion;
+
+        // Actualizar aspecto visual en la leyenda
+        document.querySelectorAll('.item-cultivo-leyenda').forEach(el => el.classList.remove('seleccionado'));
+        const itemEl = document.getElementById(`item_cultivo_${idPlantacion}`);
+        if (itemEl) itemEl.classList.add('seleccionado');
+
+        const plantacion = (plantacionesActuales || []).find(p => p.id_plantacion == idPlantacion);
+        if (!plantacion) return;
+
+        // Limpiar resaltados previos
+        limpiarResaltadosCultivo();
+
+        // Buscar zonas y árboles asociados
+        const zonasAsoc = (objetosMapaMemoria.zonas || []).filter(z => z.geometria && z.geometria.id_plantacion == idPlantacion);
+        const arbolesAsoc = (objetosMapaMemoria.arboles || []).filter(a => a.arbol && a.arbol.id_plantacion == idPlantacion);
+        const totalObj = zonasAsoc.length + arbolesAsoc.length;
+
+        const panelAviso = document.getElementById('panelAvisoCultivoLeyenda');
+
+        // =====================================================================
+        // CASO 1: EL CULTIVO ESTÁ UBICADO EN EL MAPA (TIENE ZONAS O ÁRBOLES)
+        // =====================================================================
+        if (totalObj > 0) {
+            const grupoBounds = L.featureGroup();
+
+            // Resaltar zonas
+            zonasAsoc.forEach(z => {
+                if (z.layer) {
+                    grupoBounds.addLayer(z.layer);
+                    const originalColor = z.layer.options.color || '#10b981';
+                    const originalWeight = z.layer.options.weight || 3;
+                    const originalFillOpacity = z.layer.options.fillOpacity || 0.4;
+
+                    z.layer.setStyle({
+                        color: '#f59e0b',
+                        weight: 5,
+                        fillOpacity: 0.75
+                    });
+
+                    capasResaltadasCultivo.push({
+                        layer: z.layer,
+                        restaurar: () => {
+                            z.layer.setStyle({
+                                color: originalColor,
+                                weight: originalWeight,
+                                fillOpacity: originalFillOpacity
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Resaltar árboles
+            arbolesAsoc.forEach(a => {
+                if (a.marcador) {
+                    grupoBounds.addLayer(a.marcador);
+                    const el = a.marcador.getElement();
+                    if (el) {
+                        el.classList.add('objeto-destacado-pulse');
+                        capasResaltadasCultivo.push({
+                            layer: a.marcador,
+                            restaurar: () => {
+                                el.classList.remove('objeto-destacado-pulse');
+                            }
+                        });
+                    }
+                }
+            });
+
+            // Encuadrar la vista sobre todos los objetos relacionados
+            if (grupoBounds.getLayers().length > 0) {
+                mapa.fitBounds(grupoBounds.getBounds(), {
+                    padding: [45, 45],
+                    maxZoom: 19,
+                    animate: true,
+                    duration: 0.8
+                });
+            }
+
+            // Mensaje Toast informativo
+            const txtZonas = zonasAsoc.length > 0 ? `<strong>${zonasAsoc.length}</strong> zona(s) / bancal(es)` : '';
+            const txtArb = arbolesAsoc.length > 0 ? `<strong>${arbolesAsoc.length}</strong> árbol(es)` : '';
+            const txtConjunto = [txtZonas, txtArb].filter(Boolean).join(' y ');
+
+            mostrarToast(`🌱 <strong>${plantacion.nombre_comun} (${plantacion.identificador_cuadro})</strong>:<br>Ubicado en el mapa con ${txtConjunto}. Objetos resaltados en pantalla.`, false, 4500);
+
+            // Panel interactivo en la leyenda
+            if (panelAviso) {
+                panelAviso.className = 'alert alert-success border-0 py-2 px-2 small mb-2';
+                panelAviso.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <strong class="text-success"><i class="fa-solid fa-circle-check me-1"></i>Ubicado en el mapa</strong>
+                        <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" onclick="desmarcarCultivoLeyenda()"></button>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.72rem;">
+                        ${txtConjunto} asociados a este cultivo.
+                    </div>
+                `;
+            }
+        } 
+        // =====================================================================
+        // CASO 2: EL CULTIVO NO ESTÁ UBICADO EN EL MAPA (NO TIENE OBJETOS)
+        // =====================================================================
+        else {
+            mostrarToast(`⚠️ <strong>${plantacion.nombre_comun} (${plantacion.identificador_cuadro})</strong>:<br><span class="text-warning fw-bold">Este cultivo NO está ubicado en el mapa.</span><br><small>Aún no tiene bancales delimitados ni árboles marcados en esta finca.</small><div class="mt-2 d-flex gap-2 justify-content-center"><button type="button" class="btn btn-sm btn-primary py-1 px-2 fw-bold" onclick="iniciarDibujoZonaConPlantacion(${plantacion.id_plantacion})"><i class="fa-solid fa-draw-polygon me-1"></i>Delimitar Zona</button><button type="button" class="btn btn-sm btn-success py-1 px-2 fw-bold" onclick="iniciarArbolConPlantacion(${plantacion.id_plantacion})"><i class="fa-solid fa-tree me-1"></i>Plantar Árbol</button></div>`, true, 6000);
+
+            if (panelAviso) {
+                panelAviso.className = 'alert alert-warning border border-warning py-2 px-2 small mb-2';
+                panelAviso.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <strong class="text-dark"><i class="fa-solid fa-triangle-exclamation text-danger me-1"></i>Cultivo sin ubicar</strong>
+                        <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" onclick="desmarcarCultivoLeyenda()"></button>
+                    </div>
+                    <div class="text-dark mb-2" style="font-size: 0.72rem;">
+                        <strong>${plantacion.nombre_comun}</strong> no tiene bancales ni árboles delimitados en el mapa.
+                    </div>
+                    <div class="d-grid gap-1">
+                        <button type="button" class="btn btn-xs btn-primary fw-bold py-1" onclick="iniciarDibujoZonaConPlantacion(${plantacion.id_plantacion})">
+                            <i class="fa-solid fa-draw-polygon me-1"></i>Delimitar Bancal / Zona
+                        </button>
+                        <button type="button" class="btn btn-xs btn-success fw-bold py-1" onclick="iniciarArbolConPlantacion(${plantacion.id_plantacion})">
+                            <i class="fa-solid fa-tree me-1"></i>Marcar Árbol
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    function desmarcarCultivoLeyenda() {
+        plantacionSeleccionadaLeyenda = null;
+        limpiarResaltadosCultivo();
+        document.querySelectorAll('.item-cultivo-leyenda').forEach(el => el.classList.remove('seleccionado'));
+        const panelAviso = document.getElementById('panelAvisoCultivoLeyenda');
+        if (panelAviso) panelAviso.classList.add('d-none');
+    }
+
+    function limpiarResaltadosCultivo() {
+        capasResaltadasCultivo.forEach(item => {
+            try { item.restaurar(); } catch(e) {}
+        });
+        capasResaltadasCultivo = [];
+    }
+
+    /**
+     * Inicia el modo de dibujo de zona preseleccionando el cultivo indicado
+     */
+    function iniciarDibujoZonaConPlantacion(idPlantacion) {
+        window.plantacionPreseleccionada = idPlantacion;
+        iniciarDibujoZona('Polygon');
+        mostrarToast("✏️ Dibuja los vértices del bancal en el mapa. Al terminar se asignará automáticamente este cultivo.", false, 4500);
+    }
+
+    /**
+     * Inicia el modo de plantar árbol preseleccionando el cultivo indicado
+     */
+    function iniciarArbolConPlantacion(idPlantacion) {
+        window.plantacionPreseleccionada = idPlantacion;
+        iniciarPlantarArbol();
+        mostrarToast("🌳 Haz clic en el mapa sobre la ubicación del árbol para registrarlo con este cultivo.", false, 4500);
+    }
+
+    /**
+     * Abre el modal para crear una nueva plantación directamente desde el visor cartográfico
+     */
+    function abrirModalNuevaPlantacionDesdeMapa(origen = 'mapa') {
+        const form = document.getElementById('formPlantacionRapida');
+        if (form) form.reset();
+
+        document.getElementById('rapida_origen_llamada').value = origen;
+        document.getElementById('lblFincaPlantacionRapida').textContent = fincaActual ? fincaActual.nombre_finca : 'Finca Actual';
+        document.getElementById('rapida_campana_ano').value = new Date().getFullYear();
+        document.getElementById('rapida_tipo_plantacion').value = 'temporada';
+        document.getElementById('rapida_estado').value = 'en_crecimiento';
+
+        const totalPlantaciones = plantacionesActuales ? plantacionesActuales.length : 0;
+        document.getElementById('rapida_identificador_cuadro').value = `Cuadro ${totalPlantaciones + 1}`;
+
+        const btnSubmit = document.getElementById('btnSubmitPlantacionRapida');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Guardar Plantación';
+
+        const modalEl = document.getElementById('modalCrearPlantacionRapida');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+
+    /**
+     * Guarda la nueva plantación vía AJAX y actualiza el mapa en vivo sin recargar
+     */
+    function enviarGuardarPlantacionRapida(e) {
+        e.preventDefault();
+
+        if (!fincaActual || !fincaActual.id_finca) {
+            alert("No hay una finca seleccionada en el mapa.");
+            return;
+        }
+
+        const idCultivo = document.getElementById('rapida_id_cultivo').value;
+        const cuadro = document.getElementById('rapida_identificador_cuadro').value.trim();
+
+        if (!idCultivo) {
+            alert("Por favor, selecciona una planta o cultivo del catálogo botánico.");
+            return;
+        }
+
+        const btnSubmit = document.getElementById('btnSubmitPlantacionRapida');
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
+
+        const payload = {
+            id_finca: fincaActual.id_finca,
+            id_cultivo: parseInt(idCultivo, 10),
+            identificador_cuadro: cuadro,
+            campana_ano: parseInt(document.getElementById('rapida_campana_ano').value, 10) || new Date().getFullYear(),
+            tipo_plantacion: document.getElementById('rapida_tipo_plantacion').value,
+            estado: document.getElementById('rapida_estado').value,
+            superficie_ocupada_ha: document.getElementById('rapida_superficie_ha').value || 0,
+            num_arboles_o_plantas: document.getElementById('rapida_num_arboles').value ? parseInt(document.getElementById('rapida_num_arboles').value, 10) : null,
+            marco_plantacion: document.getElementById('rapida_marco').value.trim(),
+            fecha_siembra: document.getElementById('rapida_fecha_siembra').value || null,
+            fecha_transplante: document.getElementById('rapida_fecha_transplante').value || null,
+            fecha_estimada_fin: document.getElementById('rapida_fecha_cosecha').value || null,
+            notas: document.getElementById('rapida_notas').value.trim()
+        };
+
+        const origen = document.getElementById('rapida_origen_llamada').value;
+
+        fetch(`${window.APP_URL}/api/mapas?action=guardar_plantacion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Guardar Plantación';
+
+            if (!data.success) {
+                alert(data.message || 'Error al guardar la plantación.');
+                return;
+            }
+
+            const nuevaPlantacion = data.plantacion;
+
+            // 1. Agregar a la lista de plantaciones en memoria
+            plantacionesActuales.unshift(nuevaPlantacion);
+
+            // 2. Actualizar selectores del mapa
+            actualizarSelectoresPlantacion();
+
+            // 3. Actualizar la leyenda de cultivos abajo a la izquierda
+            actualizarLeyendaCultivos(plantacionesActuales);
+
+            // 4. Cerrar el modal de plantación rápida
+            bootstrap.Modal.getInstance(document.getElementById('modalCrearPlantacionRapida')).hide();
+
+            // 5. Si la llamada vino desde modal de zona o de árbol, seleccionarla y reabrir
+            if (origen === 'zona') {
+                document.getElementById('zona_id_plantacion').value = nuevaPlantacion.id_plantacion;
+                alSeleccionarPlantacionZona(nuevaPlantacion.id_plantacion);
+                new bootstrap.Modal(document.getElementById('modalGuardarZona')).show();
+            } else if (origen === 'arbol') {
+                document.getElementById('arbol_id_plantacion').value = nuevaPlantacion.id_plantacion;
+                alSeleccionarPlantacionArbol(nuevaPlantacion.id_plantacion);
+                new bootstrap.Modal(document.getElementById('modalGuardarArbol')).show();
+            }
+
+            mostrarToast(`🌱 Plantación <strong>"${nuevaPlantacion.nombre_comun} (${nuevaPlantacion.identificador_cuadro})"</strong> creada con éxito.`, false, 4000);
+        })
+        .catch(err => {
+            console.error(err);
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Guardar Plantación';
+            alert('Error de conexión al guardar la plantación.');
+        });
     }
 
     function seleccionarColorZona(color, element) {
@@ -2432,4 +2965,7 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
     }
 </script>
 
-<?php require_once VIEWS_PATH . '/layouts/footer.php'; ?>
+<?php 
+require_once VIEWS_PATH . '/plantaciones/modal_nuevo_cultivo.php';
+require_once VIEWS_PATH . '/layouts/footer.php'; 
+?>
