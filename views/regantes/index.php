@@ -9,6 +9,18 @@ $isSuperAdmin = Auth::isSuperAdmin();
 $mensaje = '';
 $error = '';
 
+// Obtener el Regante Principal configurado para la explotación activa
+$idRegantePrincipalActual = null;
+$nombreExplotacionActiva = '';
+if ($tenantId) {
+    $stmtProp = $db->prepare("SELECT id_regante_principal, nombre_razon_social FROM propietarios WHERE id_propietario = :id");
+    $stmtProp->execute(array(':id' => $tenantId));
+    if ($pRow = $stmtProp->fetch()) {
+        $idRegantePrincipalActual = !empty($pRow['id_regante_principal']) ? (int)$pRow['id_regante_principal'] : null;
+        $nombreExplotacionActiva = $pRow['nombre_razon_social'];
+    }
+}
+
 // Cargar comunidades asociadas a la explotación activa
 $comunidades = array();
 $comunidadesIds = array();
@@ -88,7 +100,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':tablon'    => $tablon ?: null,
                     ':notas'     => $notas ?: null
                 ));
-                $mensaje = "Socio regante <strong>" . htmlspecialchars($nombre) . " (" . htmlspecialchars($numRegante) . ")</strong> dado de alta con éxito.";
+                $newRegId = (int)$db->lastInsertId();
+                if (!empty($_POST['marcar_como_principal']) && $tenantId && $newRegId > 0) {
+                    $db->prepare("UPDATE propietarios SET id_regante_principal = :reg WHERE id_propietario = :prop")->execute(array(':reg' => $newRegId, ':prop' => $tenantId));
+                    $idRegantePrincipalActual = $newRegId;
+                }
+                $mensaje = "Socio regante <strong>" . htmlspecialchars($nombre) . " (" . htmlspecialchars($numRegante) . ")</strong> dado de alta con éxito." . (!empty($_POST['marcar_como_principal']) ? " Establecido como <strong>Regante Principal predeterminado</strong> de la explotación." : "");
             } catch (Exception $e) {
                 $error = "Error al crear socio regante: " . $e->getMessage();
             }
@@ -158,20 +175,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':notas'     => $notas ?: null,
                     ':id'        => $idReg
                 ));
-                $mensaje = "Datos del socio <strong>" . htmlspecialchars($numRegante) . " - " . htmlspecialchars($nombre) . "</strong> actualizados correctamente.";
+
+                if (!empty($_POST['marcar_como_principal']) && $tenantId) {
+                    $db->prepare("UPDATE propietarios SET id_regante_principal = :reg WHERE id_propietario = :prop")->execute(array(':reg' => $idReg, ':prop' => $tenantId));
+                    $idRegantePrincipalActual = $idReg;
+                }
+
+                $mensaje = "Datos del socio <strong>" . htmlspecialchars($numRegante) . " - " . htmlspecialchars($nombre) . "</strong> actualizados correctamente." . (!empty($_POST['marcar_como_principal']) ? " Marcado como <strong>Regante Principal predeterminado</strong> de la explotación." : "");
             } catch (Exception $e) {
                 $error = "Error al actualizar regante: " . $e->getMessage();
             }
         }
     }
 
-    // ELIMINAR REGANTE
+    // MARCAR COMO REGANTE PRINCIPAL DE LA EXPLOTACIÓN
+    elseif ($action === 'marcar_principal') {
+        $idReg = (int)(isset($_POST['id_regante']) ? $_POST['id_regante'] : 0);
+        if ($tenantId && $idReg > 0) {
+            try {
+                $stmt = $db->prepare("UPDATE propietarios SET id_regante_principal = :reg WHERE id_propietario = :prop");
+                $stmt->execute(array(':reg' => $idReg, ':prop' => $tenantId));
+                $idRegantePrincipalActual = $idReg;
+                $mensaje = "Socio regante establecido como <strong>Regante Principal predeterminado</strong> para tu explotación. Será el socio sugerido al solicitar agua para riego.";
+            } catch (Exception $e) {
+                $error = "Error al asignar regante principal: " . $e->getMessage();
+            }
+        }
+    }
+
+    // ELIMINAR REGANTE (Soft Delete)
     elseif ($action === 'eliminar_regante') {
         $idReg = (int)(isset($_POST['id_regante']) ? $_POST['id_regante'] : 0);
         try {
-            $stmt = $db->prepare("DELETE FROM regantes WHERE id_regante = :id");
+            $stmt = $db->prepare("UPDATE regantes SET activo = 0 WHERE id_regante = :id");
             $stmt->execute(array(':id' => $idReg));
-            $mensaje = "Socio regante eliminado correctamente del censo.";
+            if ($tenantId && $idRegantePrincipalActual === $idReg) {
+                $db->prepare("UPDATE propietarios SET id_regante_principal = NULL WHERE id_regante_principal = :id")->execute(array(':id' => $idReg));
+                $idRegantePrincipalActual = null;
+            }
+            $mensaje = "Socio regante dado de baja correctamente del censo.";
         } catch (Exception $e) {
             $error = "Error al eliminar regante: " . $e->getMessage();
         }
@@ -387,7 +429,14 @@ foreach ($regantes as $r) {
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="fw-bold text-dark"><?= htmlspecialchars($r['nombre_completo']) ?></div>
+                                    <div class="fw-bold text-dark d-flex align-items-center gap-1 flex-wrap">
+                                        <?= htmlspecialchars($r['nombre_completo']) ?>
+                                        <?php if ($idRegantePrincipalActual && (int)$idRegantePrincipalActual === (int)$r['id_regante']): ?>
+                                            <span class="badge bg-warning text-dark border border-warning shadow-sm small py-1 px-2" title="Regante Principal predeterminado de tu explotación">
+                                                <i class="fa-solid fa-star me-1 text-dark"></i>Principal Explotación
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
                                     <?php if ($r['cif_nif']): ?>
                                         <div class="small text-muted font-monospace"><i class="fa-solid fa-id-card me-1"></i><?= htmlspecialchars($r['cif_nif']) ?></div>
                                     <?php endif; ?>
@@ -430,6 +479,21 @@ foreach ($regantes as $r) {
                                 </td>
                                 <td class="text-end pe-3">
                                     <div class="btn-group btn-group-sm">
+                                        <?php if ($tenantId): ?>
+                                            <?php if ($idRegantePrincipalActual && (int)$idRegantePrincipalActual === (int)$r['id_regante']): ?>
+                                                <button type="button" class="btn btn-warning text-dark disabled" title="Este socio es el Regante Principal predeterminado de tu explotación">
+                                                    <i class="fa-solid fa-star"></i>
+                                                </button>
+                                            <?php else: ?>
+                                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Establecer a \'<?= htmlspecialchars(addslashes($r['nombre_completo'])) ?>\' como el Regante Principal predeterminado para tu explotación?');">
+                                                    <input type="hidden" name="action" value="marcar_principal">
+                                                    <input type="hidden" name="id_regante" value="<?= $r['id_regante'] ?>">
+                                                    <button type="submit" class="btn btn-outline-warning text-dark" title="Hacer Regante Principal predeterminado de esta explotación">
+                                                        <i class="fa-regular fa-star"></i>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                         <a href="<?= APP_URL ?>/solicitud-riego?num_regante=<?= urlencode($r['num_regante']) ?>" class="btn btn-outline-primary" title="Hacer petición con este regante">
                                             <i class="fa-solid fa-file-invoice"></i>
                                         </a>

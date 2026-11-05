@@ -117,6 +117,49 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
             font-size: 0.72rem !important;
             padding: 3px 10px !important;
         }
+
+        /* Letrero flotante de indicaciones en móvil: trasladado a la parte inferior de la pantalla para no tapar el mapa */
+        .sig-toast {
+            position: fixed !important;
+            top: auto !important;
+            bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+            left: 12px !important;
+            right: 12px !important;
+            transform: none !important;
+            min-width: unset !important;
+            max-width: unset !important;
+            width: auto !important;
+            border-radius: 12px !important;
+            padding: 8px 14px !important;
+            font-size: 0.8rem !important;
+            z-index: 10500 !important;
+            background: rgba(15, 23, 42, 0.95) !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+            border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+        }
+        .sig-toast.alert-danger {
+            background: rgba(185, 28, 28, 0.95) !important;
+            border-color: rgba(248, 113, 113, 0.5) !important;
+        }
+        .sig-toast .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        /* En móvil, evitar que los tooltips de Geoman sigan al dedo y tapen la pantalla */
+        .leaflet-pm-tooltip {
+            display: none !important;
+        }
+        .leaflet-pm-actions-container {
+            position: fixed !important;
+            top: auto !important;
+            bottom: 60px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 10400 !important;
+        }
     }
 
     #mapaAgricola {
@@ -2255,14 +2298,19 @@ if ($fincaSeleccionadaId <= 0 || !in_array($fincaSeleccionadaId, $idsFincasValid
     function mostrarToast(msg, esError = false, duracion = 0) {
         const toast = document.getElementById('sigToast');
         const txt = document.getElementById('sigToastMsg');
+        if (!toast || !txt) return;
 
         txt.innerHTML = (esError ? '<i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>' : '<i class="fa-solid fa-circle-check text-info me-2"></i>') + msg;
         toast.className = `sig-toast alert ${esError ? 'alert-danger' : 'alert-dark'} shadow-lg border-0 py-2 px-3 small d-flex align-items-center justify-content-between rounded-pill`;
         toast.style.display = 'flex';
 
         if (toastTimeout) clearTimeout(toastTimeout);
-        if (duracion > 0) {
-            toastTimeout = setTimeout(() => { cerrarToast(); }, duracion);
+
+        // En pantallas móviles, si no se especifica duración, auto-cerrar en 4s para que no estorbe la visión
+        const esMovil = (window.innerWidth <= 768);
+        const tiempoCierre = duracion > 0 ? duracion : (esMovil ? 4000 : 0);
+        if (tiempoCierre > 0) {
+            toastTimeout = setTimeout(() => { cerrarToast(); }, tiempoCierre);
         }
     }
 

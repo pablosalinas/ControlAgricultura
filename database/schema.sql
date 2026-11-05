@@ -44,9 +44,11 @@ CREATE TABLE propietarios (
     email_remitente VARCHAR(150) NULL,
     email_comunidad VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com',
     fanegas_por_hectarea DECIMAL(8,4) NOT NULL DEFAULT 3.0000,
+    id_regante_principal INT NULL,
     activo TINYINT(1) NOT NULL DEFAULT 1,
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_propietario_activo (activo)
+    INDEX idx_propietario_activo (activo),
+    INDEX idx_propietario_regante (id_regante_principal)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------

@@ -29,14 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mun = trim(isset($_POST['municipio']) ? $_POST['municipio'] : '');
         $prov = trim(isset($_POST['provincia']) ? $_POST['provincia'] : '');
         $cp = trim(isset($_POST['codigo_postal']) ? $_POST['codigo_postal'] : '');
+        $idRegantePrincipal = !empty($_POST['id_regante_principal']) ? (int)$_POST['id_regante_principal'] : null;
 
         if (empty($nombre)) {
             $error = "El nombre o razón social de la explotación es obligatorio.";
         } else {
             try {
                 $stmt = $db->prepare("
-                    INSERT INTO propietarios (nombre_razon_social, cif_nif, telefono, email, direccion, municipio, provincia, codigo_postal, activo, fecha_alta)
-                    VALUES (:nom, :cif, :tel, :email, :dir, :mun, :prov, :cp, 1, NOW())
+                    INSERT INTO propietarios (nombre_razon_social, cif_nif, telefono, email, direccion, municipio, provincia, codigo_postal, id_regante_principal, activo, fecha_alta)
+                    VALUES (:nom, :cif, :tel, :email, :dir, :mun, :prov, :cp, :reg_princ, 1, NOW())
                 ");
                 $stmt->execute(array(
                     ':nom' => $nombre,
@@ -46,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':dir' => $dir ?: null,
                     ':mun' => $mun ?: null,
                     ':prov' => $prov ?: null,
-                    ':cp' => $cp ?: null
+                    ':cp' => $cp ?: null,
+                    ':reg_princ' => $idRegantePrincipal
                 ));
                 $newId = (int)$db->lastInsertId();
                 $success = "Explotación agraria <strong>" . htmlspecialchars($nombre) . "</strong> creada con éxito.";
@@ -75,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mun = trim(isset($_POST['municipio']) ? $_POST['municipio'] : '');
             $prov = trim(isset($_POST['provincia']) ? $_POST['provincia'] : '');
             $cp = trim(isset($_POST['codigo_postal']) ? $_POST['codigo_postal'] : '');
+            $idRegantePrincipal = !empty($_POST['id_regante_principal']) ? (int)$_POST['id_regante_principal'] : null;
 
             if (empty($nombre)) {
                 $error = "El nombre de la explotación no puede quedar vacío.";
@@ -83,7 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $db->prepare("
                         UPDATE propietarios 
                         SET nombre_razon_social = :nom, cif_nif = :cif, telefono = :tel, email = :email,
-                            direccion = :dir, municipio = :mun, provincia = :prov, codigo_postal = :cp
+                            direccion = :dir, municipio = :mun, provincia = :prov, codigo_postal = :cp,
+                            id_regante_principal = :reg_princ
                         WHERE id_propietario = :id
                     ");
                     $stmt->execute(array(
@@ -95,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':mun' => $mun ?: null,
                         ':prov' => $prov ?: null,
                         ':cp' => $cp ?: null,
+                        ':reg_princ' => $idRegantePrincipal,
                         ':id' => $idProp
                     ));
 
@@ -145,9 +150,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (Auth::isSuperAdmin()) {
     $sql = "
         SELECT p.*,
+               r.num_regante AS num_regante_principal,
+               r.nombre_completo AS nombre_regante_principal,
+               cr.nombre_comunidad AS nombre_comunidad_regante,
                (SELECT COUNT(*) FROM fincas f WHERE f.id_propietario = p.id_propietario) AS total_fincas,
                (SELECT COUNT(*) FROM usuarios u WHERE u.id_propietario = p.id_propietario) AS total_usuarios
         FROM propietarios p
+        LEFT JOIN regantes r ON p.id_regante_principal = r.id_regante
+        LEFT JOIN comunidades_regantes cr ON r.id_comunidad = cr.id_comunidad
         ORDER BY p.id_propietario ASC
     ";
     $stmtProps = $db->query($sql);
@@ -156,9 +166,14 @@ if (Auth::isSuperAdmin()) {
     $myTenant = Auth::tenantId();
     $sql = "
         SELECT p.*,
+               r.num_regante AS num_regante_principal,
+               r.nombre_completo AS nombre_regante_principal,
+               cr.nombre_comunidad AS nombre_comunidad_regante,
                (SELECT COUNT(*) FROM fincas f WHERE f.id_propietario = p.id_propietario) AS total_fincas,
                (SELECT COUNT(*) FROM usuarios u WHERE u.id_propietario = p.id_propietario) AS total_usuarios
         FROM propietarios p
+        LEFT JOIN regantes r ON p.id_regante_principal = r.id_regante
+        LEFT JOIN comunidades_regantes cr ON r.id_comunidad = cr.id_comunidad
         WHERE p.id_propietario = :id
         ORDER BY p.id_propietario ASC
     ";
@@ -168,6 +183,15 @@ if (Auth::isSuperAdmin()) {
 }
 
 $currentTenantId = Auth::tenantId();
+
+// Cargar todos los Socios Regantes activos para asignación de Regante Principal
+$todosSocios = $db->query("
+    SELECT r.id_regante, r.num_regante, r.nombre_completo, r.cif_nif, r.id_comunidad, c.nombre_comunidad
+    FROM regantes r
+    LEFT JOIN comunidades_regantes c ON r.id_comunidad = c.id_comunidad
+    WHERE r.activo = 1
+    ORDER BY r.num_regante ASC, r.nombre_completo ASC
+")->fetchAll();
 
 // Cargar todas las Comunidades de Regantes disponibles para asignación
 $todasComunidades = $db->query("SELECT id_comunidad, nombre_comunidad, es_predeterminada FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
@@ -275,6 +299,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         <th class="ps-4">ID</th>
                         <th>Nombre / Razón Social</th>
                         <th>CIF / NIF</th>
+                        <th>Regante Principal (Socio C.R.)</th>
                         <th>Ubicación</th>
                         <th>Contacto</th>
                         <th class="text-center">Fincas</th>
@@ -285,7 +310,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                 <tbody>
                     <?php if (empty($explotaciones)): ?>
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="fa-solid fa-building-wheat fa-2x mb-3 text-secondary"></i>
                                 <p class="mb-0">No se encontraron explotaciones agrícolas registradas.</p>
                             </td>
@@ -298,7 +323,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
                                         <?php if (!empty($exp['logo'])): ?>
-                                            <img src="<?= APP_URL ?>/<?= htmlspecialchars($exp['logo']) ?>" class="rounded-3 border shadow-sm" style="width: 44px; height: 44px; object-fit: cover;">
+                                             <img src="<?= APP_URL ?>/<?= htmlspecialchars($exp['logo']) ?>" class="rounded-3 border shadow-sm" style="width: 44px; height: 44px; object-fit: cover;">
                                         <?php else: ?>
                                             <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 text-center" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
                                                 <i class="fa-solid fa-building-wheat fs-5"></i>
@@ -319,6 +344,24 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                     <span class="badge bg-light text-dark border font-monospace">
                                         <?= htmlspecialchars($exp['cif_nif'] ?: 'No indicado') ?>
                                     </span>
+                                </td>
+                                <td>
+                                    <?php if (!empty($exp['num_regante_principal'])): ?>
+                                        <div class="d-inline-flex flex-column">
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 py-1 px-2 font-monospace fw-bold text-start">
+                                                <i class="fa-solid fa-user-check text-success me-1"></i><?= htmlspecialchars($exp['num_regante_principal']) ?> - <?= htmlspecialchars($exp['nombre_regante_principal']) ?>
+                                            </span>
+                                            <?php if (!empty($exp['nombre_comunidad_regante'])): ?>
+                                                <span class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                                    <i class="fa-solid fa-water text-info me-1"></i><?= htmlspecialchars($exp['nombre_comunidad_regante']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border py-1 px-2 font-monospace small">
+                                            <i class="fa-regular fa-circle-question me-1 text-secondary"></i>Sin asignar
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="small">
@@ -436,6 +479,34 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                                                 <input type="text" name="codigo_postal" class="form-control font-monospace" value="<?= htmlspecialchars($exp['codigo_postal'] ?: '') ?>">
                                                             </div>
 
+                                                            <!-- Regante Principal de la Explotación (Socio de la Comunidad de Regantes) -->
+                                                            <div class="col-12 mt-3">
+                                                                <div class="p-3 bg-light rounded-3 border">
+                                                                    <label class="form-label fw-bold small text-primary mb-1 d-flex align-items-center gap-2">
+                                                                        <i class="fa-solid fa-user-check text-success fs-5"></i>
+                                                                        <span>Regante Principal de la Explotación (Socio predeterminado)</span>
+                                                                    </label>
+                                                                    <div class="text-muted small mb-2">
+                                                                        Cuando existan socios dados de alta, este socio será el predeterminado a la hora de solicitar agua para riego en una comunidad de regantes para esta explotación.
+                                                                    </div>
+                                                                    <?php if (empty($todosSocios)): ?>
+                                                                        <div class="alert alert-info py-2 px-3 small mb-0 d-flex align-items-center gap-2">
+                                                                            <i class="fa-solid fa-circle-info text-info"></i>
+                                                                            <div>No hay socios de comunidades de regantes registrados todavía. Puedes darlos de alta desde el menú <a href="<?= APP_URL ?>/regantes" class="fw-bold alert-link">Socios Regantes</a>.</div>
+                                                                        </div>
+                                                                    <?php else: ?>
+                                                                        <select name="id_regante_principal" class="form-select font-monospace">
+                                                                            <option value="">-- Sin regante principal asignado (usar por defecto de la comunidad) --</option>
+                                                                            <?php foreach ($todosSocios as $soc): ?>
+                                                                                <option value="<?= $soc['id_regante'] ?>" <?= (!empty($exp['id_regante_principal']) && (int)$exp['id_regante_principal'] === (int)$soc['id_regante']) ? 'selected' : '' ?>>
+                                                                                    <?= htmlspecialchars($soc['num_regante']) ?> - <?= htmlspecialchars($soc['nombre_completo']) ?> <?= !empty($soc['nombre_comunidad']) ? '— ' . htmlspecialchars($soc['nombre_comunidad']) : '' ?>
+                                                                                </option>
+                                                                            <?php endforeach; ?>
+                                                                        </select>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </div>
+
                                                             <!-- Comunidades de Regantes que forman esta Explotación -->
                                                             <div class="col-12 mt-3">
                                                                 <div class="p-3 bg-light rounded-3 border">
@@ -547,6 +618,34 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Código Postal</label>
                             <input type="text" name="codigo_postal" class="form-control font-monospace" placeholder="30440">
+                        </div>
+
+                        <!-- Regante Principal de la Explotación (Socio de la Comunidad de Regantes) -->
+                        <div class="col-12 mt-3">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <label class="form-label fw-bold small text-primary mb-1 d-flex align-items-center gap-2">
+                                    <i class="fa-solid fa-user-check text-success fs-5"></i>
+                                    <span>Regante Principal de la Explotación (Socio predeterminado)</span>
+                                </label>
+                                <div class="text-muted small mb-2">
+                                    Cuando existan socios dados de alta, este socio será el predeterminado a la hora de solicitar agua para riego en una comunidad de regantes para esta explotación.
+                                </div>
+                                <?php if (empty($todosSocios)): ?>
+                                    <div class="alert alert-info py-2 px-3 small mb-0 d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-circle-info text-info"></i>
+                                        <div>No hay socios de comunidades de regantes registrados todavía. Podrás asignarlo más adelante cuando des de alta socios en el menú <strong>Socios Regantes</strong>.</div>
+                                    </div>
+                                <?php else: ?>
+                                    <select name="id_regante_principal" class="form-select font-monospace">
+                                        <option value="">-- Sin regante principal asignado (usar por defecto de la comunidad) --</option>
+                                        <?php foreach ($todosSocios as $soc): ?>
+                                            <option value="<?= $soc['id_regante'] ?>">
+                                                <?= htmlspecialchars($soc['num_regante']) ?> - <?= htmlspecialchars($soc['nombre_completo']) ?> <?= !empty($soc['nombre_comunidad']) ? '— ' . htmlspecialchars($soc['nombre_comunidad']) : '' ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <div class="col-12 mt-3">
                             <div class="form-check form-switch">

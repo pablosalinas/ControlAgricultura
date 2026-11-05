@@ -172,6 +172,7 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'propietarios', 'smtp_pass_enc', 'TEXT NULL');
             self::addColumnIfNotExists($pdo, 'propietarios', 'email_remitente', 'VARCHAR(150) NULL');
             self::addColumnIfNotExists($pdo, 'propietarios', 'email_comunidad', "VARCHAR(150) NULL DEFAULT 'alharabemoratalla@gmail.com'");
+            self::addColumnIfNotExists($pdo, 'propietarios', 'id_regante_principal', 'INT NULL');
 
             // 4. Columnas en CONFIGURACION_WEB
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'id_regante_defecto', 'INT NULL');
@@ -364,6 +365,7 @@ class DatabaseMigrator {
                     INDEX idx_ec_com (id_comunidad)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
+            self::addColumnIfNotExists($pdo, 'explotaciones_comunidades', 'id_regante_defecto', 'INT NULL');
 
             // Si está vacía, asociar de inicio las comunidades existentes con los propietarios existentes
             $countEC = $pdo->query("SELECT COUNT(*) FROM explotaciones_comunidades")->fetchColumn();

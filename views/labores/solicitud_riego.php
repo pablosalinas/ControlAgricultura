@@ -230,6 +230,14 @@ $fincas = $db->query($sqlFincas)->fetchAll();
 // Consultar censo de regantes (Socios)
 $regantes = $db->query("SELECT * FROM regantes WHERE activo = 1 ORDER BY num_regante ASC")->fetchAll();
 
+// Consultar Regante Principal configurado para la explotación activa
+$idRegantePrincipalExp = null;
+if ($tenantId) {
+    $stmtProp = $db->prepare("SELECT id_regante_principal FROM propietarios WHERE id_propietario = :id");
+    $stmtProp->execute(array(':id' => $tenantId));
+    $idRegantePrincipalExp = (int)$stmtProp->fetchColumn() ?: null;
+}
+
 // Consultar Comunidades de Regantes
 $comunidades = $db->query("SELECT * FROM comunidades_regantes WHERE activo = 1 ORDER BY es_predeterminada DESC, nombre_comunidad ASC")->fetchAll();
 
@@ -294,18 +302,32 @@ if ($solicitudCargada) {
     $defEmailDestino = $solicitudCargada['email_destino'];
     $defNotasAdmin = $solicitudCargada['notas_admin'];
 } else {
-    // Socio principal predeterminado desde la comunidad seleccionada o la configuración general
+    // Socio principal predeterminado desde la explotación, la comunidad seleccionada o la configuración general
     $cfgWeb = $db->query("SELECT id_regante_defecto FROM configuracion_web LIMIT 1")->fetch();
     $idSocioDefecto = null;
-    if (!empty($comSeleccionada['id_regante_defecto'])) {
+    if (!empty($idRegantePrincipalExp)) {
+        // Prioridad 1: Regante Principal establecido para la explotación activa
+        $idSocioDefecto = (int)$idRegantePrincipalExp;
+    } elseif (!empty($comSeleccionada['id_regante_defecto'])) {
+        // Prioridad 2: Socio predeterminado de la comunidad seleccionada
         $idSocioDefecto = (int)$comSeleccionada['id_regante_defecto'];
     } elseif (!empty($cfgWeb['id_regante_defecto'])) {
+        // Prioridad 3: Socio predeterminado general
         $idSocioDefecto = (int)$cfgWeb['id_regante_defecto'];
     }
 
+    $paramNumRegante = isset($_GET['num_regante']) ? trim($_GET['num_regante']) : '';
     $preReganteId = (int)(isset($_GET['regante_id']) ? $_GET['regante_id'] : ($idSocioDefecto ? $idSocioDefecto : 0));
     $reganteInicial = null;
-    if ($preReganteId > 0) {
+    if (!empty($paramNumRegante)) {
+        foreach ($regantes as $r) {
+            if (strcasecmp($r['num_regante'], $paramNumRegante) === 0) {
+                $reganteInicial = $r;
+                break;
+            }
+        }
+    }
+    if (!$reganteInicial && $preReganteId > 0) {
         foreach ($regantes as $r) {
             if ((int)$r['id_regante'] === $preReganteId) {
                 $reganteInicial = $r;
@@ -456,7 +478,12 @@ if ($solicitudCargada) {
 
             <!-- Socio Regante -->
             <div class="col-md-4">
-                <label class="form-label fw-bold small text-primary"><i class="fa-solid fa-user-check me-1"></i>Socio Regante (Censo)</label>
+                <label class="form-label fw-bold small text-primary">
+                    <i class="fa-solid fa-user-check me-1"></i>Socio Regante (Censo)
+                    <?php if ($idRegantePrincipalExp): ?>
+                        <span class="badge bg-warning text-dark small ms-1" title="Predeterminado por la explotación activa"><i class="fa-solid fa-star me-1"></i>Predeterminado</span>
+                    <?php endif; ?>
+                </label>
                 <select id="sel_regante" class="form-select font-monospace" onchange="cargarDatosRegante()">
                     <option value="">-- Buscar socio por Nº o Nombre --</option>
                     <?php foreach ($regantes as $rg): ?>
@@ -474,7 +501,7 @@ if ($solicitudCargada) {
                             data-hc="<?= $rg['horas_comunitaria_disponibles'] ?>"
                             <?= ($reganteInicial && $reganteInicial['id_regante'] == $rg['id_regante']) ? 'selected' : '' ?>
                         >
-                            <?= htmlspecialchars($rg['num_regante']) ?> - <?= htmlspecialchars($rg['nombre_completo']) ?>
+                            <?= htmlspecialchars($rg['num_regante']) ?> - <?= htmlspecialchars($rg['nombre_completo']) ?><?= ($idRegantePrincipalExp && (int)$idRegantePrincipalExp === (int)$rg['id_regante']) ? ' ⭐ (Regante Principal Explotación)' : '' ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -1128,6 +1155,8 @@ if ($solicitudCargada) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
+const idRegantePrincipalExp = <?= json_encode($idRegantePrincipalExp ? (string)$idRegantePrincipalExp : null) ?>;
+
 // Estado de la comunidad activa
 let comunidadActiva = {
     nombre: 'Comunidad de Regantes del Río Alhárabe',
@@ -1224,15 +1253,18 @@ function cargarComunidadSeleccionada() {
         document.getElementById('doc_instrucciones_horario').innerText = comunidadActiva.horario;
     }
 
-    // Si la comunidad tiene socio principal por defecto, precargarlo
-    const regDef = opt.getAttribute('data-regdef');
-    if (regDef) {
-        const selReg = document.getElementById('sel_regante');
-        for (let i = 0; i < selReg.options.length; i++) {
-            if (selReg.options[i].value === regDef) {
-                selReg.selectedIndex = i;
-                cargarDatosRegante();
-                break;
+    // Si la explotación tiene regante principal configurado, o la comunidad tiene socio por defecto
+    const isEditingExisting = !!document.getElementById('in_id_solicitud').value;
+    if (!isEditingExisting) {
+        const targetReg = idRegantePrincipalExp || opt.getAttribute('data-regdef');
+        if (targetReg) {
+            const selReg = document.getElementById('sel_regante');
+            for (let i = 0; i < selReg.options.length; i++) {
+                if (selReg.options[i].value === String(targetReg)) {
+                    selReg.selectedIndex = i;
+                    cargarDatosRegante();
+                    break;
+                }
             }
         }
     }
