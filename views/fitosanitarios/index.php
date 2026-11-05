@@ -343,14 +343,54 @@ foreach ($productos as $p) {
                 <?php foreach ($productos as $p): ?>
                     <?php
                     $esEco = (bool)$p['es_ecologico'];
-                    $unidad = $p['unidad_dosis'] ?: 'cc/hl';
+                    $unidad = $p['unidad_dosis'] ?: 'g/hl';
                     $dosis100 = (float)$p['dosis_etiqueta_100l'];
-                    $dMoch = (float)$p['dosis_calculada_mochila'] ?: ($dosis100 * 0.16);
-                    $dPulv = (float)$p['dosis_calculada_pulv'] ?: $dosis100;
-                    $dCuba = (float)$p['dosis_calculada_cuba'] ?: ($dosis100 * 10);
+                    $dMoch = (float)$p['dosis_calculada_mochila'];
+                    $dPulv = (float)$p['dosis_calculada_pulv'];
+                    $dCuba = (float)$p['dosis_calculada_cuba'];
                     $dHa = (float)$p['dosis_por_hectarea'];
                     $plazo = (int)$p['plazo_seguridad_dias'];
                     $intervalo = (int)$p['intervalo_repeticion_dias'];
+
+                    // Determinar si es líquido o sólido para las unidades visuales
+                    $materiaL = mb_strtolower($p['materia_activa'] . ' ' . $p['tipo_producto'] . ' ' . $p['nombre_comercial'] . ' ' . $unidad, 'UTF-8');
+                    $esLiquido = (strpos($materiaL, '[ec]') !== false || strpos($materiaL, '[sc]') !== false || strpos($materiaL, '[sl]') !== false || strpos($materiaL, '[ew]') !== false || strpos($materiaL, '[od]') !== false || strpos($materiaL, 'líquid') !== false || strpos($materiaL, 'aceite') !== false || strpos($unidad, 'l') !== false || strpos($unidad, 'cc') !== false || strpos($unidad, 'ml') !== false);
+
+                    $uPequena = $esLiquido ? 'ml' : 'g';
+                    $uGrande = $esLiquido ? 'L' : 'kg';
+
+                    // Normalizar dosis base por cada 100L a gramos o ml
+                    $gPor100 = 0;
+                    if ($dosis100 > 0 && $dosis100 < 10) {
+                        $gPor100 = $dosis100 * 1000.0; // ej: 0.300 kg/hl => 300 g
+                    } else {
+                        $gPor100 = $dosis100;
+                    }
+
+                    // Cuba 1.000L: debe mostrarse en Kilos o Litros (ej: 3.00 kg para 1000L, nunca 3000 kg)
+                    if ($dCuba >= 50.0) {
+                        $dCuba = $dCuba / 1000.0;
+                    } elseif ($dCuba <= 0 && $gPor100 > 0) {
+                        $dCuba = ($gPor100 * 10.0) / 1000.0;
+                    }
+
+                    // Mochila 16L: en gramos o ml (ej: 48 g o 32 ml)
+                    if ($dMoch <= 0 && $gPor100 > 0) {
+                        $dMoch = $gPor100 * 0.16;
+                    } elseif ($dMoch > 0 && $dMoch < 1.0) {
+                        $dMoch = $dMoch * 1000.0;
+                    }
+
+                    // Pulverizador 100L: en gramos o ml (ej: 300 g o 200 ml)
+                    if ($dPulv <= 0 && $gPor100 > 0) {
+                        $dPulv = $gPor100;
+                    } elseif ($dPulv > 0 && $dPulv < 1.0) {
+                        $dPulv = $dPulv * 1000.0;
+                    }
+
+                    if ($dHa <= 0 && $dCuba > 0) {
+                        $dHa = $dCuba;
+                    }
                     ?>
 
                     <div class="col-lg-6" style="page-break-inside: avoid;">
@@ -408,10 +448,10 @@ foreach ($productos as $p) {
                                 <div class="p-3 rounded-3 mb-3 border" style="background: #f8fafc;">
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <span class="fw-bold text-dark small">
-                                            <i class="fa-solid fa-calculator me-1 text-primary"></i>Dosificación por Tipo de Recipiente:
+                                            <i class="fa-solid fa-calculator me-1 text-primary"></i>Dosis Real por Tipo de Recipiente:
                                         </span>
                                         <span class="badge bg-primary bg-opacity-10 text-primary small">
-                                            Base: <?= number_format($dosis100, 2) ?> <?= htmlspecialchars($unidad) ?>
+                                            Etiqueta: <?= ($dosis100 < 10 ? number_format($dosis100, 3) . ' kg/hl (' . number_format($gPor100, 0) . ' ' . $uPequena . '/100L)' : number_format($dosis100, 0) . ' ' . $uPequena . '/100L') ?>
                                         </span>
                                     </div>
                                     
@@ -420,8 +460,8 @@ foreach ($productos as $p) {
                                         <div class="col-6 col-sm-3">
                                             <div class="p-2 bg-white rounded border h-100">
                                                 <div class="text-muted small fw-semibold">🎒 Mochila 16L</div>
-                                                <div class="fw-bold text-primary fs-6 mt-1"><?= number_format($dMoch, 2) ?></div>
-                                                <div class="text-muted" style="font-size: 0.72rem;"><?= htmlspecialchars($unidad) ?></div>
+                                                <div class="fw-bold text-primary fs-6 mt-1"><?= number_format($dMoch, 1, ',', '.') ?></div>
+                                                <div class="text-primary fw-semibold" style="font-size: 0.72rem;"><?= $uPequena ?></div>
                                             </div>
                                         </div>
 
@@ -429,8 +469,8 @@ foreach ($productos as $p) {
                                         <div class="col-6 col-sm-3">
                                             <div class="p-2 bg-white rounded border h-100">
                                                 <div class="text-muted small fw-semibold">🧴 Pulv. 100L</div>
-                                                <div class="fw-bold text-success fs-6 mt-1"><?= number_format($dPulv, 2) ?></div>
-                                                <div class="text-muted" style="font-size: 0.72rem;"><?= htmlspecialchars($unidad) ?></div>
+                                                <div class="fw-bold text-success fs-6 mt-1"><?= number_format($dPulv, 0, ',', '.') ?></div>
+                                                <div class="text-success fw-semibold" style="font-size: 0.72rem;"><?= $uPequena ?></div>
                                             </div>
                                         </div>
 
@@ -438,8 +478,8 @@ foreach ($productos as $p) {
                                         <div class="col-6 col-sm-3">
                                             <div class="p-2 bg-white rounded border h-100">
                                                 <div class="text-muted small fw-semibold">🚜 Cuba 1000L</div>
-                                                <div class="fw-bold text-danger fs-6 mt-1"><?= number_format($dCuba, 2) ?></div>
-                                                <div class="text-muted" style="font-size: 0.72rem;"><?= htmlspecialchars($unidad) ?></div>
+                                                <div class="fw-bold text-danger fs-6 mt-1"><?= number_format($dCuba, 2, ',', '.') ?></div>
+                                                <div class="text-danger fw-semibold" style="font-size: 0.72rem;"><?= $uGrande ?> (cuba entera)</div>
                                             </div>
                                         </div>
 
@@ -447,8 +487,8 @@ foreach ($productos as $p) {
                                         <div class="col-6 col-sm-3">
                                             <div class="p-2 bg-white rounded border h-100">
                                                 <div class="text-muted small fw-semibold">🌾 Por Ha</div>
-                                                <div class="fw-bold text-dark fs-6 mt-1"><?= $dHa > 0 ? number_format($dHa, 2) : '-' ?></div>
-                                                <div class="text-muted" style="font-size: 0.72rem;">kg o L/ha</div>
+                                                <div class="fw-bold text-dark fs-6 mt-1"><?= number_format($dHa, 2, ',', '.') ?></div>
+                                                <div class="text-dark fw-semibold" style="font-size: 0.72rem;"><?= $uGrande ?>/ha</div>
                                             </div>
                                         </div>
                                     </div>
@@ -603,39 +643,58 @@ foreach ($productos as $p) {
                             <div class="col-md-6">
                                 <label class="form-label small fw-semibold">Dosis Etiqueta por 100L (hl) <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <input type="number" step="0.001" name="dosis_etiqueta_100l" id="fito_dosis_100l" class="form-control font-monospace" placeholder="150" required oninput="calcularDosisRecipientes()">
-                                    <select name="unidad_dosis" id="fito_unidad_dosis" class="form-select" style="max-width: 110px;" onchange="calcularDosisRecipientes()">
-                                        <option value="cc/hl">cc/hl</option>
+                                    <input type="number" step="0.001" name="dosis_etiqueta_100l" id="fito_dosis_100l" class="form-control font-monospace" placeholder="0.300 o 300" required oninput="calcularDosisRecipientes()">
+                                    <select name="unidad_dosis" id="fito_unidad_dosis" class="form-select" style="max-width: 140px;" onchange="calcularDosisRecipientes()">
+                                        <option value="kg/hl">kg/hl (o %)</option>
+                                        <option value="l/hl">l/hl (o %)</option>
                                         <option value="g/hl">g/hl</option>
+                                        <option value="cc/hl">cc/hl</option>
                                         <option value="ml/100L">ml/100L</option>
                                         <option value="g/100L">g/100L</option>
+                                        <option value="%">% caldo</option>
+                                        <option value="kg">kg</option>
+                                        <option value="l">L</option>
                                     </select>
                                 </div>
+                                <div class="form-text text-muted" style="font-size: 0.72rem;">Ej: 0.300 kg/hl (0.3%) ó 300 g/hl</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-semibold">Dosis Estimada por Hectárea (ha)</label>
                                 <div class="input-group">
-                                    <input type="number" step="0.001" name="dosis_por_hectarea" id="fito_dosis_ha" class="form-control font-monospace" placeholder="1.500">
-                                    <span class="input-group-text small bg-white">kg o L/ha</span>
+                                    <input type="number" step="0.001" name="dosis_por_hectarea" id="fito_dosis_ha" class="form-control font-monospace" placeholder="3.000">
+                                    <span class="input-group-text small bg-white text-dark fw-semibold" id="lbl_unidad_ha">kg o L/ha</span>
                                 </div>
+                                <div class="form-text text-muted" style="font-size: 0.72rem;">Calculada para gasto medio de 1.000 L de caldo/ha</div>
                             </div>
                         </div>
 
                         <!-- Recipientes calculados automáticamente -->
-                        <div class="row g-2 text-center small">
+                        <div class="row g-2 small">
                             <div class="col-md-4">
-                                <label class="form-label text-muted small mb-1">🎒 Mochila 16 Litros:</label>
-                                <input type="number" step="0.01" name="dosis_calculada_mochila" id="fito_dosis_mochila" class="form-control text-center font-monospace fw-bold text-primary bg-white">
+                                <label class="form-label text-muted small mb-1 fw-semibold">🎒 Mochila 16 Litros:</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.01" name="dosis_calculada_mochila" id="fito_dosis_mochila" class="form-control text-center font-monospace fw-bold text-primary bg-white">
+                                    <span class="input-group-text small bg-white text-primary fw-bold" id="lbl_unidad_mochila">g</span>
+                                </div>
+                                <div class="form-text text-muted" style="font-size: 0.70rem;">Dosis para mochila de 16L</div>
                                 <input type="hidden" name="volumen_mochila_l" value="16.00">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label text-muted small mb-1">🧴 Pulverizador 100 Litros:</label>
-                                <input type="number" step="0.01" name="dosis_calculada_pulv" id="fito_dosis_pulv" class="form-control text-center font-monospace fw-bold text-success bg-white">
+                                <label class="form-label text-muted small mb-1 fw-semibold">🧴 Pulverizador 100 Litros:</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.01" name="dosis_calculada_pulv" id="fito_dosis_pulv" class="form-control text-center font-monospace fw-bold text-success bg-white">
+                                    <span class="input-group-text small bg-white text-success fw-bold" id="lbl_unidad_pulv">g</span>
+                                </div>
+                                <div class="form-text text-muted" style="font-size: 0.70rem;">Dosis para carretilla 100L</div>
                                 <input type="hidden" name="volumen_pulverizador_l" value="100.00">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label text-muted small mb-1">🚜 Cuba 1.000 Litros:</label>
-                                <input type="number" step="0.01" name="dosis_calculada_cuba" id="fito_dosis_cuba" class="form-control text-center font-monospace fw-bold text-danger bg-white">
+                                <label class="form-label text-muted small mb-1 fw-semibold">🚜 Cuba 1.000 Litros:</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.01" name="dosis_calculada_cuba" id="fito_dosis_cuba" class="form-control text-center font-monospace fw-bold text-danger bg-white">
+                                    <span class="input-group-text small bg-white text-danger fw-bold" id="lbl_unidad_cuba">kg</span>
+                                </div>
+                                <div class="form-text text-muted" style="font-size: 0.70rem;">Dosis para cuba entera 1.000L</div>
                                 <input type="hidden" name="volumen_cuba_l" value="1000.00">
                             </div>
                         </div>
@@ -697,6 +756,7 @@ function abrirModalNuevoProducto() {
     document.getElementById('fito_id_producto').value = '0';
     document.getElementById('modalProductoTitulo').innerHTML = '<i class="fa-solid fa-bottle-droplet me-2 text-danger"></i>Nuevo Producto Fitosanitario';
     document.getElementById('ia_fito_feedback').classList.add('d-none');
+    actualizarBadgesUnidades();
     var modal = new bootstrap.Modal(document.getElementById('modalProductoFitosanitario'));
     modal.show();
 }
@@ -723,45 +783,119 @@ function abrirModalEditar(p) {
     document.getElementById('fito_modo_accion').value = p.modo_accion_uso || '';
     
     document.getElementById('fito_dosis_100l').value = p.dosis_etiqueta_100l || '';
-    document.getElementById('fito_unidad_dosis').value = p.unidad_dosis || 'cc/hl';
+    
+    var u = (p.unidad_dosis || '').toLowerCase().trim();
+    var uniSel = document.getElementById('fito_unidad_dosis');
+    var matched = false;
+    for (var i = 0; i < uniSel.options.length; i++) {
+        if (uniSel.options[i].value.toLowerCase() === u) {
+            uniSel.selectedIndex = i;
+            matched = true;
+            break;
+        }
+    }
+    if (!matched) {
+        if (u.indexOf('kg') !== -1) uniSel.value = 'kg/hl';
+        else if (u.indexOf('l') !== -1) uniSel.value = 'l/hl';
+        else if (u.indexOf('cc') !== -1 || u.indexOf('ml') !== -1) uniSel.value = 'cc/hl';
+        else if (u.indexOf('%') !== -1) uniSel.value = '%';
+        else uniSel.value = 'g/hl';
+    }
+
     document.getElementById('fito_dosis_ha').value = p.dosis_por_hectarea || '';
     
-    document.getElementById('fito_dosis_mochila').value = p.dosis_calculada_mochila || '';
-    document.getElementById('fito_dosis_pulv').value = p.dosis_calculada_pulv || '';
-    document.getElementById('fito_dosis_cuba').value = p.dosis_calculada_cuba || '';
+    // Normalizar dosis de cuba: si está guardada en gramos (>= 50), convertir a kg/L
+    var dCubaVal = parseFloat(p.dosis_calculada_cuba) || 0;
+    if (dCubaVal >= 50.0) {
+        dCubaVal = dCubaVal / 1000.0;
+    }
+    document.getElementById('fito_dosis_cuba').value = dCubaVal > 0 ? dCubaVal.toFixed(2) : '';
+
+    // Normalizar dosis de mochila y pulverizador si estaban en kg (< 1.0)
+    var dMochVal = parseFloat(p.dosis_calculada_mochila) || 0;
+    if (dMochVal > 0 && dMochVal < 1.0) dMochVal = dMochVal * 1000.0;
+    document.getElementById('fito_dosis_mochila').value = dMochVal > 0 ? dMochVal.toFixed(1) : '';
+
+    var dPulvVal = parseFloat(p.dosis_calculada_pulv) || 0;
+    if (dPulvVal > 0 && dPulvVal < 1.0) dPulvVal = dPulvVal * 1000.0;
+    document.getElementById('fito_dosis_pulv').value = dPulvVal > 0 ? dPulvVal.toFixed(0) : '';
     
     document.getElementById('fito_plazo_seguridad').value = p.plazo_seguridad_dias || '0';
     document.getElementById('fito_intervalo_rep').value = p.intervalo_repeticion_dias || '14';
     document.getElementById('fito_advertencias').value = p.descripcion_advertencias || '';
     
     document.getElementById('ia_fito_feedback').classList.add('d-none');
+    actualizarBadgesUnidades();
 
     var modal = new bootstrap.Modal(document.getElementById('modalProductoFitosanitario'));
     modal.show();
 }
 
+// Actualiza los badges de unidad (g vs ml, kg vs L) según el tipo de producto
+function actualizarBadgesUnidades() {
+    var u = (document.getElementById('fito_unidad_dosis').value || '').toLowerCase();
+    var mat = (document.getElementById('fito_materia_activa').value || '').toLowerCase();
+    var nom = (document.getElementById('fito_nombre_comercial').value || '').toLowerCase();
+
+    var esLiq = (u.indexOf('l') !== -1 || u.indexOf('cc') !== -1 || u.indexOf('ml') !== -1 ||
+                 mat.indexOf('[ec]') !== -1 || mat.indexOf('[sc]') !== -1 || mat.indexOf('[sl]') !== -1 ||
+                 mat.indexOf('líquid') !== -1 || mat.indexOf('aceite') !== -1 || nom.indexOf('aceite') !== -1);
+    
+    var uPequena = esLiq ? 'ml' : 'g';
+    var uGrande = esLiq ? 'L' : 'kg';
+
+    var lblMoch = document.getElementById('lbl_unidad_mochila');
+    var lblPulv = document.getElementById('lbl_unidad_pulv');
+    var lblCuba = document.getElementById('lbl_unidad_cuba');
+    var lblHa = document.getElementById('lbl_unidad_ha');
+
+    if (lblMoch) lblMoch.textContent = uPequena;
+    if (lblPulv) lblPulv.textContent = uPequena;
+    if (lblCuba) lblCuba.textContent = uGrande;
+    if (lblHa) lblHa.textContent = uGrande + ' o L/ha';
+
+    return { uPequena: uPequena, uGrande: uGrande, esLiq: esLiq };
+}
+
 // Cálculo en vivo de dosis por recipientes
 function calcularDosisRecipientes() {
-    var d100 = parseFloat(document.getElementById('fito_dosis_100l').value) || 0;
-    
-    // Mochila 16L = dosis100 * (16 / 100) = dosis100 * 0.16
-    var dMoch = (d100 * 0.16);
-    // Pulverizador 100L = dosis100
-    var dPulv = d100;
-    // Cuba 1.000L = dosis100 * 10
-    var dCuba = (d100 * 10);
-    
-    document.getElementById('fito_dosis_mochila').value = dMoch > 0 ? dMoch.toFixed(2) : '';
-    document.getElementById('fito_dosis_pulv').value = dPulv > 0 ? dPulv.toFixed(2) : '';
+    var units = actualizarBadgesUnidades();
+    var raw100 = parseFloat(document.getElementById('fito_dosis_100l').value) || 0;
+    var u = (document.getElementById('fito_unidad_dosis').value || '').toLowerCase();
+
+    if (raw100 <= 0) {
+        document.getElementById('fito_dosis_mochila').value = '';
+        document.getElementById('fito_dosis_pulv').value = '';
+        document.getElementById('fito_dosis_cuba').value = '';
+        return;
+    }
+
+    // Normalizar a gramos o ml por 100L de caldo
+    // Si la unidad es kg/hl, l/hl, %, o si el valor introducido es < 10 (ej: 0.300 o 1.5):
+    // 0.300 kg/hl = 300 g/hl
+    var gPor100 = 0;
+    var esUnidadMayor = (u.indexOf('kg') !== -1 || u.indexOf('l/hl') !== -1 || u.indexOf('%') !== -1 || u === 'l');
+    if (esUnidadMayor || raw100 < 10.0) {
+        gPor100 = raw100 * 1000.0;
+    } else {
+        gPor100 = raw100;
+    }
+
+    // Mochila 16L = (gPor100 * 16) / 100 en g o ml (ej: 300 * 0.16 = 48.0 g)
+    var dMoch = gPor100 * 0.16;
+    // Pulverizador 100L = gPor100 en g o ml (ej: 300 g)
+    var dPulv = gPor100;
+    // Cuba 1.000L = (gPor100 * 10) / 1000 en KG o LITROS (ej: (300 * 10)/1000 = 3.00 kg)
+    var dCuba = (gPor100 * 10.0) / 1000.0;
+
+    document.getElementById('fito_dosis_mochila').value = dMoch > 0 ? dMoch.toFixed(1) : '';
+    document.getElementById('fito_dosis_pulv').value = dPulv > 0 ? dPulv.toFixed(0) : '';
     document.getElementById('fito_dosis_cuba').value = dCuba > 0 ? dCuba.toFixed(2) : '';
 
-    // Sugerencia para dosis por hectárea si está vacía (asumiendo 800-1000 L de caldo por ha)
+    // Sugerencia para dosis por hectárea si está vacía (asumiendo 1.000 L de caldo por ha)
     var txtHa = document.getElementById('fito_dosis_ha');
     if (!txtHa.value || parseFloat(txtHa.value) === 0) {
-        var dHaSugerida = (d100 * 10) / 1000.0; // En kg o L por ha
-        if (dHaSugerida > 0) {
-            txtHa.value = dHaSugerida.toFixed(3);
-        }
+        txtHa.value = dCuba.toFixed(3);
     }
 }
 
@@ -812,21 +946,38 @@ function consultarIaFitosanitario() {
                     document.getElementById('fito_dosis_100l').value = d.dosis_etiqueta_100l;
                 } else if (d.dosis_recomendada_ha) {
                     document.getElementById('fito_dosis_ha').value = d.dosis_recomendada_ha;
-                    // Estimar dosis por 100L
+                    // Estimar dosis por 100L (asumiendo 1000L caldo/ha)
                     var d100Est = (parseFloat(d.dosis_recomendada_ha) * 1000) / 10;
                     document.getElementById('fito_dosis_100l').value = d100Est.toFixed(1);
                 }
 
                 if (d.unidad_dosis) {
                     var uniSel = document.getElementById('fito_unidad_dosis');
-                    if (d.unidad_dosis.indexOf('kg') !== -1 || d.unidad_dosis.indexOf('g') !== -1) {
+                    var uNorm = d.unidad_dosis.toLowerCase();
+                    if (uNorm.indexOf('kg') !== -1 || uNorm.indexOf('%') !== -1) {
+                        uniSel.value = 'kg/hl';
+                    } else if (uNorm.indexOf('g') !== -1) {
                         uniSel.value = 'g/hl';
+                    } else if (uNorm.indexOf('l') !== -1) {
+                        uniSel.value = 'l/hl';
                     } else {
                         uniSel.value = 'cc/hl';
                     }
                 }
 
                 calcularDosisRecipientes();
+
+                feedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Ficha autocompletada por IA desde ' + (d.fuente || 'Registro Oficial');
+                feedback.classList.remove('d-none');
+            } else {
+                alert("No se encontró información técnica para este término. Puedes rellenar la ficha manualmente.");
+            }
+        })
+        .catch(function(err) {
+            spinner.classList.add('d-none');
+            alert("Error al conectar con el servicio IA: " + err.message);
+        });
+}
 
                 feedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Ficha autocompletada por IA desde ' + (d.fuente || 'Registro Oficial');
                 feedback.classList.remove('d-none');

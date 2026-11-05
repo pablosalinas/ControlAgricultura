@@ -257,7 +257,7 @@ class DatabaseMigrator {
                             'plagas' => 'Repilo (Venturia oleaginea), Tuberculosis (Pseudomonas), Abolladura, Cribado, Monilia',
                             'modo' => 'Contacto foliar preventivo. Excelente tenacidad y adherencia tras lluvias.',
                             'd100' => 0.200, 'unid' => 'kg', 'dha' => 2.000, 'pseg' => 14, 'intv' => 14,
-                            'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2000.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
+                            'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
                             'desc' => 'Apto para Agricultura Ecológica (Reg. UE 2018/848). No mezclar con aceites minerales en brotación.'
                         ),
                         array(
@@ -270,7 +270,7 @@ class DatabaseMigrator {
                             'plagas' => 'Repilo, Mildiu, Bacteriosis, Cribado y Antracnosis',
                             'modo' => 'Contacto y barrera superficial protectora persistente.',
                             'd100' => 0.250, 'unid' => 'l', 'dha' => 2.500, 'pseg' => 14, 'intv' => 14,
-                            'vmoch' => 16.00, 'dmoch' => 40.00, 'vcuba' => 1000.00, 'dcuba' => 2500.00, 'vpulv' => 100.00, 'dpulv' => 250.00,
+                            'vmoch' => 16.00, 'dmoch' => 40.00, 'vcuba' => 1000.00, 'dcuba' => 2.50, 'vpulv' => 100.00, 'dpulv' => 250.00,
                             'desc' => 'Apto para Agricultura Ecológica. Formulación líquida que no obtura boquillas de pulverizadores ni mochilas.'
                         ),
                         array(
@@ -283,7 +283,7 @@ class DatabaseMigrator {
                             'plagas' => 'Repilo del olivo, Mildiu de la vid, Bacteriosis y Abolladura',
                             'modo' => 'Contacto preventivo. Gran persistencia por neutralización con cal.',
                             'd100' => 0.500, 'unid' => 'kg', 'dha' => 5.000, 'pseg' => 14, 'intv' => 21,
-                            'vmoch' => 16.00, 'dmoch' => 80.00, 'vcuba' => 1000.00, 'dcuba' => 5000.00, 'vpulv' => 100.00, 'dpulv' => 500.00,
+                            'vmoch' => 16.00, 'dmoch' => 80.00, 'vcuba' => 1000.00, 'dcuba' => 5.00, 'vpulv' => 100.00, 'dpulv' => 500.00,
                             'desc' => 'Autorizado en Agricultura Ecológica. Muy tenaz sobre la cutícula vegetal.'
                         ),
                         array(
@@ -296,7 +296,7 @@ class DatabaseMigrator {
                             'plagas' => 'Oídio (Cenicilla), Ácaros, Araña roja, Eriófidos',
                             'modo' => 'Contacto directo y acción vapor por sublimación sobre micelio y ácaros.',
                             'd100' => 0.350, 'unid' => 'kg', 'dha' => 3.500, 'pseg' => 5, 'intv' => 10,
-                            'vmoch' => 16.00, 'dmoch' => 56.00, 'vcuba' => 1000.00, 'dcuba' => 3500.00, 'vpulv' => 100.00, 'dpulv' => 350.00,
+                            'vmoch' => 16.00, 'dmoch' => 56.00, 'vcuba' => 1000.00, 'dcuba' => 3.50, 'vpulv' => 100.00, 'dpulv' => 350.00,
                             'desc' => 'Apto para Agricultura Ecológica. Evitar aplicaciones con temperaturas > 28-30ºC.'
                         ),
                         array(
@@ -309,7 +309,7 @@ class DatabaseMigrator {
                             'plagas' => 'Abolladura, Cribado, Monilia, Repilo, Oidiopsis, Alternaria',
                             'modo' => 'Sistemia acrópeta translaminar. Acción preventiva y curativa precoz.',
                             'd100' => 0.030, 'unid' => 'l', 'dha' => 0.300, 'pseg' => 14, 'intv' => 14,
-                            'vmoch' => 16.00, 'dmoch' => 5.00, 'vcuba' => 1000.00, 'dcuba' => 300.00, 'vpulv' => 100.00, 'dpulv' => 30.00,
+                            'vmoch' => 16.00, 'dmoch' => 5.00, 'vcuba' => 1000.00, 'dcuba' => 0.30, 'vpulv' => 100.00, 'dpulv' => 30.00,
                             'desc' => 'Convencional de síntesis (NO ecológico). Aplicar preferentemente al inicio de infección.'
                         ),
                         array(
@@ -322,7 +322,7 @@ class DatabaseMigrator {
                             'plagas' => 'Fitóftora (Phytophthora spp.), Aguado de los cítricos y Gomosis del cuello',
                             'modo' => 'Sistemia completa floemática y xilemática. Estimula las defensas naturales.',
                             'd100' => 0.300, 'unid' => 'kg', 'dha' => 3.000, 'pseg' => 15, 'intv' => 20,
-                            'vmoch' => 16.00, 'dmoch' => 48.00, 'vcuba' => 1000.00, 'dcuba' => 3000.00, 'vpulv' => 100.00, 'dpulv' => 300.00,
+                            'vmoch' => 16.00, 'dmoch' => 48.00, 'vcuba' => 1000.00, 'dcuba' => 3.00, 'vpulv' => 100.00, 'dpulv' => 300.00,
                             'desc' => 'Convencional. Especialmente eficaz para podredumbres de raíz y cuello.'
                         ),
                         array(
@@ -335,7 +335,7 @@ class DatabaseMigrator {
                             'plagas' => 'Botrytis cinerea (Podredumbre gris), Monilinia laxa y fructigena',
                             'modo' => 'Doble acción complementaria: sistémico translaminar + protector superficial.',
                             'd100' => 0.080, 'unid' => 'kg', 'dha' => 0.800, 'pseg' => 7, 'intv' => 14,
-                            'vmoch' => 16.00, 'dmoch' => 13.00, 'vcuba' => 1000.00, 'dcuba' => 800.00, 'vpulv' => 100.00, 'dpulv' => 80.00,
+                            'vmoch' => 16.00, 'dmoch' => 13.00, 'vcuba' => 1000.00, 'dcuba' => 0.80, 'vpulv' => 100.00, 'dpulv' => 80.00,
                             'desc' => 'Convencional. Muy indicado en floración y pre-cosecha de frutales y vid.'
                         ),
                         array(
@@ -348,7 +348,7 @@ class DatabaseMigrator {
                             'plagas' => 'Orugas defoliadoras, Trips (Frankliniella), Mosca de la fruta (Ceratitis), Tuta',
                             'modo' => 'Ingestión y contacto con actividad translaminar. Modula receptores nicotínicos.',
                             'd100' => 0.025, 'unid' => 'l', 'dha' => 0.250, 'pseg' => 3, 'intv' => 7,
-                            'vmoch' => 16.00, 'dmoch' => 4.00, 'vcuba' => 1000.00, 'dcuba' => 250.00, 'vpulv' => 100.00, 'dpulv' => 25.00,
+                            'vmoch' => 16.00, 'dmoch' => 4.00, 'vcuba' => 1000.00, 'dcuba' => 0.25, 'vpulv' => 100.00, 'dpulv' => 25.00,
                             'desc' => 'Apto para Agricultura Ecológica. Aplicar preferentemente al atardecer.'
                         ),
                         array(
@@ -361,7 +361,7 @@ class DatabaseMigrator {
                             'plagas' => 'Orugas, Polilla del racimo (Lobesia), Prays oleae, Tuta absoluta',
                             'modo' => 'Ingestión estricta. Las endotoxinas Cry perforan el epitelio digestivo de orugas.',
                             'd100' => 0.100, 'unid' => 'kg', 'dha' => 1.000, 'pseg' => 1, 'intv' => 7,
-                            'vmoch' => 16.00, 'dmoch' => 16.00, 'vcuba' => 1000.00, 'dcuba' => 1000.00, 'vpulv' => 100.00, 'dpulv' => 100.00,
+                            'vmoch' => 16.00, 'dmoch' => 16.00, 'vcuba' => 1000.00, 'dcuba' => 1.00, 'vpulv' => 100.00, 'dpulv' => 100.00,
                             'desc' => 'Apto para Agricultura Ecológica. Inocuo para personas, abejas y fauna auxiliar.'
                         ),
                         array(
@@ -374,7 +374,7 @@ class DatabaseMigrator {
                             'plagas' => 'Pulgón verde y negro, Mosca blanca, Trips, Cochinillas y Negrilla',
                             'modo' => 'Contacto mecánico. Reblandece y disuelve el exoesqueleto ceroso de insectos blandos.',
                             'd100' => 0.500, 'unid' => 'l', 'dha' => 5.000, 'pseg' => 0, 'intv' => 5,
-                            'vmoch' => 16.00, 'dmoch' => 80.00, 'vcuba' => 1000.00, 'dcuba' => 5000.00, 'vpulv' => 100.00, 'dpulv' => 500.00,
+                            'vmoch' => 16.00, 'dmoch' => 80.00, 'vcuba' => 1000.00, 'dcuba' => 5.00, 'vpulv' => 100.00, 'dpulv' => 500.00,
                             'desc' => 'Apto 100% en Agricultura Ecológica. Plazo de seguridad 0 días. Excelente mojante natural.'
                         ),
                         array(
@@ -387,7 +387,7 @@ class DatabaseMigrator {
                             'plagas' => 'Piojo rojo de California, Cochinillas, Ácaros y huevos de pulgón',
                             'modo' => 'Acción física por asfixia mecánica cubriendo espiráculos respiratorios.',
                             'd100' => 0.800, 'unid' => 'l', 'dha' => 8.000, 'pseg' => 0, 'intv' => 15,
-                            'vmoch' => 16.00, 'dmoch' => 128.00, 'vcuba' => 1000.00, 'dcuba' => 8000.00, 'vpulv' => 100.00, 'dpulv' => 800.00,
+                            'vmoch' => 16.00, 'dmoch' => 128.00, 'vcuba' => 1000.00, 'dcuba' => 8.00, 'vpulv' => 100.00, 'dpulv' => 800.00,
                             'desc' => 'Apto para Agricultura Ecológica. Mojar profusamente ramas y troncos.'
                         ),
                         array(
@@ -400,7 +400,7 @@ class DatabaseMigrator {
                             'plagas' => 'Mosca blanca, Pulgón, Trips, Minadores de hojas y Orugas',
                             'modo' => 'Ingestión y contacto translaminar. Inhibe la ecdisona impidiendo mudas.',
                             'd100' => 0.150, 'unid' => 'l', 'dha' => 1.500, 'pseg' => 3, 'intv' => 7,
-                            'vmoch' => 16.00, 'dmoch' => 24.00, 'vcuba' => 1000.00, 'dcuba' => 1500.00, 'vpulv' => 100.00, 'dpulv' => 150.00,
+                            'vmoch' => 16.00, 'dmoch' => 24.00, 'vcuba' => 1000.00, 'dcuba' => 1.50, 'vpulv' => 100.00, 'dpulv' => 150.00,
                             'desc' => 'Certificado para Agricultura Ecológica. Respetuoso con abejas fuera de pecoreo.'
                         ),
                         array(
@@ -413,7 +413,7 @@ class DatabaseMigrator {
                             'plagas' => 'Pulgones, Orugas, Mosca de la fruta, Trips y Escarabajos',
                             'modo' => 'Choque fulminante y repelencia por contacto e ingestión.',
                             'd100' => 0.020, 'unid' => 'l', 'dha' => 0.200, 'pseg' => 7, 'intv' => 14,
-                            'vmoch' => 16.00, 'dmoch' => 3.20, 'vcuba' => 1000.00, 'dcuba' => 200.00, 'vpulv' => 100.00, 'dpulv' => 20.00,
+                            'vmoch' => 16.00, 'dmoch' => 3.20, 'vcuba' => 1000.00, 'dcuba' => 0.20, 'vpulv' => 100.00, 'dpulv' => 20.00,
                             'desc' => 'Químico convencional (prohibido en ecológico). No aplicar con abejas en floración.'
                         ),
                         array(
@@ -426,7 +426,7 @@ class DatabaseMigrator {
                             'plagas' => 'Mosca del olivo (Bactrocera oleae), Mosca de la fruta, Pulgones',
                             'modo' => 'Contacto e ingestión con rápido derribo (knock-down).',
                             'd100' => 0.060, 'unid' => 'l', 'dha' => 0.600, 'pseg' => 7, 'intv' => 14,
-                            'vmoch' => 16.00, 'dmoch' => 9.60, 'vcuba' => 1000.00, 'dcuba' => 600.00, 'vpulv' => 100.00, 'dpulv' => 60.00,
+                            'vmoch' => 16.00, 'dmoch' => 9.60, 'vcuba' => 1000.00, 'dcuba' => 0.60, 'vpulv' => 100.00, 'dpulv' => 60.00,
                             'desc' => 'Convencional. Empleado en pulverización cebo o parcheo para mosca.'
                         ),
                         array(
@@ -439,7 +439,7 @@ class DatabaseMigrator {
                             'plagas' => 'Cochinillas, Piojo rojo de California, Pulgones, Psila y Mosca blanca',
                             'modo' => 'Sistemia doble ascendente y descendente (xilema y floema).',
                             'd100' => 0.065, 'unid' => 'l', 'dha' => 0.650, 'pseg' => 21, 'intv' => 21,
-                            'vmoch' => 16.00, 'dmoch' => 10.40, 'vcuba' => 1000.00, 'dcuba' => 650.00, 'vpulv' => 100.00, 'dpulv' => 65.00,
+                            'vmoch' => 16.00, 'dmoch' => 10.40, 'vcuba' => 1000.00, 'dcuba' => 0.65, 'vpulv' => 100.00, 'dpulv' => 65.00,
                             'desc' => 'Convencional. Extraordinaria eficacia en plagas chupadoras ocultas.'
                         ),
                         array(
@@ -452,7 +452,7 @@ class DatabaseMigrator {
                             'plagas' => 'Pulgones (Myzus persicae, Aphis pomi, etc.) y Mosca blanca',
                             'modo' => 'Bloqueador selectivo de la alimentación de insectos chupadores.',
                             'd100' => 0.014, 'unid' => 'kg', 'dha' => 0.140, 'pseg' => 14, 'intv' => 21,
-                            'vmoch' => 16.00, 'dmoch' => 2.24, 'vcuba' => 1000.00, 'dcuba' => 140.00, 'vpulv' => 100.00, 'dpulv' => 14.00,
+                            'vmoch' => 16.00, 'dmoch' => 2.24, 'vcuba' => 1000.00, 'dcuba' => 0.14, 'vpulv' => 100.00, 'dpulv' => 14.00,
                             'desc' => 'Convencional. Máxima selectividad hacia abejas y fauna auxiliar útil.'
                         ),
                         array(
@@ -465,7 +465,7 @@ class DatabaseMigrator {
                             'plagas' => 'Malas hierbas anuales y vivaces (gramíneas, correhuela, juncia)',
                             'modo' => 'Sistemia a través de hojas verdes hasta rizomas y raíces.',
                             'd100' => 0.400, 'unid' => 'l', 'dha' => 4.000, 'pseg' => 7, 'intv' => 30,
-                            'vmoch' => 16.00, 'dmoch' => 64.00, 'vcuba' => 1000.00, 'dcuba' => 4000.00, 'vpulv' => 100.00, 'dpulv' => 400.00,
+                            'vmoch' => 16.00, 'dmoch' => 64.00, 'vcuba' => 1000.00, 'dcuba' => 4.00, 'vpulv' => 100.00, 'dpulv' => 400.00,
                             'desc' => 'Convencional (Prohibido en parcelas ecológicas). Aplicar dirigido a suelo sin tocar verde.'
                         ),
                         array(
@@ -478,7 +478,7 @@ class DatabaseMigrator {
                             'plagas' => 'Estrés por sequía, heladas, parada vegetativa y cuajado',
                             'modo' => 'Absorción directa y ahorro energético en síntesis de proteínas.',
                             'd100' => 0.200, 'unid' => 'l', 'dha' => 2.000, 'pseg' => 0, 'intv' => 15,
-                            'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2000.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
+                            'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
                             'desc' => 'Apto para Agricultura Ecológica. Potencia la asimilación del caldo.'
                         ),
                         array(
@@ -491,7 +491,7 @@ class DatabaseMigrator {
                             'plagas' => 'Trips, Orugas, Anarsia, Grafolita y Minador',
                             'modo' => 'Contacto e ingestión. Derribo rápido y persistencia superior.',
                             'd100' => 0.030, 'unid' => 'kg', 'dha' => 0.300, 'pseg' => 7, 'intv' => 10,
-                            'vmoch' => 16.00, 'dmoch' => 4.80, 'vcuba' => 1000.00, 'dcuba' => 300.00, 'vpulv' => 100.00, 'dpulv' => 30.00,
+                            'vmoch' => 16.00, 'dmoch' => 4.80, 'vcuba' => 1000.00, 'dcuba' => 0.30, 'vpulv' => 100.00, 'dpulv' => 30.00,
                             'desc' => 'Convencional. Excelente control de trips de las flores y orugas del fruto.'
                         ),
                         array(
@@ -504,7 +504,7 @@ class DatabaseMigrator {
                             'plagas' => 'Monilia (Monilinia laxa) y Podredumbre gris (Botrytis cinerea)',
                             'modo' => 'Inhibidor de la biosíntesis de esteroles grupo III. Protector de contacto persistente.',
                             'd100' => 0.150, 'unid' => 'kg', 'dha' => 1.500, 'pseg' => 3, 'intv' => 12,
-                            'vmoch' => 16.00, 'dmoch' => 24.00, 'vcuba' => 1000.00, 'dcuba' => 1500.00, 'vpulv' => 100.00, 'dpulv' => 150.00,
+                            'vmoch' => 16.00, 'dmoch' => 24.00, 'vcuba' => 1000.00, 'dcuba' => 1.50, 'vpulv' => 100.00, 'dpulv' => 150.00,
                             'desc' => 'Convencional. Muy corto plazo de seguridad (1-3 días en pre-cosecha).'
                         )
                     );
@@ -543,6 +543,13 @@ class DatabaseMigrator {
                           OR LOWER(p.nombre_comercial) LIKE CONCAT('%', LOWER(t.nombre_comercial_producto), '%'))
                     SET t.id_producto = p.id_producto
                     WHERE t.id_producto IS NULL
+                ");
+
+                // Corrección automática y segura de unidades para cubas (de gramos a kg/L para evitar cifras astronómicas)
+                $pdo->exec("
+                    UPDATE productos_fitosanitarios 
+                    SET dosis_calculada_cuba = dosis_calculada_cuba / 1000.0 
+                    WHERE dosis_calculada_cuba >= 50.0
                 ");
             } catch (Exception $ePf) {}
 
