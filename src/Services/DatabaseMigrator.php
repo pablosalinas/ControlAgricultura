@@ -223,6 +223,7 @@ class DatabaseMigrator {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
             self::addColumnIfNotExists($pdo, 'tratamientos', 'id_producto', 'INT NULL');
+            self::addColumnIfNotExists($pdo, 'productos_fitosanitarios', 'url_ficha_tecnica', 'VARCHAR(255) NULL AFTER descripcion_advertencias');
 
             // Semillas iniciales y catálogo de fitosanitarios de referencia homologada
             try {

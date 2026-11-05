@@ -471,7 +471,10 @@ class PhytosanitaryAiService {
             'dosis_calculada_pulv'        => $dPulv,
             'dosis_calculada_cuba'        => $dCuba,
             'observaciones_tecnicas'      => $obs,
-            'fuente'                      => $fuente
+            'fuente'                      => $fuente,
+            'url_ficha_tecnica'           => isset($p['url_ficha_tecnica']) ? $p['url_ficha_tecnica'] : '',
+            'es_mas_recomendable'         => !empty($p['es_mas_recomendable']),
+            'motivo_recomendacion'        => isset($p['motivo_recomendacion']) ? $p['motivo_recomendacion'] : ''
         );
     }
 
@@ -516,6 +519,17 @@ class PhytosanitaryAiService {
             $synonyms = array('mosca', 'ceratitis', 'bactrocera', 'dacus', 'conetrap', 'olipe');
         }
 
+        // Extracción de palabras clave significativas ignorando palabras de parada
+        $stopWords = array('curar', 'tratar', 'tratamiento', 'contra', 'para', 'de', 'del', 'en', 'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'con', 'sin', 'que', 'como', 'eliminar', 'quitar');
+        $rawWords = preg_split('/\s+/', $q);
+        $significantWords = array();
+        foreach ($rawWords as $w) {
+            $w = trim($w);
+            if (mb_strlen($w, 'UTF-8') >= 3 && !in_array($w, $stopWords)) {
+                $significantWords[] = $w;
+            }
+        }
+
         foreach ($catalog as $key => $item) {
             if ($forceEco === true && empty($item['es_ecologico'])) {
                 continue;
@@ -528,27 +542,57 @@ class PhytosanitaryAiService {
             $fun = mb_strtolower(self::cleanAccents($item['tipo_producto']), 'UTF-8');
             $obs = mb_strtolower(self::cleanAccents($item['observaciones_tecnicas']), 'UTF-8');
 
-            $matched = false;
+            $score = 0;
 
-            if ($keyClean === $q || strpos($keyClean, $q) !== false || strpos($nom, $q) !== false || strpos($mat, $q) !== false || strpos($pla, $q) !== false || strpos($fun, $q) !== false || strpos($obs, $q) !== false) {
-                $matched = true;
-            }
+            if ($keyClean === $q) $score += 100;
+            if (strpos($keyClean, $q) !== false) $score += 80;
+            if (strpos($nom, $q) !== false) $score += 80;
+            if (strpos($pla, $q) !== false) $score += 70;
+            if (strpos($mat, $q) !== false) $score += 60;
+            if (strpos($fun, $q) !== false) $score += 50;
 
-            if (!$matched && !empty($synonyms)) {
+            if (!empty($synonyms)) {
                 foreach ($synonyms as $syn) {
-                    if (strpos($keyClean, $syn) !== false || strpos($nom, $syn) !== false || strpos($mat, $syn) !== false || strpos($pla, $syn) !== false || strpos($fun, $syn) !== false) {
-                        $matched = true;
-                        break;
-                    }
+                    if (strpos($nom, $syn) !== false) $score += 45;
+                    if (strpos($pla, $syn) !== false) $score += 40;
+                    if (strpos($fun, $syn) !== false) $score += 35;
+                    if (strpos($mat, $syn) !== false) $score += 30;
                 }
             }
 
-            if ($matched) {
+            // Coincidencia por palabras clave si la consulta es una frase (ej: "curar repilo", "tratar pulgon en higuera")
+            if (!empty($significantWords)) {
+                foreach ($significantWords as $word) {
+                    if (strpos($nom, $word) !== false) $score += 40;
+                    if (strpos($pla, $word) !== false) $score += 35;
+                    if (strpos($mat, $word) !== false) $score += 25;
+                    if (strpos($fun, $word) !== false) $score += 20;
+                    if (strpos($obs, $word) !== false) $score += 5;
+                }
+            }
+
+            if ($score > 0) {
+                $item['_relevance_score'] = $score;
                 $matches[] = $item;
             }
         }
 
+        // Ordenar por relevancia descendente
+        usort($matches, array('PhytosanitaryAiService', 'sortByScoreDesc'));
+
         return $matches;
+    }
+
+    /**
+     * Función auxiliar para ordenar por relevancia en PHP 5.6
+     */
+    public static function sortByScoreDesc($a, $b) {
+        $sa = isset($a['_relevance_score']) ? (int)$a['_relevance_score'] : 0;
+        $sb = isset($b['_relevance_score']) ? (int)$b['_relevance_score'] : 0;
+        if ($sa == $sb) {
+            return 0;
+        }
+        return ($sa > $sb) ? -1 : 1;
     }
 
     /**
@@ -608,45 +652,49 @@ class PhytosanitaryAiService {
         $keysSeen = array();
 
         // 1. Buscar en la tabla oficial de productos_fitosanitarios en Base de Datos
-        try {
-            $db = Database::getConnection();
-            $sql = "
-                SELECT * FROM productos_fitosanitarios 
-                WHERE activo = 1 
-                  AND (
-                      nombre_comercial LIKE :q1 
-                      OR materia_activa LIKE :q2 
-                      OR plagas_objetivo LIKE :q3 
-                      OR cultivos_autorizados LIKE :q4
-                      OR tipo_producto LIKE :q5
-                  )
-            ";
-            if ($forceEco === true) {
-                $sql .= " AND es_ecologico = 1 ";
-            }
-            $sql .= " ORDER BY (nombre_comercial LIKE :q_exact) DESC, es_ecologico DESC LIMIT 8";
-            
-            $stmt = $db->prepare($sql);
-            $searchTerm = '%' . $query . '%';
-            $stmt->execute(array(
-                ':q1' => $searchTerm,
-                ':q2' => $searchTerm,
-                ':q3' => $searchTerm,
-                ':q4' => $searchTerm,
-                ':q5' => $searchTerm,
-                ':q_exact' => $query . '%'
-            ));
-            $rows = $stmt->fetchAll();
-            foreach ($rows as $row) {
-                $norm = self::normalizeProductData($row);
-                $norm['fuente'] = 'Registro Oficial de Productos Fitosanitarios (Base de Datos)';
-                $k = mb_strtolower($norm['nombre_comercial_producto'], 'UTF-8');
-                if (!isset($keysSeen[$k])) {
-                    $keysSeen[$k] = true;
-                    $opciones[] = $norm;
+        if (class_exists('Database')) {
+            try {
+                $db = Database::getConnection();
+                if ($db) {
+                    $sql = "
+                        SELECT * FROM productos_fitosanitarios 
+                        WHERE activo = 1 
+                          AND (
+                              nombre_comercial LIKE :q1 
+                              OR materia_activa LIKE :q2 
+                              OR plagas_objetivo LIKE :q3 
+                              OR cultivos_autorizados LIKE :q4
+                              OR tipo_producto LIKE :q5
+                          )
+                    ";
+                    if ($forceEco === true) {
+                        $sql .= " AND es_ecologico = 1 ";
+                    }
+                    $sql .= " ORDER BY (nombre_comercial LIKE :q_exact) DESC, es_ecologico DESC LIMIT 8";
+                    
+                    $stmt = $db->prepare($sql);
+                    $searchTerm = '%' . $query . '%';
+                    $stmt->execute(array(
+                        ':q1' => $searchTerm,
+                        ':q2' => $searchTerm,
+                        ':q3' => $searchTerm,
+                        ':q4' => $searchTerm,
+                        ':q5' => $searchTerm,
+                        ':q_exact' => $query . '%'
+                    ));
+                    $rows = $stmt->fetchAll();
+                    foreach ($rows as $row) {
+                        $norm = self::normalizeProductData($row);
+                        $norm['fuente'] = 'Registro Oficial de Productos Fitosanitarios (Base de Datos)';
+                        $k = mb_strtolower($norm['nombre_comercial_producto'], 'UTF-8');
+                        if (!isset($keysSeen[$k])) {
+                            $keysSeen[$k] = true;
+                            $opciones[] = $norm;
+                        }
+                    }
                 }
-            }
-        } catch (Exception $e) {}
+            } catch (Exception $e) {}
+        }
 
         // 2. Buscar coincidencias en el catálogo agronómico base de referencia
         $catalogMatches = self::searchInLocalCatalogMultiple($query, $forceEco);
@@ -691,6 +739,22 @@ class PhytosanitaryAiService {
             );
         }
 
+        // 5. Determinar y destacar la opción más recomendable agronómicamente
+        $hasRec = false;
+        foreach ($opciones as $opt) {
+            if (!empty($opt['es_mas_recomendable'])) {
+                $hasRec = true;
+                break;
+            }
+        }
+        if (!$hasRec) {
+            $opciones[0]['es_mas_recomendable'] = true;
+            $esEco = (int)$opciones[0]['es_ecologico'] === 1;
+            $opciones[0]['motivo_recomendacion'] = $esEco 
+                ? '⭐ Opción más recomendada: Excelente eficacia agronómica contrastada, manejo ecológico certificado (UE) y sin residuos sintéticos en el fruto.'
+                : '⭐ Opción más recomendada: Mayor potencia de control específico, rápido derribo curativo y amplio registro técnico oficial.';
+        }
+
         return array(
             'success'  => true,
             'total'    => count($opciones),
@@ -720,6 +784,8 @@ class PhytosanitaryAiService {
                       "REGLA CRUCIAL DE VERACIDAD:\n" .
                       "1. Si el término introducido NO corresponde a ningún producto comercial fitosanitario real, ni trampa/hormona agrícola, ni materia activa registrada, ni plaga, hongo, enfermedad o cultivo real (o si son palabras sin sentido), responde ÚNICAMENTE con: {\"no_encontrado\": true}\n" .
                       "2. Si el término sí corresponde a un producto real, trampa, hormona, materia activa o plaga/enfermedad/cultivo, proporciona hasta 4 opciones comerciales u oficiales homologadas y convenientes para tratarlo en España/UE.\n" .
+                      "REGLA DE RECOMENDACIÓN:\n" .
+                      "- En UNA sola de las opciones (la más adecuada agronómicamente para lo que el usuario busca curar o tratar), marca obligatoriamente: \"es_mas_recomendable\": true, y en \"motivo_recomendacion\" explica en 1 frase concisa por qué es la opción más conveniente (ej: 'Mayor eficacia preventiva y persistencia tras lluvias, autorizado en ecológico'). En las demás opciones pon false y explica su rol como alternativa.\n" .
                       "Responde ÚNICAMENTE con un objeto JSON válido (sin bloques ```json ni texto adicional) con el siguiente formato:\n" .
                       "{\n" .
                       '  "no_encontrado": false,' . "\n" .
@@ -729,6 +795,8 @@ class PhytosanitaryAiService {
                       '      "materia_activa": "Materia activa o atrayente con % y formulación (ej: Óxido cuproso 75% [WG] o Acetato de amonio + Deltametrina)",' . "\n" .
                       '      "num_registro_oficial": "Nº registro oficial MAPA (ej: ES-00145 o 22.145)",' . "\n" .
                       '      "es_ecologico": 1 o 0 (1 si está autorizado en agricultura ecológica UE, 0 si es convencional),' . "\n" .
+                      '      "es_mas_recomendable": true o false,' . "\n" .
+                      '      "motivo_recomendacion": "Explicación breve de por qué es la opción más recomendable o alternativa",' . "\n" .
                       '      "tipo_producto": "Fungicida, Insecticida, Acaricida, Herbicida, Bioestimulante, Trampa / Feromona / Atrayente o Fitorregulador / Hormona",' . "\n" .
                       '      "cultivos_autorizados": "Cultivos autorizados (ej: Olivo, Frutales de hueso, Pepita, Cítricos, Vid, Tomate)",' . "\n" .
                       '      "plagas_objetivo": "Plagas, hongos, enfermedades o fin fisiológico que combate",' . "\n" .
