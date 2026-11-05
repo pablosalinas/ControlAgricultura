@@ -110,10 +110,24 @@
         }
 
         .badge-tenant {
-            background: rgba(56, 189, 248, 0.15);
-            color: #0284c7;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            font-weight: 600;
+            background: linear-gradient(135deg, rgba(2, 132, 199, 0.45) 0%, rgba(14, 165, 233, 0.35) 100%);
+            color: #ffffff !important;
+            border: 1px solid rgba(56, 189, 248, 0.7);
+            font-weight: 700;
+            font-size: 0.86rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            transition: all 0.2s ease;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .badge-tenant:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+            color: #ffffff !important;
+            border-color: #7dd3fc;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+            transform: translateY(-1px);
         }
 
         .footer-ag {
@@ -423,15 +437,15 @@
                     <li class="nav-item d-lg-none my-2 p-2 rounded bg-white bg-opacity-10 text-light w-100">
                         <div class="fw-bold small mb-1"><i class="fa-solid fa-user-circle me-1 text-info"></i> <?= htmlspecialchars($u['nombre_completo']) ?></div>
                         <a href="<?= APP_URL ?>/explotaciones" class="badge badge-tenant text-decoration-none d-inline-block">
-                            <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
-                            <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                            <i class="fa-solid fa-building-wheat me-1 text-warning"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
+                            <i class="fa-solid fa-chevron-down ms-1 text-info" style="font-size: 0.65rem;"></i>
                         </a>
                     </li>
                     <li class="nav-item me-3 text-light text-end d-none d-lg-block">
                         <div class="fw-bold" style="font-size:0.9rem;"><?= htmlspecialchars($u['nombre_completo']) ?></div>
                         <a href="<?= APP_URL ?>/explotaciones" class="badge badge-tenant px-2 py-1 text-decoration-none" title="Administrar o conmutar explotación" style="cursor: pointer;">
-                            <i class="fa-solid fa-building-wheat me-1"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
-                            <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.65rem;"></i>
+                            <i class="fa-solid fa-building-wheat me-1 text-warning"></i><?= htmlspecialchars($u['nombre_propietario']) ?>
+                            <i class="fa-solid fa-chevron-down ms-1 text-info" style="font-size: 0.65rem;"></i>
                         </a>
                     </li>
                     <li class="nav-item w-100 w-lg-auto text-end mt-2 mt-lg-0">
