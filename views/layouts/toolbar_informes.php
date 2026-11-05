@@ -28,7 +28,7 @@ $reportFilename = isset($reportFilename) ? $reportFilename : 'informe_' . date('
     </button>
 
     <!-- Botón 2: Imprimir -->
-    <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" onclick="ReportExport.print('<?= htmlspecialchars($reportTargetId) ?>')" title="Imprimir listado en A4 (papel o PDF del navegador)">
+    <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" onclick="ReportExport.print('<?= htmlspecialchars($reportTargetId) ?>', '<?= htmlspecialchars(addslashes($reportTitle)) ?>')" title="Imprimir listado en A4 (papel o PDF del navegador)">
         <i class="fa-solid fa-print me-1 text-secondary"></i> Imprimir
     </button>
 

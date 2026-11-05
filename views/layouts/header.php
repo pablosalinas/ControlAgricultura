@@ -223,7 +223,7 @@
             }
             .table-responsive {
                 overflow: visible !important;
-                display: block !important;
+                display: contents !important;
                 width: 100% !important;
             }
             .container, .container-fluid {
@@ -244,6 +244,26 @@
                 border-bottom: 2px solid #091e3a !important;
                 padding: 6px 0 !important;
             }
+            table.report-outer-layout {
+                width: 100% !important;
+                border: none !important;
+                border-collapse: collapse !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            table.report-outer-layout > thead {
+                display: table-header-group !important;
+            }
+            table.report-outer-layout > tfoot {
+                display: table-footer-group !important;
+            }
+            table.report-outer-layout > thead > tr > th,
+            table.report-outer-layout > tfoot > tr > td,
+            table.report-outer-layout > tbody > tr > td {
+                border: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+            }
             .table {
                 width: 100% !important;
                 border-collapse: collapse !important;
@@ -252,11 +272,15 @@
                 table-layout: auto !important;
                 margin-bottom: 0 !important;
             }
-            .table thead {
+            .table thead, thead {
                 display: table-header-group !important;
             }
-            .table tr {
+            .table tfoot, tfoot {
+                display: table-footer-group !important;
+            }
+            .table tr, tr {
                 page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             .table th {
                 background-color: #f1f5f9 !important;

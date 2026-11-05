@@ -508,7 +508,7 @@ $tratamientos = $stmtTrat->fetchAll();
 
                         <div class="col-md-4" id="grp_capacidad_remolque" style="display: none;">
                             <label class="form-label fw-semibold small">Capacidad Cuba / Remolque (Litros)</label>
-                            <select name="capacidad_remolque" id="capacidad_remolque" class="form-select" onchange="calcularCaldoYDosis()">
+                            <select name="capacidad_remolque" id="capacidad_remolque" class="form-select" onchange="aplicarDosisSegunDispositivo(); calcularCaldoYDosis();">
                                 <option value="600">Cuba 600 Litros</option>
                                 <option value="1000" selected>Cuba 1.000 Litros</option>
                                 <option value="1500">Cuba 1.500 Litros</option>
@@ -915,6 +915,7 @@ function cambiarModoDosificacion() {
         grpRemolque.style.display = 'block';
     }
 
+    aplicarDosisSegunDispositivo();
     calcularCaldoYDosis();
 }
 
@@ -1142,26 +1143,10 @@ function aplicarDatosIaEnFormulario() {
         document.querySelector('textarea[name="observaciones"]').value = obsAct ? (obsAct + ' | ' + textoIa) : textoIa;
     }
 
-    // Dosis
-    if (document.getElementById('dosis_entrada') && d.dosis_recomendada_ha) {
-        document.getElementById('dosis_entrada').value = d.dosis_recomendada_ha;
-        if (document.getElementById('unidad_entrada') && d.unidad_dosis) {
-            // Verificar si la unidad existe en el select
-            const uSelect = document.getElementById('unidad_entrada');
-            let found = false;
-            for (let i = 0; i < uSelect.options.length; i++) {
-                if (uSelect.options[i].value === d.unidad_dosis) {
-                    uSelect.selectedIndex = i;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                uSelect.value = d.unidad_dosis.includes('kg') ? 'kg/ha' : 'l/ha';
-            }
-        }
-        calcularCaldoYDosis();
-    }
+    // Guardar referencia activa para recálculos al cambiar equipo/modo
+    window.productoActivoTratamiento = d;
+    aplicarDosisSegunDispositivo();
+    calcularCaldoYDosis();
 
     // Scroll suave hacia los campos
     const targetEl = document.getElementById('nombre_comercial_producto');
@@ -1171,12 +1156,81 @@ function aplicarDatosIaEnFormulario() {
     }
 }
 
+// Calcula y aplica la dosis exacta según el recipiente o equipo seleccionado
+function aplicarDosisSegunDispositivo() {
+    if (!window.productoActivoTratamiento) return;
+    const p = window.productoActivoTratamiento;
+    const modo = document.getElementById('modo_dosificacion').value;
+    const dEntrada = document.getElementById('dosis_entrada');
+    const uEntrada = document.getElementById('unidad_entrada');
+    if (!dEntrada) return;
+
+    // Determinar si es líquido o sólido
+    const u = (p.unidad_dosis || '').toLowerCase();
+    const nom = ((p.nombre_comercial || p.nombre_comercial_producto || '') + ' ' + (p.materia_activa || '')).toLowerCase();
+    const esLiq = (u.indexOf('l') !== -1 || u.indexOf('cc') !== -1 || u.indexOf('ml') !== -1 ||
+                   nom.indexOf('[ec]') !== -1 || nom.indexOf('[sc]') !== -1 || nom.indexOf('[sl]') !== -1 ||
+                   nom.indexOf('líquid') !== -1 || nom.indexOf('aceite') !== -1);
+
+    // Dosis base en g o ml por cada 100L de caldo
+    let g100 = 0;
+    const d100 = parseFloat(p.dosis_etiqueta_100l) || 0;
+    const esPequena = (u === 'g/hl' || u === 'cc/hl' || u === 'ml/100l' || u === 'g/100l');
+    const esMayor = (u.indexOf('kg') !== -1 || u.indexOf('l/hl') !== -1 || u.indexOf('%') !== -1 || u === 'l');
+    if (esPequena) {
+        g100 = d100;
+    } else if (esMayor) {
+        g100 = d100 * 1000.0;
+    } else {
+        g100 = (d100 > 0 && d100 < 10.0) ? (d100 * 1000.0) : d100;
+    }
+
+    // Dosis de referencia para cuba estándar de 1.000L en kg o L
+    let dCuba1000 = parseFloat(p.dosis_calculada_cuba) || 0;
+    if (dCuba1000 >= 50.0) dCuba1000 = dCuba1000 / 1000.0;
+    if (dCuba1000 <= 0 && g100 > 0) dCuba1000 = (g100 * 10.0) / 1000.0;
+
+    // Dosis de referencia para mochila estándar de 16L en g o ml
+    let dMoch16 = parseFloat(p.dosis_calculada_mochila) || 0;
+    if (dMoch16 > 0 && dMoch16 < 1.0) dMoch16 = dMoch16 * 1000.0;
+    if (dMoch16 <= 0 && g100 > 0) dMoch16 = g100 * 0.16;
+
+    if (modo === 'ha') {
+        const dHa = parseFloat(p.dosis_por_hectarea) || parseFloat(p.dosis_recomendada_ha) || dCuba1000;
+        dEntrada.value = dHa > 0 ? dHa.toFixed(3) : '';
+        if (uEntrada) uEntrada.value = esLiq ? 'l/ha' : 'kg/ha';
+    } else if (modo === 'm2') {
+        const dHa = parseFloat(p.dosis_por_hectarea) || parseFloat(p.dosis_recomendada_ha) || dCuba1000;
+        const dM2 = (dHa * 1000.0) / 10000.0;
+        dEntrada.value = dM2 > 0 ? dM2.toFixed(3) : '';
+        if (uEntrada) uEntrada.value = esLiq ? 'ml/m2' : 'g/m2';
+    } else if (modo === 'mochila_17') {
+        const calc17 = g100 > 0 ? (g100 * 0.17) : (dMoch16 * 17.0 / 16.0);
+        dEntrada.value = calc17 > 0 ? (calc17 < 10 ? calc17.toFixed(2) : calc17.toFixed(1)) : '';
+        if (uEntrada) uEntrada.value = esLiq ? 'ml' : 'g';
+    } else if (modo === 'mochila_5') {
+        const calc5 = g100 > 0 ? (g100 * 0.05) : (dMoch16 * 5.0 / 16.0);
+        dEntrada.value = calc5 > 0 ? (calc5 < 10 ? calc5.toFixed(2) : calc5.toFixed(1)) : '';
+        if (uEntrada) uEntrada.value = esLiq ? 'ml' : 'g';
+    } else if (modo === 'mochila_2') {
+        const calc2 = g100 > 0 ? (g100 * 0.02) : (dMoch16 * 2.0 / 16.0);
+        dEntrada.value = calc2 > 0 ? (calc2 < 10 ? calc2.toFixed(2) : calc2.toFixed(1)) : '';
+        if (uEntrada) uEntrada.value = esLiq ? 'ml' : 'g';
+    } else if (modo === 'remolque') {
+        const cap = parseFloat(document.getElementById('capacidad_remolque').value) || 1000;
+        const calcCuba = dCuba1000 * (cap / 1000.0);
+        dEntrada.value = calcCuba > 0 ? calcCuba.toFixed(2) : '';
+        if (uEntrada) uEntrada.value = esLiq ? 'l/cuba' : 'kg/cuba';
+    }
+}
+
 // Carga automática al seleccionar un producto del catálogo oficial
 function cargarProductoDesdeCatalogo(sel) {
     if (!sel || !sel.value) {
         if (document.getElementById('trat_id_producto')) {
             document.getElementById('trat_id_producto').value = '0';
         }
+        window.productoActivoTratamiento = null;
         return;
     }
     const opt = sel.options[sel.selectedIndex];
@@ -1185,6 +1239,8 @@ function cargarProductoDesdeCatalogo(sel) {
     
     try {
         const p = JSON.parse(jsonStr);
+        window.productoActivoTratamiento = p;
+
         if (document.getElementById('trat_id_producto')) {
             document.getElementById('trat_id_producto').value = p.id_producto || '0';
         }
@@ -1215,30 +1271,8 @@ function cargarProductoDesdeCatalogo(sel) {
             }
         }
 
-        // Ajustar dosis según el modo de dosificación activo
-        const modo = document.getElementById('modo_dosificacion').value;
-        const dEntrada = document.getElementById('dosis_entrada');
-        
-        if (modo === 'ha') {
-            if (p.dosis_por_hectarea > 0) {
-                dEntrada.value = p.dosis_por_hectarea;
-            } else if (p.dosis_etiqueta_100l > 0) {
-                dEntrada.value = (p.dosis_etiqueta_100l * 10 / 1000).toFixed(3);
-            }
-        } else if (modo === 'mochila_17' || modo === 'mochila_5' || modo === 'mochila_2') {
-            if (p.dosis_calculada_mochila > 0) {
-                dEntrada.value = p.dosis_calculada_mochila;
-            } else if (p.dosis_etiqueta_100l > 0) {
-                dEntrada.value = (p.dosis_etiqueta_100l * 0.16).toFixed(2);
-            }
-        } else if (modo === 'remolque') {
-            if (p.dosis_calculada_cuba > 0) {
-                dEntrada.value = p.dosis_calculada_cuba;
-            } else if (p.dosis_etiqueta_100l > 0) {
-                dEntrada.value = p.dosis_etiqueta_100l;
-            }
-        }
-        
+        // Ajustar dosis automáticamente según el dispositivo o modo activo
+        aplicarDosisSegunDispositivo();
         calcularCaldoYDosis();
     } catch (e) {
         console.error("Error al cargar fitosanitario del catálogo:", e);

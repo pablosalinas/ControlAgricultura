@@ -37,12 +37,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Volúmenes y Dosis por Recipientes
             $volMochila = (float)(isset($_POST['volumen_mochila_l']) ? $_POST['volumen_mochila_l'] : 16.0);
             $dosisMochila = (float)(isset($_POST['dosis_calculada_mochila']) ? $_POST['dosis_calculada_mochila'] : ($dosis100l * ($volMochila / 100.0)));
+            if ($dosisMochila > 0 && $dosisMochila < 1.0 && $dosis100l >= 0.1) {
+                $dosisMochila = $dosisMochila * 1000.0;
+            }
             
             $volCuba = (float)(isset($_POST['volumen_cuba_l']) ? $_POST['volumen_cuba_l'] : 1000.0);
             $dosisCuba = (float)(isset($_POST['dosis_calculada_cuba']) ? $_POST['dosis_calculada_cuba'] : ($dosis100l * ($volCuba / 100.0)));
+            if ($dosisCuba >= 50.0) {
+                $dosisCuba = $dosisCuba / 1000.0;
+            }
             
             $volPulv = (float)(isset($_POST['volumen_pulverizador_l']) ? $_POST['volumen_pulverizador_l'] : 100.0);
             $dosisPulv = (float)(isset($_POST['dosis_calculada_pulv']) ? $_POST['dosis_calculada_pulv'] : ($dosis100l * ($volPulv / 100.0)));
+            if ($dosisPulv > 0 && $dosisPulv < 1.0 && $dosis100l >= 0.1) {
+                $dosisPulv = $dosisPulv * 1000.0;
+            }
             
             $advertencias = trim(isset($_POST['descripcion_advertencias']) ? $_POST['descripcion_advertencias'] : '');
             $urlFicha = trim(isset($_POST['url_ficha_tecnica']) ? $_POST['url_ficha_tecnica'] : '');
@@ -474,12 +483,17 @@ foreach ($productos as $p) {
                     $uPequena = $esLiquido ? 'ml' : 'g';
                     $uGrande = $esLiquido ? 'L' : 'kg';
 
-                    // Normalizar dosis base por cada 100L a gramos o ml
+                    // Normalizar dosis base por cada 100L a gramos o ml de caldo
                     $gPor100 = 0;
-                    if ($dosis100 > 0 && $dosis100 < 10) {
-                        $gPor100 = $dosis100 * 1000.0; // ej: 0.300 kg/hl => 300 g
-                    } else {
+                    $uLower = mb_strtolower($unidad, 'UTF-8');
+                    $esPequena = (strpos($uLower, 'g/hl') !== false || strpos($uLower, 'cc/hl') !== false || strpos($uLower, 'ml') !== false || strpos($uLower, 'g/100') !== false);
+                    $esMayor = (strpos($uLower, 'kg') !== false || strpos($uLower, 'l/hl') !== false || strpos($uLower, '%') !== false || $uLower === 'l');
+                    if ($esPequena) {
                         $gPor100 = $dosis100;
+                    } elseif ($esMayor) {
+                        $gPor100 = $dosis100 * 1000.0;
+                    } else {
+                        $gPor100 = ($dosis100 > 0 && $dosis100 < 10.0) ? ($dosis100 * 1000.0) : $dosis100;
                     }
 
                     // Cuba 1.000L: debe mostrarse en Kilos o Litros (ej: 3.00 kg para 1000L, nunca 3000 kg)
@@ -860,27 +874,27 @@ foreach ($productos as $p) {
                                 <label class="form-label text-muted small mb-1 fw-semibold">🎒 Mochila 16 Litros:</label>
                                 <div class="input-group input-group-sm">
                                     <input type="number" step="0.01" name="dosis_calculada_mochila" id="fito_dosis_mochila" class="form-control text-center font-monospace fw-bold text-primary bg-white">
-                                    <span class="input-group-text small bg-white text-primary fw-bold" id="lbl_unidad_mochila">g</span>
+                                    <span class="input-group-text small bg-white text-primary fw-bold" id="lbl_unidad_mochila">g / 16L</span>
                                 </div>
-                                <div class="form-text text-muted" style="font-size: 0.70rem;">Dosis para mochila de 16L</div>
+                                <div class="form-text text-muted" style="font-size: 0.70rem;">Cantidad para mochila de 16L</div>
                                 <input type="hidden" name="volumen_mochila_l" value="16.00">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label text-muted small mb-1 fw-semibold">🧴 Pulverizador 100 Litros:</label>
                                 <div class="input-group input-group-sm">
                                     <input type="number" step="0.01" name="dosis_calculada_pulv" id="fito_dosis_pulv" class="form-control text-center font-monospace fw-bold text-success bg-white">
-                                    <span class="input-group-text small bg-white text-success fw-bold" id="lbl_unidad_pulv">g</span>
+                                    <span class="input-group-text small bg-white text-success fw-bold" id="lbl_unidad_pulv">g / 100L</span>
                                 </div>
-                                <div class="form-text text-muted" style="font-size: 0.70rem;">Dosis para carretilla 100L</div>
+                                <div class="form-text text-muted" style="font-size: 0.70rem;">Cantidad para carretilla 100L</div>
                                 <input type="hidden" name="volumen_pulverizador_l" value="100.00">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label text-muted small mb-1 fw-semibold">🚜 Cuba 1.000 Litros:</label>
                                 <div class="input-group input-group-sm">
                                     <input type="number" step="0.01" name="dosis_calculada_cuba" id="fito_dosis_cuba" class="form-control text-center font-monospace fw-bold text-danger bg-white">
-                                    <span class="input-group-text small bg-white text-danger fw-bold" id="lbl_unidad_cuba">kg</span>
+                                    <span class="input-group-text small bg-white text-danger fw-bold" id="lbl_unidad_cuba">kg / 1.000L</span>
                                 </div>
-                                <div class="form-text text-muted" style="font-size: 0.70rem;">Dosis para cuba entera 1.000L</div>
+                                <div class="form-text text-muted" style="font-size: 0.70rem;">Total para cuba entera 1.000L</div>
                                 <input type="hidden" name="volumen_cuba_l" value="1000.00">
                             </div>
                         </div>
@@ -947,13 +961,14 @@ foreach ($productos as $p) {
 <!-- ESTILOS PARA IMPRESIÓN LIMPIA DE LA FICHA TÉCNICA -->
 <style>
 @media print {
-    body * {
+    body.imprimiendo-ficha-individual * {
         visibility: hidden !important;
     }
-    #modalFichaTecnicaDetallada, #modalFichaTecnicaDetallada * {
+    body.imprimiendo-ficha-individual #modalFichaTecnicaDetallada,
+    body.imprimiendo-ficha-individual #modalFichaTecnicaDetallada * {
         visibility: visible !important;
     }
-    #modalFichaTecnicaDetallada {
+    body.imprimiendo-ficha-individual #modalFichaTecnicaDetallada {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
@@ -962,17 +977,14 @@ foreach ($productos as $p) {
         padding: 0 !important;
         background: #ffffff !important;
     }
-    #modalFichaTecnicaDetallada .modal-dialog {
+    body.imprimiendo-ficha-individual #modalFichaTecnicaDetallada .modal-dialog {
         max-width: 100% !important;
         width: 100% !important;
         margin: 0 !important;
     }
-    #modalFichaTecnicaDetallada .modal-content {
+    body.imprimiendo-ficha-individual #modalFichaTecnicaDetallada .modal-content {
         border: none !important;
         box-shadow: none !important;
-    }
-    .no-print, .btn-close, .modal-backdrop {
-        display: none !important;
     }
 }
 </style>
@@ -1344,7 +1356,11 @@ function abrirModalFichaTecnicaDesdeIa(idx) {
 
 // Imprimir individualmente la ficha técnica en A4
 function imprimirFichaTecnicaIndividual() {
+    document.body.classList.add('imprimiendo-ficha-individual');
     window.print();
+    setTimeout(function() {
+        document.body.classList.remove('imprimiendo-ficha-individual');
+    }, 1500);
 }
 
 // Saltar a editar desde la ficha técnica
@@ -1376,9 +1392,9 @@ function actualizarBadgesUnidades() {
     var lblCuba = document.getElementById('lbl_unidad_cuba');
     var lblHa = document.getElementById('lbl_unidad_ha');
 
-    if (lblMoch) lblMoch.textContent = uPequena;
-    if (lblPulv) lblPulv.textContent = uPequena;
-    if (lblCuba) lblCuba.textContent = uGrande;
+    if (lblMoch) lblMoch.textContent = uPequena + ' / 16L';
+    if (lblPulv) lblPulv.textContent = uPequena + ' / 100L';
+    if (lblCuba) lblCuba.textContent = uGrande + ' / 1.000L';
     if (lblHa) lblHa.textContent = uGrande + ' o L/ha';
 
     return { uPequena: uPequena, uGrande: uGrande, esLiq: esLiq };
@@ -1399,11 +1415,14 @@ function calcularDosisRecipientes() {
 
     // Normalizar a gramos o ml por 100L de caldo
     var gPor100 = 0;
-    var esUnidadMayor = (u.indexOf('kg') !== -1 || u.indexOf('l/hl') !== -1 || u.indexOf('%') !== -1 || u === 'l');
-    if (esUnidadMayor || raw100 < 10.0) {
+    var esPequena = (u === 'g/hl' || u === 'cc/hl' || u === 'ml/100l' || u === 'g/100l');
+    var esMayor = (u.indexOf('kg') !== -1 || u.indexOf('l/hl') !== -1 || u.indexOf('%') !== -1 || u === 'l');
+    if (esPequena) {
+        gPor100 = raw100;
+    } else if (esMayor) {
         gPor100 = raw100 * 1000.0;
     } else {
-        gPor100 = raw100;
+        gPor100 = (raw100 < 10.0) ? (raw100 * 1000.0) : raw100;
     }
 
     // Mochila 16L = (gPor100 * 16) / 100 en g o ml
@@ -1413,8 +1432,8 @@ function calcularDosisRecipientes() {
     // Cuba 1.000L = (gPor100 * 10) / 1000 en KG o LITROS
     var dCuba = (gPor100 * 10.0) / 1000.0;
 
-    document.getElementById('fito_dosis_mochila').value = dMoch > 0 ? dMoch.toFixed(1) : '';
-    document.getElementById('fito_dosis_pulv').value = dPulv > 0 ? dPulv.toFixed(0) : '';
+    document.getElementById('fito_dosis_mochila').value = dMoch > 0 ? (dMoch < 10 ? dMoch.toFixed(2) : dMoch.toFixed(1)) : '';
+    document.getElementById('fito_dosis_pulv').value = dPulv > 0 ? (dPulv < 10 ? dPulv.toFixed(1) : dPulv.toFixed(0)) : '';
     document.getElementById('fito_dosis_cuba').value = dCuba > 0 ? dCuba.toFixed(2) : '';
 
     // Sugerencia para dosis por hectárea si está vacía (asumiendo 1.000 L de caldo por ha)

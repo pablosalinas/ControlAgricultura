@@ -408,13 +408,17 @@ class PhytosanitaryAiService {
             $unid = 'g/hl';
         }
 
-        // Determinar si la unidad de dosis es mayor (kg, L, %)
+        // Determinar si la unidad de dosis es mayor (kg, L, %) o pequeña (g, cc, ml)
         $uLower = mb_strtolower($unid, 'UTF-8');
+        $esPequena = (strpos($uLower, 'g/hl') !== false || strpos($uLower, 'cc/hl') !== false || strpos($uLower, 'ml') !== false || strpos($uLower, 'g/100') !== false);
         $esMayor = (strpos($uLower, 'kg') !== false || strpos($uLower, 'l/hl') !== false || strpos($uLower, '%') !== false || $uLower === 'l');
-        if ($esMayor || ($d100 > 0 && $d100 < 10.0)) {
+        
+        if ($esPequena) {
+            $gPor100 = $d100;
+        } elseif ($esMayor) {
             $gPor100 = $d100 * 1000.0;
         } else {
-            $gPor100 = $d100;
+            $gPor100 = ($d100 > 0 && $d100 < 10.0) ? ($d100 * 1000.0) : $d100;
         }
 
         $dMoch = isset($p['dosis_calculada_mochila']) ? (float)$p['dosis_calculada_mochila'] : 0.0;
