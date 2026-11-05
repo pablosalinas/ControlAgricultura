@@ -349,6 +349,53 @@ class PhytosanitaryAiService {
             return array('success' => false, 'message' => 'Por favor, introduce el nombre del producto o plaga.');
         }
 
+        // 0. Intentar resolver primero desde la tabla oficial de productos_fitosanitarios en BD
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("
+                SELECT * FROM productos_fitosanitarios 
+                WHERE activo = 1 
+                  AND (nombre_comercial LIKE :q1 OR materia_activa LIKE :q2 OR plagas_objetivo LIKE :q3)
+                LIMIT 1
+            ");
+            $searchTerm = '%' . $query . '%';
+            $stmt->execute(array(
+                ':q1' => $searchTerm,
+                ':q2' => $searchTerm,
+                ':q3' => $searchTerm
+            ));
+            $dbProd = $stmt->fetch();
+            if ($dbProd) {
+                return array(
+                    'success' => true,
+                    'data' => array(
+                        'id_producto'                 => (int)$dbProd['id_producto'],
+                        'nombre_comercial_producto'   => $dbProd['nombre_comercial'],
+                        'materia_activa'              => $dbProd['materia_activa'],
+                        'num_registro_oficial'        => $dbProd['num_registro_oficial'],
+                        'tipo_producto'               => $dbProd['tipo_producto'],
+                        'es_ecologico'                => (int)$dbProd['es_ecologico'],
+                        'cultivos_autorizados'        => $dbProd['cultivos_autorizados'],
+                        'plagas_objetivo'             => $dbProd['plagas_objetivo'],
+                        'plaga_o_enfermedad_objetivo' => $dbProd['plagas_objetivo'],
+                        'modo_accion'                 => $dbProd['modo_accion_uso'],
+                        'dosis_etiqueta_100l'         => (float)$dbProd['dosis_etiqueta_100l'],
+                        'unidad_dosis'                => $dbProd['unidad_dosis'],
+                        'dosis_recomendada_ha'        => (float)$dbProd['dosis_por_hectarea'],
+                        'plazo_seguridad_dias'        => (int)$dbProd['plazo_seguridad_dias'],
+                        'intervalo_repeticion_dias'   => (int)$dbProd['intervalo_repeticion_dias'],
+                        'dosis_calculada_mochila'     => (float)$dbProd['dosis_calculada_mochila'],
+                        'dosis_calculada_cuba'        => (float)$dbProd['dosis_calculada_cuba'],
+                        'dosis_calculada_pulv'        => (float)$dbProd['dosis_calculada_pulv'],
+                        'observaciones_tecnicas'      => $dbProd['descripcion_advertencias'],
+                        'fuente'                      => 'Registro Oficial de Productos Fitosanitarios (Base de Datos)'
+                    )
+                );
+            }
+        } catch (Exception $e) {
+            // Silencioso, pasará a catálogo local o IA
+        }
+
         // 1. Intentar resolver primero desde el registro agronómico local de alta fidelidad
         $local = self::searchInLocalCatalog($query);
         if ($local !== null) {

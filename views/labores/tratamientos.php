@@ -63,15 +63,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $idHerramienta = !empty($_POST['id_herramienta']) ? (int)$_POST['id_herramienta'] : null;
             $maquinaria = trim(isset($_POST['maquinaria_empleada']) ? $_POST['maquinaria_empleada'] : '');
+            $idProducto = !empty($_POST['id_producto']) ? (int)$_POST['id_producto'] : null;
+
+            // Si no se envió id_producto explícito, buscar coincidencia por nombre comercial en catálogo
+            if (empty($idProducto) && !empty($producto)) {
+                $stmtCheck = $db->prepare("SELECT id_producto FROM productos_fitosanitarios WHERE nombre_comercial = :nom AND activo = 1 LIMIT 1");
+                $stmtCheck->execute(array(':nom' => $producto));
+                $foundP = $stmtCheck->fetch();
+                if ($foundP) {
+                    $idProducto = (int)$foundP['id_producto'];
+                }
+            }
 
             $stmt = $db->prepare("
                 INSERT INTO tratamientos (
-                    id_plantacion, id_herramienta, maquinaria_empleada, fecha_tratamiento, es_ecologico, nombre_comercial_producto,
+                    id_plantacion, id_producto, id_herramienta, maquinaria_empleada, fecha_tratamiento, es_ecologico, nombre_comercial_producto,
                     materia_activa, num_registro_oficial, dosis_por_hectarea, unidad_dosis,
                     caldo_total_litros, plazo_seguridad_dias, fecha_fin_plazo_seguridad,
                     plaga_o_enfermedad_objetivo, aplicador_responsable, observaciones, creado_por_id
                 ) VALUES (
-                    :plantacion, :herramienta, :maquinaria, :fecha, :eco, :prod,
+                    :plantacion, :producto_id, :herramienta, :maquinaria, :fecha, :eco, :prod,
                     :mat, :reg, :dosis, :unidad,
                     :caldo, :plazo, :finplazo,
                     :plaga, :aplicador, :obs, :user
@@ -79,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             $stmt->execute(array(
                 ':plantacion'  => $idPlantacion,
+                ':producto_id' => $idProducto,
                 ':herramienta' => $idHerramienta,
                 ':maquinaria'  => $maquinaria ?: null,
                 ':fecha'       => $fecha,
@@ -109,6 +121,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fecha = $_POST['fecha_tratamiento'];
             $esEco = isset($_POST['es_ecologico']) ? 1 : 0;
             $producto = trim($_POST['nombre_comercial_producto']);
+            $idProducto = !empty($_POST['id_producto']) ? (int)$_POST['id_producto'] : null;
+
+            if (empty($idProducto) && !empty($producto)) {
+                $stmtCheck = $db->prepare("SELECT id_producto FROM productos_fitosanitarios WHERE nombre_comercial = :nom AND activo = 1 LIMIT 1");
+                $stmtCheck->execute(array(':nom' => $producto));
+                $foundP = $stmtCheck->fetch();
+                if ($foundP) {
+                    $idProducto = (int)$foundP['id_producto'];
+                }
+            }
+
             $materiaActiva = trim(isset($_POST['materia_activa']) ? $_POST['materia_activa'] : '');
             $registro = trim(isset($_POST['num_registro_oficial']) ? $_POST['num_registro_oficial'] : '');
             $dosisHa = (float)$_POST['dosis_por_hectarea'];
@@ -122,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmtUpd = $db->prepare("
                 UPDATE tratamientos
-                SET fecha_tratamiento = :fecha, es_ecologico = :eco, nombre_comercial_producto = :prod,
+                SET id_producto = :prod_id, fecha_tratamiento = :fecha, es_ecologico = :eco, nombre_comercial_producto = :prod,
                     materia_activa = :mat, num_registro_oficial = :reg, dosis_por_hectarea = :dosis,
                     unidad_dosis = :unidad, caldo_total_litros = :caldo, plazo_seguridad_dias = :plazo,
                     fecha_fin_plazo_seguridad = :finplazo, plaga_o_enfermedad_objetivo = :plaga,
@@ -130,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 WHERE id_tratamiento = :id
             ");
             $stmtUpd->execute(array(
+                ':prod_id'   => $idProducto,
                 ':fecha'     => $fecha,
                 ':eco'       => $esEco,
                 ':prod'      => $producto,
@@ -199,15 +223,21 @@ if ($tenantId && !$isSuperAdmin) {
 $sqlMaq .= " ORDER BY tipo ASC, nombre ASC";
 $maquinariaList = $db->query($sqlMaq)->fetchAll();
 
+// Cargar catálogo de productos fitosanitarios registrados oficialmente
+$sqlProdFito = "SELECT * FROM productos_fitosanitarios WHERE activo = 1 ORDER BY nombre_comercial ASC";
+$productosCatalogo = $db->query($sqlProdFito)->fetchAll();
+
 // Histórico de tratamientos con filtros
 $sqlTrat = "
     SELECT t.*, f.id_finca, f.nombre_finca, c.nombre_comun, p.identificador_cuadro, p.superficie_ocupada_ha,
-           mh.nombre AS nombre_herramienta
+           mh.nombre AS nombre_herramienta,
+           pf.nombre_comercial AS pf_nombre_comercial, pf.dosis_calculada_mochila, pf.dosis_calculada_cuba, pf.intervalo_repeticion_dias
     FROM tratamientos t
     JOIN plantaciones p ON t.id_plantacion = p.id_plantacion
     JOIN fincas f ON p.id_finca = f.id_finca
     JOIN cultivos c ON p.id_cultivo = c.id_cultivo
     LEFT JOIN maquinaria_herramientas mh ON t.id_herramienta = mh.id_herramienta
+    LEFT JOIN productos_fitosanitarios pf ON t.id_producto = pf.id_producto
     WHERE (t.activo = 1 OR t.activo IS NULL)
 ";
 $params = array();
@@ -385,6 +415,28 @@ $tratamientos = $stmtTrat->fetchAll();
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <input type="hidden" name="id_producto" id="trat_id_producto" value="0">
+                
+                <!-- Selector Inteligente desde el Catálogo Oficial de Fitosanitarios -->
+                <div class="p-3 mb-3 rounded-3 border bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label fw-bold small text-primary mb-0">
+                            <i class="fa-solid fa-bottle-droplet me-1 text-danger"></i>Seleccionar desde Catálogo Oficial de Fitosanitarios Registrados:
+                        </label>
+                        <a href="<?= APP_URL ?>/fitosanitarios" target="_blank" class="small text-decoration-none fw-semibold">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Gestionar Catálogo y Recipientes
+                        </a>
+                    </div>
+                    <select id="selector_fito_catalogo" class="form-select form-select-sm fw-semibold text-dark" onchange="cargarProductoDesdeCatalogo(this)">
+                        <option value="">-- Seleccionar producto registrado para rellenar automáticamente la ficha y dosis --</option>
+                        <?php foreach ($productosCatalogo as $pc): ?>
+                            <option value="<?= $pc['id_producto'] ?>" data-json='<?= json_encode($pc, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
+                                <?= htmlspecialchars($pc['nombre_comercial']) ?> (<?= $pc['es_ecologico'] ? '🌱 Eco' : '🌾 Conv' ?>) - Dosis: <?= $pc['dosis_etiqueta_100l'] ?> <?= $pc['unidad_dosis'] ?> | P.Seg: <?= $pc['plazo_seguridad_dias'] ?>d
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="row g-3 mb-3">
@@ -628,7 +680,14 @@ $tratamientos = $stmtTrat->fetchAll();
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="fw-bold text-dark"><?= htmlspecialchars($t['nombre_comercial_producto']) ?></div>
+                                    <div class="fw-bold text-dark">
+                                        <?= htmlspecialchars($t['nombre_comercial_producto']) ?>
+                                        <?php if (!empty($t['id_producto'])): ?>
+                                            <a href="<?= APP_URL ?>/fitosanitarios?q=<?= urlencode($t['nombre_comercial_producto']) ?>" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 ms-1 text-decoration-none" style="font-size: 0.72rem;" title="Ver ficha en catálogo de fitosanitarios">
+                                                <i class="fa-solid fa-bottle-droplet me-1 text-danger"></i>Catálogo
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
                                     <div class="small text-muted"><?= htmlspecialchars($t['materia_activa'] ?: '-') ?></div>
                                     <?php if ($t['num_registro_oficial']): ?>
                                         <span class="badge bg-light text-muted border font-monospace" style="font-size:0.7rem;">Reg: <?= htmlspecialchars($t['num_registro_oficial']) ?></span>
@@ -991,6 +1050,9 @@ function aplicarDatosIaEnFormulario() {
     if (document.getElementById('nombre_comercial_producto')) {
         document.getElementById('nombre_comercial_producto').value = d.nombre_comercial_producto || '';
     }
+    if (document.getElementById('trat_id_producto') && d.id_producto) {
+        document.getElementById('trat_id_producto').value = d.id_producto;
+    }
     if (document.getElementById('materia_activa')) {
         document.getElementById('materia_activa').value = d.materia_activa || '';
     }
@@ -1038,6 +1100,80 @@ function aplicarDatosIaEnFormulario() {
     if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         targetEl.focus();
+    }
+}
+
+// Carga automática al seleccionar un producto del catálogo oficial
+function cargarProductoDesdeCatalogo(sel) {
+    if (!sel || !sel.value) {
+        if (document.getElementById('trat_id_producto')) {
+            document.getElementById('trat_id_producto').value = '0';
+        }
+        return;
+    }
+    const opt = sel.options[sel.selectedIndex];
+    const jsonStr = opt.getAttribute('data-json');
+    if (!jsonStr) return;
+    
+    try {
+        const p = JSON.parse(jsonStr);
+        if (document.getElementById('trat_id_producto')) {
+            document.getElementById('trat_id_producto').value = p.id_producto || '0';
+        }
+        if (document.getElementById('nombre_comercial_producto')) {
+            document.getElementById('nombre_comercial_producto').value = p.nombre_comercial || '';
+        }
+        if (document.getElementById('materia_activa')) {
+            document.getElementById('materia_activa').value = p.materia_activa || '';
+        }
+        if (document.getElementById('num_registro_oficial')) {
+            document.getElementById('num_registro_oficial').value = p.num_registro_oficial || '';
+        }
+        if (document.getElementById('es_ecologico')) {
+            document.getElementById('es_ecologico').checked = (parseInt(p.es_ecologico) === 1);
+        }
+        
+        const inPlazo = document.querySelector('input[name="plazo_seguridad_dias"]');
+        if (inPlazo) inPlazo.value = p.plazo_seguridad_dias !== undefined ? p.plazo_seguridad_dias : 0;
+        
+        const inPlaga = document.querySelector('input[name="plaga_o_enfermedad_objetivo"]');
+        if (inPlaga) inPlaga.value = p.plagas_objetivo || '';
+        
+        const txtObs = document.querySelector('textarea[name="observaciones"]');
+        if (txtObs) {
+            const nota = (p.modo_accion_uso ? '[' + p.modo_accion_uso + '] ' : '') + (p.descripcion_advertencias || '');
+            if (nota && !txtObs.value.includes(nota)) {
+                txtObs.value = txtObs.value ? (txtObs.value + ' | ' + nota) : nota;
+            }
+        }
+
+        // Ajustar dosis según el modo de dosificación activo
+        const modo = document.getElementById('modo_dosificacion').value;
+        const dEntrada = document.getElementById('dosis_entrada');
+        
+        if (modo === 'ha') {
+            if (p.dosis_por_hectarea > 0) {
+                dEntrada.value = p.dosis_por_hectarea;
+            } else if (p.dosis_etiqueta_100l > 0) {
+                dEntrada.value = (p.dosis_etiqueta_100l * 10 / 1000).toFixed(3);
+            }
+        } else if (modo === 'mochila_17' || modo === 'mochila_5' || modo === 'mochila_2') {
+            if (p.dosis_calculada_mochila > 0) {
+                dEntrada.value = p.dosis_calculada_mochila;
+            } else if (p.dosis_etiqueta_100l > 0) {
+                dEntrada.value = (p.dosis_etiqueta_100l * 0.16).toFixed(2);
+            }
+        } else if (modo === 'remolque') {
+            if (p.dosis_calculada_cuba > 0) {
+                dEntrada.value = p.dosis_calculada_cuba;
+            } else if (p.dosis_etiqueta_100l > 0) {
+                dEntrada.value = p.dosis_etiqueta_100l;
+            }
+        }
+        
+        calcularCaldoYDosis();
+    } catch (e) {
+        console.error("Error al cargar fitosanitario del catálogo:", e);
     }
 }
 

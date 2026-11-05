@@ -259,11 +259,46 @@ CREATE TABLE diario_evolucion (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
+-- 8.5. PRODUCTOS FITOSANITARIOS Y ECOLÓGICOS (Catálogo, Fichas Técnicas y Dosis por Recipiente)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS productos_fitosanitarios (
+    id_producto INT AUTO_INCREMENT PRIMARY KEY,
+    id_propietario INT NULL,
+    nombre_comercial VARCHAR(150) NOT NULL,
+    materia_activa VARCHAR(150) NULL,
+    num_registro_oficial VARCHAR(60) NULL,
+    tipo_producto VARCHAR(80) NULL DEFAULT 'Fungicida',
+    es_ecologico TINYINT(1) NOT NULL DEFAULT 0,
+    cultivos_autorizados TEXT NULL,
+    plagas_objetivo TEXT NULL,
+    modo_accion_uso TEXT NULL,
+    dosis_etiqueta_100l DECIMAL(8, 3) NULL DEFAULT 0.200,
+    unidad_dosis VARCHAR(20) NOT NULL DEFAULT 'kg',
+    dosis_por_hectarea DECIMAL(8, 3) NULL,
+    plazo_seguridad_dias INT NOT NULL DEFAULT 0,
+    intervalo_repeticion_dias INT NOT NULL DEFAULT 14,
+    volumen_mochila_l DECIMAL(6, 2) NOT NULL DEFAULT 16.00,
+    dosis_calculada_mochila DECIMAL(8, 2) NULL,
+    volumen_cuba_l DECIMAL(6, 2) NOT NULL DEFAULT 1000.00,
+    dosis_calculada_cuba DECIMAL(8, 2) NULL,
+    volumen_pulverizador_l DECIMAL(6, 2) NOT NULL DEFAULT 100.00,
+    dosis_calculada_pulv DECIMAL(8, 2) NULL,
+    fabricante_distribuidor VARCHAR(120) NULL,
+    descripcion_advertencias TEXT NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_pf_nom (nombre_comercial),
+    INDEX idx_pf_eco (es_ecologico),
+    INDEX idx_pf_tipo (tipo_producto)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
 -- 9. TRATAMIENTOS FITOSANITARIOS Y ECOLÓGICOS (Convencional vs Ecológico certificado)
 -- ------------------------------------------------------------------------------
 CREATE TABLE tratamientos (
     id_tratamiento INT AUTO_INCREMENT PRIMARY KEY,
     id_plantacion INT NOT NULL,
+    id_producto INT NULL,
     fecha_tratamiento DATE NOT NULL,
     es_ecologico TINYINT(1) NOT NULL DEFAULT 0,
     nombre_comercial_producto VARCHAR(150) NOT NULL,
@@ -281,6 +316,7 @@ CREATE TABLE tratamientos (
     creado_por_id INT NULL,
     creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_plantacion) REFERENCES plantaciones(id_plantacion) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos_fitosanitarios(id_producto) ON DELETE SET NULL,
     FOREIGN KEY (creado_por_id) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
     INDEX idx_trat_fecha (fecha_tratamiento),
     INDEX idx_trat_eco (es_ecologico)

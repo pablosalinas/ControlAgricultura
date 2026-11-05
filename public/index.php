@@ -311,6 +311,19 @@ switch ($route) {
         require_once VIEWS_PATH . '/maquinaria/index.php';
         break;
 
+    // Rutas para Gestión Integral de Productos Fitosanitarios y Asistente IA
+    case 'fitosanitarios':
+    case 'fitosanitarios/nuevo':
+    case 'fitosanitarios/editar':
+    case 'fitosanitarios/borrar':
+    case 'productos-fitosanitarios':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        require_once VIEWS_PATH . '/fitosanitarios/index.php';
+        break;
+
     // Rutas para Plan Oficial de Labores y Recomendaciones Agronómicas
     case 'plan-labores':
     case 'plan-tratamientos':

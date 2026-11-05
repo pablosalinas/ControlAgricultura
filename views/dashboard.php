@@ -3,9 +3,32 @@ $pageTitle = "Panel de Control - " . APP_NAME;
 require_once VIEWS_PATH . '/layouts/header.php';
 
 $user = Auth::user();
-$tenantId = Auth::tenantId();
+$isSuperAdmin = Auth::isSuperAdmin();
+$db = Database::getConnection();
 
-// Estadísticas rápidas
+// Conmutar explotación si se solicita expresamente
+if (isset($_GET['explotacion_id'])) {
+    $conmutarId = trim($_GET['explotacion_id']);
+    if (($conmutarId === '0' || $conmutarId === 'todas') && $isSuperAdmin) {
+        Auth::switchTenant(null);
+    } else {
+        Auth::switchTenant((int)$conmutarId);
+    }
+}
+
+$tenantId = Auth::tenantId();
+$user = Auth::user();
+
+// Obtener lista de explotaciones para el selector
+$userTenants = array();
+if ($isSuperAdmin) {
+    $userTenants = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE activo = 1 ORDER BY nombre_razon_social ASC")->fetchAll();
+} else if (Auth::check()) {
+    $userTenants = Auth::getUserTenants(Auth::user()['id']);
+}
+
+// Estadísticas rápidas: Se restringen estrictamente a la explotación seleccionada.
+// Salvo que el usuario sea Superadministrador y expresamente elija la "Vista Global (Todas)"
 $stats = array(
     'fincas' => 0,
     'hectareas' => 0.0,
@@ -13,24 +36,37 @@ $stats = array(
 );
 
 try {
-    $db = Database::getConnection();
-    
-    // Conteo de fincas y hectáreas para el propietario actual o global si es superadmin
-    if ($tenantId && !Auth::isSuperAdmin()) {
+    if (!empty($tenantId)) {
+        // 1. Datos exclusivos de la explotación seleccionada
         $stmtFincas = $db->prepare("SELECT COUNT(*) AS total, COALESCE(SUM(superficie_ha), 0) AS total_ha FROM fincas WHERE id_propietario = :prop AND activo = 1");
-        $stmtFincas->execute(array(':prop' => $tenantId));
+        $stmtFincas->execute(array(':prop' => (int)$tenantId));
         $rowF = $stmtFincas->fetch();
-        $stats['fincas'] = (int)$rowF['total'];
-        $stats['hectareas'] = (float)$rowF['total_ha'];
+        $stats['fincas'] = (int)($rowF ? $rowF['total'] : 0);
+        $stats['hectareas'] = (float)($rowF ? $rowF['total_ha'] : 0.0);
 
-        $stmtPlan = $db->prepare("SELECT COUNT(*) AS total FROM plantaciones p JOIN fincas f ON p.id_finca = f.id_finca WHERE f.id_propietario = :prop AND p.estado IN ('en_crecimiento', 'produccion')");
-        $stmtPlan->execute(array(':prop' => $tenantId));
-        $stats['plantaciones'] = (int)$stmtPlan->fetch()['total'];
-    } else {
+        $stmtPlan = $db->prepare("
+            SELECT COUNT(*) AS total 
+            FROM plantaciones p 
+            JOIN fincas f ON p.id_finca = f.id_finca 
+            WHERE f.id_propietario = :prop 
+              AND (p.activo = 1 OR p.activo IS NULL) 
+              AND p.estado IN ('en_crecimiento', 'produccion')
+        ");
+        $stmtPlan->execute(array(':prop' => (int)$tenantId));
+        $rowP = $stmtPlan->fetch();
+        $stats['plantaciones'] = (int)($rowP ? $rowP['total'] : 0);
+    } elseif ($isSuperAdmin) {
+        // 2. Vista Global de todas las explotaciones (exclusiva para perfil Superadministrador bajo petición)
         $rowF = $db->query("SELECT COUNT(*) AS total, COALESCE(SUM(superficie_ha), 0) AS total_ha FROM fincas WHERE activo = 1")->fetch();
-        $stats['fincas'] = (int)$rowF['total'];
-        $stats['hectareas'] = (float)$rowF['total_ha'];
-        $stats['plantaciones'] = (int)$db->query("SELECT COUNT(*) FROM plantaciones WHERE estado IN ('en_crecimiento', 'produccion')")->fetchColumn();
+        $stats['fincas'] = (int)($rowF ? $rowF['total'] : 0);
+        $stats['hectareas'] = (float)($rowF ? $rowF['total_ha'] : 0.0);
+        $stats['plantaciones'] = (int)$db->query("
+            SELECT COUNT(*) 
+            FROM plantaciones p 
+            JOIN fincas f ON p.id_finca = f.id_finca 
+            WHERE (p.activo = 1 OR p.activo IS NULL) 
+              AND p.estado IN ('en_crecimiento', 'produccion')
+        ")->fetchColumn();
     }
 } catch (Exception $e) {
     // Si la BD aún está inicializándose
@@ -38,20 +74,52 @@ try {
 ?>
 
 <div class="container py-4">
-    <!-- Bienvenida -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom">
+    <!-- Bienvenida y Selector de Explotación -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom gap-3">
         <div>
             <h2 class="fw-bold mb-1 text-dark">Bienvenido, <?= htmlspecialchars($user['nombre']) ?></h2>
-            <p class="text-muted mb-0">
-                <i class="fa-solid fa-building-wheat text-primary me-1"></i>
-                Explotación: <strong><?= htmlspecialchars($user['nombre_propietario']) ?></strong>
-                <a href="<?= APP_URL ?>/explotaciones" class="btn btn-sm btn-outline-secondary py-0 px-2 ms-2 rounded-pill" style="font-size: 0.78rem;" title="Gestionar explotaciones agrícolas">
-                    <i class="fa-solid fa-sliders me-1"></i> Gestionar / Cambiar
+            <div class="d-flex flex-wrap align-items-center gap-2 text-muted">
+                <?php if (count($userTenants) > 1 || $isSuperAdmin): ?>
+                    <!-- Selector Rápido de Explotación Activa -->
+                    <form method="GET" action="<?= APP_URL ?>/dashboard" class="d-inline-flex align-items-center">
+                        <div class="input-group input-group-sm shadow-sm" style="max-width: 340px;">
+                            <span class="input-group-text bg-white text-primary fw-bold"><i class="fa-solid fa-building-wheat me-1"></i> Explotación:</span>
+                            <select name="explotacion_id" class="form-select fw-semibold" onchange="this.form.submit()">
+                                <?php if ($isSuperAdmin): ?>
+                                    <option value="todas" <?= empty($tenantId) ? 'selected' : '' ?>>🌐 Todas las Explotaciones (Vista Global)</option>
+                                <?php endif; ?>
+                                <?php foreach ($userTenants as $t): ?>
+                                    <option value="<?= $t['id_propietario'] ?>" <?= ($tenantId == $t['id_propietario']) ? 'selected' : '' ?>>
+                                        🏢 <?= htmlspecialchars($t['nombre_razon_social']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </form>
+                <?php else: ?>
+                    <span>
+                        <i class="fa-solid fa-building-wheat text-primary me-1"></i>
+                        Explotación: <strong class="text-dark"><?= htmlspecialchars($user['nombre_propietario']) ?></strong>
+                    </span>
+                <?php endif; ?>
+
+                <a href="<?= APP_URL ?>/explotaciones" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.78rem;" title="Gestionar y dar de alta explotaciones agrícolas">
+                    <i class="fa-solid fa-sliders me-1"></i> Administrar Explotaciones
                 </a>
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-2 text-capitalize"><?= htmlspecialchars($user['rol']) ?></span>
-            </p>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle text-capitalize"><?= htmlspecialchars($user['rol']) ?></span>
+                
+                <?php if (!empty($tenantId)): ?>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-filter me-1"></i>Filtrado: <?= htmlspecialchars($user['nombre_propietario']) ?>
+                    </span>
+                <?php elseif ($isSuperAdmin): ?>
+                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-globe me-1 text-primary"></i>Vista Global de Todas las Explotaciones
+                    </span>
+                <?php endif; ?>
+            </div>
         </div>
-        <div class="d-flex gap-2 mt-3 mt-md-0">
+        <div class="d-flex gap-2 mt-2 mt-md-0">
             <a href="<?= APP_URL ?>/fincas/nueva" class="btn btn-ag shadow-sm">
                 <i class="fa-solid fa-plus-circle me-1"></i> Nueva Finca
             </a>
@@ -189,22 +257,23 @@ try {
                 <tbody>
                     <?php
                     $fincas = array();
-                    if ($tenantId && !Auth::isSuperAdmin()) {
+                    if (!empty($tenantId)) {
                         $stmt = $db->prepare("
                             SELECT f.*, p.nombre_paraje 
                             FROM fincas f 
                             LEFT JOIN parajes p ON f.id_paraje = p.id_paraje 
-                            WHERE f.id_propietario = :prop 
+                            WHERE f.id_propietario = :prop AND f.activo = 1
                             ORDER BY f.nombre_finca ASC 
                             LIMIT 5
                         ");
-                        $stmt->execute(array(':prop' => $tenantId));
+                        $stmt->execute(array(':prop' => (int)$tenantId));
                         $fincas = $stmt->fetchAll();
-                    } else {
+                    } elseif ($isSuperAdmin) {
                         $fincas = $db->query("
                             SELECT f.*, p.nombre_paraje 
                             FROM fincas f 
                             LEFT JOIN parajes p ON f.id_paraje = p.id_paraje 
+                            WHERE f.activo = 1
                             ORDER BY f.nombre_finca ASC 
                             LIMIT 5
                         ")->fetchAll();

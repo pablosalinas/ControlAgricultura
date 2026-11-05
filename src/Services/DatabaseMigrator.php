@@ -189,6 +189,363 @@ class DatabaseMigrator {
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'email_comunidad', "VARCHAR(150) NOT NULL DEFAULT 'alharabemoratalla@gmail.com'");
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'tiempo_inactividad_minutos', 'INT NOT NULL DEFAULT 30');
 
+            // 17. Tabla de PRODUCTOS FITOSANITARIOS (Gestión de materias activas, dosis por recipientes y Asistente IA)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS productos_fitosanitarios (
+                    id_producto INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NULL,
+                    nombre_comercial VARCHAR(150) NOT NULL,
+                    materia_activa VARCHAR(150) NULL,
+                    num_registro_oficial VARCHAR(60) NULL,
+                    tipo_producto VARCHAR(80) NULL DEFAULT 'Fungicida',
+                    es_ecologico TINYINT(1) NOT NULL DEFAULT 0,
+                    cultivos_autorizados TEXT NULL,
+                    plagas_objetivo TEXT NULL,
+                    modo_accion_uso TEXT NULL,
+                    dosis_etiqueta_100l DECIMAL(8, 3) NULL DEFAULT 0.200,
+                    unidad_dosis VARCHAR(20) NOT NULL DEFAULT 'kg',
+                    dosis_por_hectarea DECIMAL(8, 3) NULL,
+                    plazo_seguridad_dias INT NOT NULL DEFAULT 0,
+                    intervalo_repeticion_dias INT NOT NULL DEFAULT 14,
+                    volumen_mochila_l DECIMAL(6, 2) NOT NULL DEFAULT 16.00,
+                    dosis_calculada_mochila DECIMAL(8, 2) NULL,
+                    volumen_cuba_l DECIMAL(6, 2) NOT NULL DEFAULT 1000.00,
+                    dosis_calculada_cuba DECIMAL(8, 2) NULL,
+                    volumen_pulverizador_l DECIMAL(6, 2) NOT NULL DEFAULT 100.00,
+                    dosis_calculada_pulv DECIMAL(8, 2) NULL,
+                    fabricante_distribuidor VARCHAR(120) NULL,
+                    descripcion_advertencias TEXT NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_pf_nom (nombre_comercial),
+                    INDEX idx_pf_eco (es_ecologico),
+                    INDEX idx_pf_tipo (tipo_producto)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+            self::addColumnIfNotExists($pdo, 'tratamientos', 'id_producto', 'INT NULL');
+
+            // Semillas iniciales y catálogo de fitosanitarios de referencia homologada
+            try {
+                $countPf = $pdo->query("SELECT COUNT(*) FROM productos_fitosanitarios")->fetchColumn();
+                if ($countPf == 0) {
+                    $stmtInsPf = $pdo->prepare("
+                        INSERT INTO productos_fitosanitarios (
+                            nombre_comercial, materia_activa, num_registro_oficial, tipo_producto,
+                            es_ecologico, cultivos_autorizados, plagas_objetivo, modo_accion_uso,
+                            dosis_etiqueta_100l, unidad_dosis, dosis_por_hectarea, plazo_seguridad_dias,
+                            intervalo_repeticion_dias, volumen_mochila_l, dosis_calculada_mochila,
+                            volumen_cuba_l, dosis_calculada_cuba, volumen_pulverizador_l, dosis_calculada_pulv,
+                            descripcion_advertencias, activo
+                        ) VALUES (
+                            :nom, :mat, :reg, :tipo,
+                            :eco, :cult, :plagas, :modo,
+                            :d100, :unid, :dha, :pseg,
+                            :intv, :vmoch, :dmoch,
+                            :vcuba, :dcuba, :vpulv, :dpulv,
+                            :desc, 1
+                        )
+                    ");
+
+                    $catalogoCompleto = array(
+                        array(
+                            'nom' => 'Nordox 75 WG',
+                            'mat' => 'Óxido cuproso 75% [WG] p/p',
+                            'reg' => 'ES-00145',
+                            'tipo' => 'Fungicida / Bactericida cúprico',
+                            'eco' => 1,
+                            'cult' => 'Olivar, Almendro, Frutales de hueso, Cítricos, Tomate, Patata',
+                            'plagas' => 'Repilo (Venturia oleaginea), Tuberculosis (Pseudomonas), Abolladura, Cribado, Monilia',
+                            'modo' => 'Contacto foliar preventivo. Excelente tenacidad y adherencia tras lluvias.',
+                            'd100' => 0.200, 'unid' => 'kg', 'dha' => 2.000, 'pseg' => 14, 'intv' => 14,
+                            'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2000.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
+                            'desc' => 'Apto para Agricultura Ecológica (Reg. UE 2018/848). No mezclar con aceites minerales en brotación.'
+                        ),
+                        array(
+                            'nom' => 'Cuprocol',
+                            'mat' => 'Oxicloruro de cobre 38% [SC] p/v',
+                            'reg' => '18.920',
+                            'tipo' => 'Fungicida cúprico líquido en suspensión',
+                            'eco' => 1,
+                            'cult' => 'Olivar, Vid, Frutales, Tomate, Cítricos',
+                            'plagas' => 'Repilo, Mildiu, Bacteriosis, Cribado y Antracnosis',
+                            'modo' => 'Contacto y barrera superficial protectora persistente.',
+                            'd100' => 0.250, 'unid' => 'l', 'dha' => 2.500, 'pseg' => 14, 'intv' => 14,
+                            'vmoch' => 16.00, 'dmoch' => 40.00, 'vcuba' => 1000.00, 'dcuba' => 2500.00, 'vpulv' => 100.00, 'dpulv' => 250.00,
+                            'desc' => 'Apto para Agricultura Ecológica. Formulación líquida que no obtura boquillas de pulverizadores ni mochilas.'
+                        ),
+                        array(
+                            'nom' => 'Caldo Bordelés RSR',
+                            'mat' => 'Sulfato cuprocálcico 20% [WP] p/p',
+                            'reg' => '12.890',
+                            'tipo' => 'Fungicida tradicional de choque y cobertura',
+                            'eco' => 1,
+                            'cult' => 'Olivar, Vid, Frutales de pepita y hueso, Nogal',
+                            'plagas' => 'Repilo del olivo, Mildiu de la vid, Bacteriosis y Abolladura',
+                            'modo' => 'Contacto preventivo. Gran persistencia por neutralización con cal.',
+                            'd100' => 0.500, 'unid' => 'kg', 'dha' => 5.000, 'pseg' => 14, 'intv' => 21,
+                            'vmoch' => 16.00, 'dmoch' => 80.00, 'vcuba' => 1000.00, 'dcuba' => 5000.00, 'vpulv' => 100.00, 'dpulv' => 500.00,
+                            'desc' => 'Autorizado en Agricultura Ecológica. Muy tenaz sobre la cutícula vegetal.'
+                        ),
+                        array(
+                            'nom' => 'Kumulus DF',
+                            'mat' => 'Azufre 80% [WG] p/p',
+                            'reg' => '16.520',
+                            'tipo' => 'Fungicida / Acaricida antioídio',
+                            'eco' => 1,
+                            'cult' => 'Vid, Olivar, Frutales, Tomate, Pimiento, Melón, Calabacín',
+                            'plagas' => 'Oídio (Cenicilla), Ácaros, Araña roja, Eriófidos',
+                            'modo' => 'Contacto directo y acción vapor por sublimación sobre micelio y ácaros.',
+                            'd100' => 0.350, 'unid' => 'kg', 'dha' => 3.500, 'pseg' => 5, 'intv' => 10,
+                            'vmoch' => 16.00, 'dmoch' => 56.00, 'vcuba' => 1000.00, 'dcuba' => 3500.00, 'vpulv' => 100.00, 'dpulv' => 350.00,
+                            'desc' => 'Apto para Agricultura Ecológica. Evitar aplicaciones con temperaturas > 28-30ºC.'
+                        ),
+                        array(
+                            'nom' => 'Score 25 EC',
+                            'mat' => 'Difenoconazol 25% [EC] p/v',
+                            'reg' => '18.767',
+                            'tipo' => 'Fungicida sistémico triazol',
+                            'eco' => 0,
+                            'cult' => 'Frutales de hueso y pepita, Tomate, Olivar, Vid, Alcachofa',
+                            'plagas' => 'Abolladura, Cribado, Monilia, Repilo, Oidiopsis, Alternaria',
+                            'modo' => 'Sistemia acrópeta translaminar. Acción preventiva y curativa precoz.',
+                            'd100' => 0.030, 'unid' => 'l', 'dha' => 0.300, 'pseg' => 14, 'intv' => 14,
+                            'vmoch' => 16.00, 'dmoch' => 5.00, 'vcuba' => 1000.00, 'dcuba' => 300.00, 'vpulv' => 100.00, 'dpulv' => 30.00,
+                            'desc' => 'Convencional de síntesis (NO ecológico). Aplicar preferentemente al inicio de infección.'
+                        ),
+                        array(
+                            'nom' => 'Aliette WG',
+                            'mat' => 'Fosetil-Al 80% [WG] p/p',
+                            'reg' => '19.344',
+                            'tipo' => 'Fungicida sistémico bidireccional',
+                            'eco' => 0,
+                            'cult' => 'Cítricos, Frutales, Aguacate, Hortícolas, Césped',
+                            'plagas' => 'Fitóftora (Phytophthora spp.), Aguado de los cítricos y Gomosis del cuello',
+                            'modo' => 'Sistemia completa floemática y xilemática. Estimula las defensas naturales.',
+                            'd100' => 0.300, 'unid' => 'kg', 'dha' => 3.000, 'pseg' => 15, 'intv' => 20,
+                            'vmoch' => 16.00, 'dmoch' => 48.00, 'vcuba' => 1000.00, 'dcuba' => 3000.00, 'vpulv' => 100.00, 'dpulv' => 300.00,
+                            'desc' => 'Convencional. Especialmente eficaz para podredumbres de raíz y cuello.'
+                        ),
+                        array(
+                            'nom' => 'Switch',
+                            'mat' => 'Ciprodinil 37.5% + Fludioxonil 25% [WG] p/p',
+                            'reg' => '22.459',
+                            'tipo' => 'Fungicida antibotritis y antimonilia',
+                            'eco' => 0,
+                            'cult' => 'Frutales de hueso, Vid, Fresa, Tomate, Berenjena',
+                            'plagas' => 'Botrytis cinerea (Podredumbre gris), Monilinia laxa y fructigena',
+                            'modo' => 'Doble acción complementaria: sistémico translaminar + protector superficial.',
+                            'd100' => 0.080, 'unid' => 'kg', 'dha' => 0.800, 'pseg' => 7, 'intv' => 14,
+                            'vmoch' => 16.00, 'dmoch' => 13.00, 'vcuba' => 1000.00, 'dcuba' => 800.00, 'vpulv' => 100.00, 'dpulv' => 80.00,
+                            'desc' => 'Convencional. Muy indicado en floración y pre-cosecha de frutales y vid.'
+                        ),
+                        array(
+                            'nom' => 'Spintor 480 SC',
+                            'mat' => 'Spinosad 48% [SC] p/v (Spinosina A + D)',
+                            'reg' => '23.328',
+                            'tipo' => 'Insecticida biológico natural',
+                            'eco' => 1,
+                            'cult' => 'Hortícolas, Frutales, Cítricos, Olivar, Vid',
+                            'plagas' => 'Orugas defoliadoras, Trips (Frankliniella), Mosca de la fruta (Ceratitis), Tuta',
+                            'modo' => 'Ingestión y contacto con actividad translaminar. Modula receptores nicotínicos.',
+                            'd100' => 0.025, 'unid' => 'l', 'dha' => 0.250, 'pseg' => 3, 'intv' => 7,
+                            'vmoch' => 16.00, 'dmoch' => 4.00, 'vcuba' => 1000.00, 'dcuba' => 250.00, 'vpulv' => 100.00, 'dpulv' => 25.00,
+                            'desc' => 'Apto para Agricultura Ecológica. Aplicar preferentemente al atardecer.'
+                        ),
+                        array(
+                            'nom' => 'Bacillus thuringiensis (Dipel DF / Belthirul)',
+                            'mat' => 'Bacillus thuringiensis kurstaki cepa PB-54 (32 M UI/g)',
+                            'reg' => '19.643',
+                            'tipo' => 'Bioinsecticida bacteriano selectivo',
+                            'eco' => 1,
+                            'cult' => 'Hortícolas, Frutales, Vid, Olivar, Forestal',
+                            'plagas' => 'Orugas, Polilla del racimo (Lobesia), Prays oleae, Tuta absoluta',
+                            'modo' => 'Ingestión estricta. Las endotoxinas Cry perforan el epitelio digestivo de orugas.',
+                            'd100' => 0.100, 'unid' => 'kg', 'dha' => 1.000, 'pseg' => 1, 'intv' => 7,
+                            'vmoch' => 16.00, 'dmoch' => 16.00, 'vcuba' => 1000.00, 'dcuba' => 1000.00, 'vpulv' => 100.00, 'dpulv' => 100.00,
+                            'desc' => 'Apto para Agricultura Ecológica. Inocuo para personas, abejas y fauna auxiliar.'
+                        ),
+                        array(
+                            'nom' => 'Jabón Potásico Agrícola (Oleato Potásico)',
+                            'mat' => 'Sales potásicas de ácidos grasos vegetales 50% [SL]',
+                            'reg' => 'Sustancia Básica Reg. CE 1107/2009',
+                            'tipo' => 'Insecticida biológico de contacto y limpiador',
+                            'eco' => 1,
+                            'cult' => 'Hortícolas, Frutales, Cítricos, Olivar, Jardinería',
+                            'plagas' => 'Pulgón verde y negro, Mosca blanca, Trips, Cochinillas y Negrilla',
+                            'modo' => 'Contacto mecánico. Reblandece y disuelve el exoesqueleto ceroso de insectos blandos.',
+                            'd100' => 0.500, 'unid' => 'l', 'dha' => 5.000, 'pseg' => 0, 'intv' => 5,
+                            'vmoch' => 16.00, 'dmoch' => 80.00, 'vcuba' => 1000.00, 'dcuba' => 5000.00, 'vpulv' => 100.00, 'dpulv' => 500.00,
+                            'desc' => 'Apto 100% en Agricultura Ecológica. Plazo de seguridad 0 días. Excelente mojante natural.'
+                        ),
+                        array(
+                            'nom' => 'Insectoil / Aceite Blanco de Parafina 79%',
+                            'mat' => 'Aceite de parafina 79% [EC] p/v',
+                            'reg' => '19.458',
+                            'tipo' => 'Insecticida / Acaricida asfixiante',
+                            'eco' => 1,
+                            'cult' => 'Cítricos, Frutales de hueso y pepita, Olivar, Platanera',
+                            'plagas' => 'Piojo rojo de California, Cochinillas, Ácaros y huevos de pulgón',
+                            'modo' => 'Acción física por asfixia mecánica cubriendo espiráculos respiratorios.',
+                            'd100' => 0.800, 'unid' => 'l', 'dha' => 8.000, 'pseg' => 0, 'intv' => 15,
+                            'vmoch' => 16.00, 'dmoch' => 128.00, 'vcuba' => 1000.00, 'dcuba' => 8000.00, 'vpulv' => 100.00, 'dpulv' => 800.00,
+                            'desc' => 'Apto para Agricultura Ecológica. Mojar profusamente ramas y troncos.'
+                        ),
+                        array(
+                            'nom' => 'Oikos / NeemAzal T/S (Extracto de Neem)',
+                            'mat' => 'Azadiractina 1% [EC] p/v',
+                            'reg' => '25.223',
+                            'tipo' => 'Bioinsecticida regulador del crecimiento (IGR)',
+                            'eco' => 1,
+                            'cult' => 'Hortícolas, Frutales, Cítricos, Olivar, Vid, Berries',
+                            'plagas' => 'Mosca blanca, Pulgón, Trips, Minadores de hojas y Orugas',
+                            'modo' => 'Ingestión y contacto translaminar. Inhibe la ecdisona impidiendo mudas.',
+                            'd100' => 0.150, 'unid' => 'l', 'dha' => 1.500, 'pseg' => 3, 'intv' => 7,
+                            'vmoch' => 16.00, 'dmoch' => 24.00, 'vcuba' => 1000.00, 'dcuba' => 1500.00, 'vpulv' => 100.00, 'dpulv' => 150.00,
+                            'desc' => 'Certificado para Agricultura Ecológica. Respetuoso con abejas fuera de pecoreo.'
+                        ),
+                        array(
+                            'nom' => 'Karate Zeon +',
+                            'mat' => 'Lambda-cihalotrin 10% [CS] p/v (Microencapsulado)',
+                            'reg' => '23.957',
+                            'tipo' => 'Insecticida piretroide de choque',
+                            'eco' => 0,
+                            'cult' => 'Frutales, Cereal, Olivar, Hortícolas, Cítricos',
+                            'plagas' => 'Pulgones, Orugas, Mosca de la fruta, Trips y Escarabajos',
+                            'modo' => 'Choque fulminante y repelencia por contacto e ingestión.',
+                            'd100' => 0.020, 'unid' => 'l', 'dha' => 0.200, 'pseg' => 7, 'intv' => 14,
+                            'vmoch' => 16.00, 'dmoch' => 3.20, 'vcuba' => 1000.00, 'dcuba' => 200.00, 'vpulv' => 100.00, 'dpulv' => 20.00,
+                            'desc' => 'Químico convencional (prohibido en ecológico). No aplicar con abejas en floración.'
+                        ),
+                        array(
+                            'nom' => 'Decis Protech',
+                            'mat' => 'Deltametrina 1.5% [EW] p/v',
+                            'reg' => '23.545',
+                            'tipo' => 'Insecticida piretroide amplio espectro',
+                            'eco' => 0,
+                            'cult' => 'Olivar, Frutales, Vid, Cítricos, Hortícolas',
+                            'plagas' => 'Mosca del olivo (Bactrocera oleae), Mosca de la fruta, Pulgones',
+                            'modo' => 'Contacto e ingestión con rápido derribo (knock-down).',
+                            'd100' => 0.060, 'unid' => 'l', 'dha' => 0.600, 'pseg' => 7, 'intv' => 14,
+                            'vmoch' => 16.00, 'dmoch' => 9.60, 'vcuba' => 1000.00, 'dcuba' => 600.00, 'vpulv' => 100.00, 'dpulv' => 60.00,
+                            'desc' => 'Convencional. Empleado en pulverización cebo o parcheo para mosca.'
+                        ),
+                        array(
+                            'nom' => 'Movento 150 O-TEQ',
+                            'mat' => 'Spirotetramat 15% [OD] p/v',
+                            'reg' => '25.568',
+                            'tipo' => 'Insecticida sistémico bidireccional',
+                            'eco' => 0,
+                            'cult' => 'Cítricos, Frutales de pepita y hueso, Vid, Hortícolas',
+                            'plagas' => 'Cochinillas, Piojo rojo de California, Pulgones, Psila y Mosca blanca',
+                            'modo' => 'Sistemia doble ascendente y descendente (xilema y floema).',
+                            'd100' => 0.065, 'unid' => 'l', 'dha' => 0.650, 'pseg' => 21, 'intv' => 21,
+                            'vmoch' => 16.00, 'dmoch' => 10.40, 'vcuba' => 1000.00, 'dcuba' => 650.00, 'vpulv' => 100.00, 'dpulv' => 65.00,
+                            'desc' => 'Convencional. Extraordinaria eficacia en plagas chupadoras ocultas.'
+                        ),
+                        array(
+                            'nom' => 'Teppeki',
+                            'mat' => 'Flonicamid 50% [WG] p/p',
+                            'reg' => '24.449',
+                            'tipo' => 'Aficida sistémico altamente específico',
+                            'eco' => 0,
+                            'cult' => 'Frutales de hueso y pepita, Cítricos, Tomate, Cucurbitáceas',
+                            'plagas' => 'Pulgones (Myzus persicae, Aphis pomi, etc.) y Mosca blanca',
+                            'modo' => 'Bloqueador selectivo de la alimentación de insectos chupadores.',
+                            'd100' => 0.014, 'unid' => 'kg', 'dha' => 0.140, 'pseg' => 14, 'intv' => 21,
+                            'vmoch' => 16.00, 'dmoch' => 2.24, 'vcuba' => 1000.00, 'dcuba' => 140.00, 'vpulv' => 100.00, 'dpulv' => 14.00,
+                            'desc' => 'Convencional. Máxima selectividad hacia abejas y fauna auxiliar útil.'
+                        ),
+                        array(
+                            'nom' => 'Roundup Ultra / Glifosato 36%',
+                            'mat' => 'Glifosato 36% [SL] p/v',
+                            'reg' => '24.890',
+                            'tipo' => 'Herbicida total sistémico no selectivo',
+                            'eco' => 0,
+                            'cult' => 'Ruedos de leñosos adultos (olivar, almendro, cítricos)',
+                            'plagas' => 'Malas hierbas anuales y vivaces (gramíneas, correhuela, juncia)',
+                            'modo' => 'Sistemia a través de hojas verdes hasta rizomas y raíces.',
+                            'd100' => 0.400, 'unid' => 'l', 'dha' => 4.000, 'pseg' => 7, 'intv' => 30,
+                            'vmoch' => 16.00, 'dmoch' => 64.00, 'vcuba' => 1000.00, 'dcuba' => 4000.00, 'vpulv' => 100.00, 'dpulv' => 400.00,
+                            'desc' => 'Convencional (Prohibido en parcelas ecológicas). Aplicar dirigido a suelo sin tocar verde.'
+                        ),
+                        array(
+                            'nom' => 'Bioestimulante Aminoácidos Libres 24%',
+                            'mat' => 'Aminoácidos libres 24% + N orgánico 5%',
+                            'reg' => 'Abono CE Clase A',
+                            'tipo' => 'Bioestimulante foliar antiestrés',
+                            'eco' => 1,
+                            'cult' => 'Todos los cultivos (frutales, olivar, hortícolas, vid)',
+                            'plagas' => 'Estrés por sequía, heladas, parada vegetativa y cuajado',
+                            'modo' => 'Absorción directa y ahorro energético en síntesis de proteínas.',
+                            'd100' => 0.200, 'unid' => 'l', 'dha' => 2.000, 'pseg' => 0, 'intv' => 15,
+                            'vmoch' => 16.00, 'dmoch' => 32.00, 'vcuba' => 1000.00, 'dcuba' => 2000.00, 'vpulv' => 100.00, 'dpulv' => 200.00,
+                            'desc' => 'Apto para Agricultura Ecológica. Potencia la asimilación del caldo.'
+                        ),
+                        array(
+                            'nom' => 'Delegate 250 WG (Spinetoram)',
+                            'mat' => 'Spinetoram 25% [WG] p/p',
+                            'reg' => 'ES-00012',
+                            'tipo' => 'Insecticida de origen natural modificado',
+                            'eco' => 0,
+                            'cult' => 'Frutales de hueso, Pepita, Cítricos, Tomate',
+                            'plagas' => 'Trips, Orugas, Anarsia, Grafolita y Minador',
+                            'modo' => 'Contacto e ingestión. Derribo rápido y persistencia superior.',
+                            'd100' => 0.030, 'unid' => 'kg', 'dha' => 0.300, 'pseg' => 7, 'intv' => 10,
+                            'vmoch' => 16.00, 'dmoch' => 4.80, 'vcuba' => 1000.00, 'dcuba' => 300.00, 'vpulv' => 100.00, 'dpulv' => 30.00,
+                            'desc' => 'Convencional. Excelente control de trips de las flores y orugas del fruto.'
+                        ),
+                        array(
+                            'nom' => 'Teldor (Fenhexamida 50%)',
+                            'mat' => 'Fenhexamida 50% [WG] p/p',
+                            'reg' => '22.189',
+                            'tipo' => 'Fungicida específico antibotritis y antimonilia',
+                            'eco' => 0,
+                            'cult' => 'Frutales de hueso, Vid, Fresa, Tomate, Pimiento',
+                            'plagas' => 'Monilia (Monilinia laxa) y Podredumbre gris (Botrytis cinerea)',
+                            'modo' => 'Inhibidor de la biosíntesis de esteroles grupo III. Protector de contacto persistente.',
+                            'd100' => 0.150, 'unid' => 'kg', 'dha' => 1.500, 'pseg' => 3, 'intv' => 12,
+                            'vmoch' => 16.00, 'dmoch' => 24.00, 'vcuba' => 1000.00, 'dcuba' => 1500.00, 'vpulv' => 100.00, 'dpulv' => 150.00,
+                            'desc' => 'Convencional. Muy corto plazo de seguridad (1-3 días en pre-cosecha).'
+                        )
+                    );
+
+                    foreach ($catalogoCompleto as $item) {
+                        $stmtInsPf->execute(array(
+                            ':nom'   => $item['nom'],
+                            ':mat'   => $item['mat'],
+                            ':reg'   => $item['reg'],
+                            ':tipo'  => $item['tipo'],
+                            ':eco'   => $item['eco'],
+                            ':cult'  => $item['cult'],
+                            ':plagas'=> $item['plagas'],
+                            ':modo'  => $item['modo'],
+                            ':d100'  => $item['d100'],
+                            ':unid'  => $item['unid'],
+                            ':dha'   => $item['dha'],
+                            ':pseg'  => $item['pseg'],
+                            ':intv'  => $item['intv'],
+                            ':vmoch' => $item['vmoch'],
+                            ':dmoch' => $item['dmoch'],
+                            ':vcuba' => $item['vcuba'],
+                            ':dcuba' => $item['dcuba'],
+                            ':vpulv' => $item['vpulv'],
+                            ':dpulv' => $item['dpulv'],
+                            ':desc'  => $item['desc']
+                        ));
+                    }
+                }
+
+                // Vincular de forma estrictamente aditiva los tratamientos históricos con la nueva tabla
+                $pdo->exec("
+                    UPDATE tratamientos t
+                    JOIN productos_fitosanitarios p 
+                      ON (LOWER(t.nombre_comercial_producto) LIKE CONCAT('%', LOWER(p.nombre_comercial), '%')
+                          OR LOWER(p.nombre_comercial) LIKE CONCAT('%', LOWER(t.nombre_comercial_producto), '%'))
+                    SET t.id_producto = p.id_producto
+                    WHERE t.id_producto IS NULL
+                ");
+            } catch (Exception $ePf) {}
+
             // Cargar credenciales SMTP iniciales si están vacías
             $cfgRow = $pdo->query("SELECT * FROM configuracion_web LIMIT 1")->fetch();
             if ($cfgRow && empty($cfgRow['smtp_user_enc'])) {

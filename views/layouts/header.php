@@ -350,6 +350,7 @@
                         </a>
                         <ul class="dropdown-menu shadow border-0 rounded-3">
                             <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/plan-labores"><i class="fa-solid fa-clipboard-list me-2 text-primary"></i>Plan de Tratamientos y Labores (A4)</a></li>
+                            <li><a class="dropdown-item py-2 fw-semibold text-danger" href="<?= APP_URL ?>/fitosanitarios"><i class="fa-solid fa-bottle-droplet me-2"></i>Productos Fitosanitarios (Dosis e IA)</a></li>
                             <li><a class="dropdown-item py-2 fw-semibold text-dark" href="<?= APP_URL ?>/maquinaria"><i class="fa-solid fa-tractor me-2 text-warning"></i>Inventario de Maquinaria y Herramientas</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/tratamientos"><i class="fa-solid fa-shield-virus me-2 text-danger"></i>Tratamientos (Eco/Conv)</a></li>
