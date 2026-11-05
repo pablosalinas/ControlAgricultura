@@ -154,6 +154,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Error al archivar el producto: " . $e->getMessage();
         }
     }
+
+    // 3. GUARDAR MÚLTIPLES PRODUCTOS FITOSANITARIOS SELECCIONADOS DESDE LA IA
+    elseif ($action === 'guardar_multiples_productos') {
+        try {
+            $rawJson = isset($_POST['productos_json']) ? $_POST['productos_json'] : '[]';
+            $lista = json_decode($rawJson, true);
+            if (!is_array($lista) || empty($lista)) {
+                throw new Exception("No se ha seleccionado ningún producto para registrar.");
+            }
+
+            $guardados = 0;
+            $stmtCheck = $db->prepare("SELECT id_producto FROM productos_fitosanitarios WHERE nombre_comercial = :nom AND activo = 1 LIMIT 1");
+            $stmtIns = $db->prepare("
+                INSERT INTO productos_fitosanitarios (
+                    id_propietario, nombre_comercial, materia_activa, num_registro_oficial,
+                    tipo_producto, es_ecologico, cultivos_autorizados, plagas_objetivo,
+                    modo_accion_uso, dosis_etiqueta_100l, unidad_dosis, dosis_por_hectarea,
+                    plazo_seguridad_dias, intervalo_repeticion_dias, volumen_mochila_l,
+                    dosis_calculada_mochila, volumen_cuba_l, dosis_calculada_cuba,
+                    volumen_pulverizador_l, dosis_calculada_pulv, descripcion_advertencias,
+                    url_ficha_tecnica, activo
+                ) VALUES (
+                    :prop, :nom, :mat, :reg,
+                    :tipo, :eco, :cult, :plagas,
+                    :modo, :d100, :uni, :dha,
+                    :plazo, :inter, :vmoch,
+                    :dmoch, :vcuba, :dcuba,
+                    :vpulv, :dpulv, :adv,
+                    :url_f, 1
+                )
+            ");
+
+            foreach ($lista as $item) {
+                $nom = trim(isset($item['nombre_comercial_producto']) ? $item['nombre_comercial_producto'] : (isset($item['nombre_comercial']) ? $item['nombre_comercial'] : ''));
+                if (empty($nom)) {
+                    continue;
+                }
+
+                $stmtCheck->execute(array(':nom' => $nom));
+                if ($stmtCheck->fetch()) {
+                    continue; // Ya existe en catálogo activo, no duplicar
+                }
+
+                $mat = trim(isset($item['materia_activa']) ? $item['materia_activa'] : '');
+                $reg = trim(isset($item['num_registro_oficial']) ? $item['num_registro_oficial'] : '');
+                $tip = trim(isset($item['tipo_producto']) ? $item['tipo_producto'] : 'Fungicida');
+                $eco = !empty($item['es_ecologico']) ? 1 : 0;
+                $cul = trim(isset($item['cultivos_autorizados']) ? $item['cultivos_autorizados'] : 'Olivo, Almendro, Frutales, Vid');
+                $pla = trim(isset($item['plagas_objetivo']) ? $item['plagas_objetivo'] : (isset($item['plaga_o_enfermedad_objetivo']) ? $item['plaga_o_enfermedad_objetivo'] : ''));
+                $mod = trim(isset($item['modo_accion_uso']) ? $item['modo_accion_uso'] : (isset($item['modo_accion']) ? $item['modo_accion'] : ''));
+                
+                $d100 = (float)(isset($item['dosis_etiqueta_100l']) ? $item['dosis_etiqueta_100l'] : 0);
+                $uni = trim(isset($item['unidad_dosis']) ? $item['unidad_dosis'] : 'cc/hl');
+                $dha = (float)(isset($item['dosis_por_hectarea']) ? $item['dosis_por_hectarea'] : (isset($item['dosis_recomendada_ha']) ? $item['dosis_recomendada_ha'] : 0));
+                
+                $plazo = (int)(isset($item['plazo_seguridad_dias']) ? $item['plazo_seguridad_dias'] : 0);
+                $inter = (int)(isset($item['intervalo_repeticion_dias']) ? $item['intervalo_repeticion_dias'] : 14);
+                
+                $dmoch = (float)(isset($item['dosis_calculada_mochila']) ? $item['dosis_calculada_mochila'] : ($d100 * 0.16));
+                $dcuba = (float)(isset($item['dosis_calculada_cuba']) ? $item['dosis_calculada_cuba'] : ($d100 * 10.0));
+                if ($dcuba >= 50.0) $dcuba = $dcuba / 1000.0;
+                $dpulv = (float)(isset($item['dosis_calculada_pulv']) ? $item['dosis_calculada_pulv'] : $d100);
+                
+                $adv = trim(isset($item['descripcion_advertencias']) ? $item['descripcion_advertencias'] : (isset($item['observaciones_tecnicas']) ? $item['observaciones_tecnicas'] : ''));
+                $urlF = trim(isset($item['url_ficha_tecnica']) ? $item['url_ficha_tecnica'] : '');
+
+                $stmtIns->execute(array(
+                    ':prop'  => $tenantId ?: null,
+                    ':nom'   => $nom,
+                    ':mat'   => $mat,
+                    ':reg'   => $reg,
+                    ':tipo'  => $tip,
+                    ':eco'   => $eco,
+                    ':cult'  => $cul,
+                    ':plagas'=> $pla,
+                    ':modo'  => $mod,
+                    ':d100'  => $d100,
+                    ':uni'   => $uni,
+                    ':dha'   => $dha,
+                    ':plazo' => $plazo,
+                    ':inter' => $inter,
+                    ':vmoch' => 16.0,
+                    ':dmoch' => $dmoch,
+                    ':vcuba' => 1000.0,
+                    ':dcuba' => $dcuba,
+                    ':vpulv' => 100.0,
+                    ':dpulv' => $dpulv,
+                    ':adv'   => $adv,
+                    ':url_f' => $urlF
+                ));
+                $guardados++;
+            }
+
+            if ($guardados > 0) {
+                $mensaje = "Se han registrado con éxito $guardados productos fitosanitarios seleccionados en tu catálogo oficial.";
+            } else {
+                $mensaje = "Los productos seleccionados ya estaban registrados previamente en tu catálogo.";
+            }
+        } catch (Exception $e) {
+            $error = "Error al registrar múltiples productos: " . $e->getMessage();
+        }
+    }
 }
 
 // Filtros de búsqueda
@@ -562,7 +664,7 @@ foreach ($productos as $p) {
 <!-- MODAL DE ALTA / EDICIÓN DE PRODUCTO CON ASISTENTE IA INTEGRADO -->
 <!-- ============================================================== -->
 <div class="modal fade" id="modalProductoFitosanitario" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
             
             <div class="modal-header bg-light border-bottom">
@@ -572,19 +674,25 @@ foreach ($productos as $p) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
+            <!-- Formulario oculto para guardado múltiple por lotes desde la IA -->
+            <form id="formGuardarMultiplesFito" action="<?= APP_URL ?>/fitosanitarios" method="POST" class="d-none">
+                <input type="hidden" name="action" value="guardar_multiples_productos">
+                <input type="hidden" name="productos_json" id="input_productos_json" value="[]">
+            </form>
+
             <form action="<?= APP_URL ?>/fitosanitarios" method="POST" id="formProductoFito">
                 <input type="hidden" name="action" value="guardar_producto">
                 <input type="hidden" name="id_producto" id="fito_id_producto" value="0">
 
                 <div class="modal-body p-4">
 
-                    <!-- SECCIÓN ASISTENTE IA PARA AUTOCOMPLETAR -->
+                    <!-- SECCIÓN ASISTENTE IA PARA AUTOCOMPLETAR Y SELECCIÓN MÚLTIPLE -->
                     <div class="card p-3 mb-4 border border-primary border-opacity-25 shadow-sm" style="background: linear-gradient(135deg, #f0f7ff, #ffffff);">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold text-primary small">
                                 <i class="fa-solid fa-wand-magic-sparkles me-1 text-warning"></i> Asistente IA de Localización Fitosanitaria
                             </span>
-                            <span class="badge bg-primary bg-opacity-10 text-primary small">Registro MAPA, Trampas y Dosis</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary small">Registro MAPA, Trampas, Dosis y Selección Múltiple</span>
                         </div>
                         <div class="input-group">
                             <input type="text" id="ia_fito_busqueda" class="form-control" placeholder="¿Qué quieres curar o tratar? (ej: repilo en olivo, mosca en higuera, pulgón en almendro...) o escribe el producto..." onkeydown="if(event.key === 'Enter'){ event.preventDefault(); consultarIaFitosanitario(); }">
@@ -598,6 +706,20 @@ foreach ($productos as $p) {
                         </div>
                         <div id="ia_fito_feedback" class="small mt-2 d-none"></div>
 
+                        <!-- BARRA DE SELECCIÓN Y GUARDADO MÚLTIPLE -->
+                        <div id="ia_fito_batch_bar" class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 mt-2 bg-primary-subtle rounded border border-primary border-opacity-25 d-none">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" id="fito_check_all" onchange="alternarTodosCheckboxesIa(this.checked)">
+                                    <label class="form-check-label small fw-bold text-dark" for="fito_check_all">Marcar todos</label>
+                                </div>
+                                <span class="badge bg-primary text-white" id="fito_batch_badge_count">0 marcados</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" onclick="guardarMultiplesProductosIa()">
+                                <i class="fa-solid fa-cloud-arrow-down me-1"></i> Guardar seleccionados en mi Catálogo
+                            </button>
+                        </div>
+
                         <!-- CONTENEDOR DE OPCIONES ENCONTRADAS PARA SELECCIONAR -->
                         <div id="ia_fito_opciones_wrapper" class="mt-3 d-none">
                             <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
@@ -605,12 +727,40 @@ foreach ($productos as $p) {
                                     <i class="fa-solid fa-list-check me-1 text-primary"></i>Selecciona la opción más adecuada:
                                 </span>
                                 <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none p-0 small" onclick="cerrarOpcionesIa()">
-                                    <i class="fa-solid fa-xmark me-1"></i>Ocultar
+                                    <i class="fa-solid fa-xmark me-1"></i>Minimizar lista
                                 </button>
                             </div>
-                            <div id="ia_fito_opciones_list" class="d-flex flex-column gap-2" style="max-height: 320px; overflow-y: auto;">
+                            <div id="ia_fito_opciones_list" class="d-flex flex-column gap-2" style="max-height: 280px; overflow-y: auto;">
                                 <!-- Se inyectan las opciones interactivas -->
                             </div>
+                        </div>
+
+                        <!-- BARRA COMPACTA CUANDO YA SE HA CARGADO UN PRODUCTO EN EL FORMULARIO -->
+                        <div id="ia_fito_seleccionado_compacto" class="p-2 mt-2 bg-white border border-success rounded-3 d-flex flex-wrap justify-content-between align-items-center gap-2 d-none shadow-sm">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success py-1 px-2"><i class="fa-solid fa-circle-check me-1"></i>Cargado en ficha</span>
+                                <strong id="fito_compacto_nombre" class="text-primary">-</strong>
+                                <span class="text-muted small" id="fito_compacto_materia"></span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="expandirOpcionesIa()">
+                                <i class="fa-solid fa-list-ul me-1"></i> Ver alternativas encontradas (<span id="fito_compacto_total_count">0</span>)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CABECERA Y ENCABEZADO DE DATOS DE LA FICHA -->
+                    <div id="seccion_formulario_fito" class="d-flex align-items-center justify-content-between p-2 mb-3 bg-white border-start border-4 border-primary rounded shadow-sm">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-file-signature text-primary fs-5"></i>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0">Datos Técnicos del Producto (Listos para Guardar)</h6>
+                                <div class="small text-muted" id="fito_subtitulo_edicion">Comprueba los datos autocompletados o edítalos antes de pulsar Guardar Ficha</div>
+                            </div>
+                        </div>
+                        <div id="fito_badge_cargado" class="d-none">
+                            <span class="badge bg-success-subtle text-success border border-success fw-bold px-2 py-1">
+                                <i class="fa-solid fa-check me-1"></i>Datos cargados en el formulario
+                            </span>
                         </div>
                     </div>
 
@@ -976,6 +1126,18 @@ function abrirModalNuevoProducto() {
     document.getElementById('fito_url_ficha').value = '';
     document.getElementById('modalProductoTitulo').innerHTML = '<i class="fa-solid fa-bottle-droplet me-2 text-danger"></i>Nuevo Producto Fitosanitario';
     document.getElementById('ia_fito_feedback').classList.add('d-none');
+    
+    var badgeCargado = document.getElementById('fito_badge_cargado');
+    if (badgeCargado) badgeCargado.classList.add('d-none');
+    var comp = document.getElementById('ia_fito_seleccionado_compacto');
+    if (comp) comp.classList.add('d-none');
+    var batchBar = document.getElementById('ia_fito_batch_bar');
+    if (batchBar) batchBar.classList.add('d-none');
+    var opcWrap = document.getElementById('ia_fito_opciones_wrapper');
+    if (opcWrap) opcWrap.classList.add('d-none');
+    var subt = document.getElementById('fito_subtitulo_edicion');
+    if (subt) subt.textContent = 'Comprueba los datos autocompletados o edítalos antes de pulsar Guardar Ficha';
+
     actualizarBadgesUnidades();
     var modal = new bootstrap.Modal(document.getElementById('modalProductoFitosanitario'));
     modal.show();
@@ -992,6 +1154,17 @@ function abrirModalEditar(p) {
     document.getElementById('formProductoFito').reset();
     document.getElementById('fito_id_producto').value = p.id_producto;
     document.getElementById('modalProductoTitulo').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary"></i>Editar Fitosanitario: ' + p.nombre_comercial;
+    
+    var badgeCargado = document.getElementById('fito_badge_cargado');
+    if (badgeCargado) badgeCargado.classList.remove('d-none');
+    var comp = document.getElementById('ia_fito_seleccionado_compacto');
+    if (comp) comp.classList.add('d-none');
+    var batchBar = document.getElementById('ia_fito_batch_bar');
+    if (batchBar) batchBar.classList.add('d-none');
+    var opcWrap = document.getElementById('ia_fito_opciones_wrapper');
+    if (opcWrap) opcWrap.classList.add('d-none');
+    var subt = document.getElementById('fito_subtitulo_edicion');
+    if (subt) subt.textContent = 'Edición de datos del producto: ' + (p.nombre_comercial || '');
     
     document.getElementById('fito_nombre_comercial').value = p.nombre_comercial || '';
     document.getElementById('fito_materia_activa').value = p.materia_activa || '';
@@ -1265,19 +1438,94 @@ function cerrarOpcionesIa() {
     if (wrapper) wrapper.classList.add('d-none');
 }
 
+// Expande el contenedor de opciones si fue minimizado
+function expandirOpcionesIa() {
+    var wrapper = document.getElementById('ia_fito_opciones_wrapper');
+    if (wrapper) wrapper.classList.remove('d-none');
+    var comp = document.getElementById('ia_fito_seleccionado_compacto');
+    if (comp) comp.classList.add('d-none');
+}
+
+// Actualiza el contador y visibilidad de la barra de selección múltiple
+function actualizarSeleccionMultipleIa() {
+    var checkboxes = document.querySelectorAll('.fito-check-opt');
+    var marcados = 0;
+    checkboxes.forEach(function(chk) {
+        if (chk.checked) marcados++;
+    });
+
+    var badge = document.getElementById('fito_batch_badge_count');
+    if (badge) {
+        badge.textContent = marcados + ' marcado' + (marcados === 1 ? '' : 's');
+        if (marcados > 0) {
+            badge.className = 'badge bg-success text-white fw-bold';
+        } else {
+            badge.className = 'badge bg-primary text-white';
+        }
+    }
+
+    var chkAll = document.getElementById('fito_check_all');
+    if (chkAll && checkboxes.length > 0) {
+        chkAll.checked = (marcados === checkboxes.length);
+    }
+}
+
+// Marcar o desmarcar todos los checkboxes de la IA
+function alternarTodosCheckboxesIa(marcar) {
+    var checkboxes = document.querySelectorAll('.fito-check-opt');
+    checkboxes.forEach(function(chk) {
+        chk.checked = marcar;
+    });
+    actualizarSeleccionMultipleIa();
+}
+
+// Guardar múltiples productos seleccionados directamente en el catálogo
+function guardarMultiplesProductosIa() {
+    var checkboxes = document.querySelectorAll('.fito-check-opt:checked');
+    if (!checkboxes || checkboxes.length === 0) {
+        alert("Por favor, marca la casilla [✓] de al menos un producto fitosanitario de la lista para guardarlo.");
+        return;
+    }
+
+    var seleccionados = [];
+    checkboxes.forEach(function(chk) {
+        var idx = parseInt(chk.getAttribute('data-idx'));
+        if (window.fitoOpcionesActuales && window.fitoOpcionesActuales[idx]) {
+            seleccionados.push(window.fitoOpcionesActuales[idx]);
+        }
+    });
+
+    if (seleccionados.length === 0) return;
+
+    var nombres = seleccionados.map(function(s) { return s.nombre_comercial_producto || s.nombre_comercial; }).join('\n • ');
+    if (!confirm("¿Deseas registrar estos " + seleccionados.length + " productos en tu catálogo oficial de fitosanitarios?\n\n • " + nombres)) {
+        return;
+    }
+
+    document.getElementById('input_productos_json').value = JSON.stringify(seleccionados);
+    document.getElementById('formGuardarMultiplesFito').submit();
+}
+
 // Renderiza la lista interactiva de opciones encontradas destacando la más recomendable
 function renderizarOpcionesIa(opciones) {
     window.fitoOpcionesActuales = opciones;
     var list = document.getElementById('ia_fito_opciones_list');
     var wrapper = document.getElementById('ia_fito_opciones_wrapper');
     var countLbl = document.getElementById('ia_fito_opciones_count');
+    var batchBar = document.getElementById('ia_fito_batch_bar');
     
     list.innerHTML = '';
     
     if (opciones.length === 1) {
         countLbl.innerHTML = '<i class="fa-solid fa-circle-check me-1 text-success"></i>1 opción homologada encontrada:';
     } else {
-        countLbl.innerHTML = '<i class="fa-solid fa-list-check me-1 text-primary"></i>Se han encontrado <strong>' + opciones.length + ' opciones</strong>. La IA te indica cuál es la más recomendable:';
+        countLbl.innerHTML = '<i class="fa-solid fa-list-check me-1 text-primary"></i>Se han encontrado <strong>' + opciones.length + ' opciones</strong>. Puedes marcar varias para guardarlas o seleccionar una para editarla:';
+    }
+
+    if (batchBar) {
+        batchBar.classList.remove('d-none');
+        document.getElementById('fito_check_all').checked = false;
+        document.getElementById('fito_batch_badge_count').textContent = '0 marcados';
     }
 
     opciones.forEach(function(opt, idx) {
@@ -1314,9 +1562,15 @@ function renderizarOpcionesIa(opciones) {
                 '</div>';
         }
 
+        var chkHtml = 
+            '<div class="form-check me-2 align-self-start pt-1" title="Marcar para guardar en lote">' +
+                '<input type="checkbox" class="form-check-input fito-check-opt" data-idx="' + idx + '" id="chk_opt_' + idx + '" onchange="event.stopPropagation(); actualizarSeleccionMultipleIa();" style="transform: scale(1.25); cursor: pointer;">' +
+            '</div>';
+
         card.innerHTML = 
             '<div class="d-flex justify-content-between align-items-start gap-2">' +
-                '<div class="flex-grow-1">' +
+                chkHtml +
+                '<div class="flex-grow-1" onclick="aplicarOpcionSeleccionada(' + idx + ');">' +
                     '<div class="d-flex align-items-center gap-2 flex-wrap">' +
                         '<strong class="text-primary fs-6"><i class="fa-solid fa-bottle-droplet me-1 text-danger"></i>' + escapeHtml(opt.nombre_comercial_producto) + '</strong>' +
                         badgeRec +
@@ -1334,23 +1588,21 @@ function renderizarOpcionesIa(opciones) {
                     (opt.observaciones_tecnicas ? '<div class="small text-dark mt-1 fst-italic" style="font-size: 0.76rem;"><i class="fa-solid fa-circle-info me-1 text-info"></i>' + escapeHtml(opt.observaciones_tecnicas.substring(0, 160)) + (opt.observaciones_tecnicas.length > 160 ? '...' : '') + '</div>' : '') +
                 '</div>' +
                 '<div class="ms-2 align-self-center d-flex flex-column gap-1">' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary fw-bold text-nowrap shadow-sm" onclick="event.stopPropagation(); aplicarOpcionSeleccionada(' + idx + ');">' +
+                        '<i class="fa-solid fa-file-pen me-1"></i> Rellenar Ficha' +
+                    '</button>' +
                     '<button type="button" class="btn btn-sm btn-info text-white fw-bold text-nowrap" onclick="event.stopPropagation(); abrirModalFichaTecnicaDesdeIa(' + idx + ');">' +
                         '<i class="fa-solid fa-file-lines me-1"></i> Ficha Técnica' +
                     '</button>' +
-                    '<button type="button" class="btn btn-sm btn-outline-primary fw-bold text-nowrap" onclick="event.stopPropagation(); aplicarOpcionSeleccionada(' + idx + ');">' +
-                        '<i class="fa-solid fa-check me-1"></i> Seleccionar' +
-                    '</button>' +
                 '</div>' +
             '</div>';
-
-        card.onclick = function() {
-            aplicarOpcionSeleccionada(idx);
-        };
 
         list.appendChild(card);
     });
 
     wrapper.classList.remove('d-none');
+    var comp = document.getElementById('ia_fito_seleccionado_compacto');
+    if (comp) comp.classList.add('d-none');
 }
 
 // Aplica los datos de una opción seleccionada a la ficha del modal
@@ -1373,7 +1625,8 @@ function aplicarOpcionSeleccionada(idx) {
     }
 
     // Volcar datos al formulario
-    document.getElementById('fito_nombre_comercial').value = d.nombre_comercial_producto || '';
+    var nomProd = d.nombre_comercial_producto || d.nombre_comercial || '';
+    document.getElementById('fito_nombre_comercial').value = nomProd;
     document.getElementById('fito_materia_activa').value = d.materia_activa || '';
     document.getElementById('fito_num_registro').value = d.num_registro_oficial || '';
     
@@ -1391,10 +1644,10 @@ function aplicarOpcionSeleccionada(idx) {
     document.getElementById('fito_es_ecologico').checked = (parseInt(d.es_ecologico) === 1);
     document.getElementById('fito_cultivos').value = d.cultivos_autorizados || 'Olivo, Almendro, Frutales, Vid';
     document.getElementById('fito_plagas').value = d.plagas_objetivo || d.plaga_o_enfermedad_objetivo || '';
-    document.getElementById('fito_modo_accion').value = d.modo_accion || '';
+    document.getElementById('fito_modo_accion').value = d.modo_accion_uso || d.modo_accion || '';
     document.getElementById('fito_plazo_seguridad').value = (d.plazo_seguridad_dias !== undefined) ? d.plazo_seguridad_dias : 0;
     document.getElementById('fito_intervalo_rep').value = (d.intervalo_repeticion_dias !== undefined) ? d.intervalo_repeticion_dias : 14;
-    document.getElementById('fito_advertencias').value = d.observaciones_tecnicas || '';
+    document.getElementById('fito_advertencias').value = d.descripcion_advertencias || d.observaciones_tecnicas || '';
     document.getElementById('fito_url_ficha').value = d.url_ficha_tecnica || '';
 
     // Dosis
@@ -1432,9 +1685,44 @@ function aplicarOpcionSeleccionada(idx) {
 
     calcularDosisRecipientes();
 
+    // 1. Colapsar la lista de opciones para que el formulario no quede oculto
+    cerrarOpcionesIa();
+
+    // 2. Mostrar la barra compacta con el producto cargado
+    var comp = document.getElementById('ia_fito_seleccionado_compacto');
+    if (comp) {
+        document.getElementById('fito_compacto_nombre').textContent = nomProd;
+        document.getElementById('fito_compacto_materia').textContent = d.materia_activa ? '(' + d.materia_activa + ')' : '';
+        document.getElementById('fito_compacto_total_count').textContent = window.fitoOpcionesActuales.length;
+        comp.classList.remove('d-none');
+    }
+
+    // 3. Activar badge de cargado en la cabecera del formulario
+    var badgeCargado = document.getElementById('fito_badge_cargado');
+    if (badgeCargado) badgeCargado.classList.remove('d-none');
+    
+    document.getElementById('fito_subtitulo_edicion').innerHTML = '<span class="text-success fw-bold"><i class="fa-solid fa-check-circle me-1"></i>' + escapeHtml(nomProd) + '</span> cargado en el formulario. Comprueba los campos y pulsa <strong>Guardar Ficha</strong>.';
+
+    // 4. Mostrar feedback
     var feedback = document.getElementById('ia_fito_feedback');
-    feedback.innerHTML = '<div class="alert alert-success py-2 px-3 mb-0 small"><i class="fa-solid fa-circle-check me-1"></i> Ficha autocompletada con el producto <strong>' + escapeHtml(d.nombre_comercial_producto) + '</strong> (' + (d.fuente || 'Registro Oficial') + '). Modo de empleo y dosis cargados.</div>';
+    feedback.innerHTML = '<div class="alert alert-success py-2 px-3 mb-0 small shadow-sm"><i class="fa-solid fa-circle-check me-1"></i> Ficha completada con <strong>' + escapeHtml(nomProd) + '</strong> (' + (d.fuente || 'Registro Oficial') + '). Modo de empleo y dosis cargados. Revisa los datos y pulsa Guardar Ficha abajo.</div>';
     feedback.classList.remove('d-none');
+
+    // 5. Desplazar suavemente la vista al formulario para que el usuario vea claramente todos los datos
+    setTimeout(function() {
+        var secForm = document.getElementById('seccion_formulario_fito');
+        if (secForm) {
+            secForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        var inputNom = document.getElementById('fito_nombre_comercial');
+        if (inputNom) {
+            inputNom.focus();
+            inputNom.classList.add('border-primary', 'bg-primary-subtle');
+            setTimeout(function() {
+                inputNom.classList.remove('border-primary', 'bg-primary-subtle');
+            }, 1200);
+        }
+    }, 150);
 }
 
 // Consulta de producto con IA
@@ -1448,10 +1736,14 @@ function consultarIaFitosanitario() {
     var spinner = document.getElementById('ia_fito_spinner');
     var feedback = document.getElementById('ia_fito_feedback');
     var wrapper = document.getElementById('ia_fito_opciones_wrapper');
+    var comp = document.getElementById('ia_fito_seleccionado_compacto');
+    var batchBar = document.getElementById('ia_fito_batch_bar');
 
     spinner.classList.remove('d-none');
     feedback.classList.add('d-none');
     if (wrapper) wrapper.classList.add('d-none');
+    if (comp) comp.classList.add('d-none');
+    if (batchBar) batchBar.classList.add('d-none');
 
     fetch('<?= APP_URL ?>/api/fitosanitarios/consultar-ia?q=' + encodeURIComponent(q))
         .then(function(r) { return r.json(); })
@@ -1464,7 +1756,7 @@ function consultarIaFitosanitario() {
                 if (res.opciones.length === 1) {
                     aplicarOpcionSeleccionada(0);
                 } else {
-                    feedback.innerHTML = '<div class="alert alert-info py-2 px-3 mb-0 small"><i class="fa-solid fa-hand-pointer me-1"></i> Se han encontrado varias opciones registradas. Revisa la opción <strong>más recomendable</strong> o consulta su ficha técnica.</div>';
+                    feedback.innerHTML = '<div class="alert alert-info py-2 px-3 mb-0 small"><i class="fa-solid fa-hand-pointer me-1"></i> Se han encontrado <strong>' + res.opciones.length + ' opciones</strong>. Marca varias casillas para guardarlas juntas o pulsa <strong>Rellenar Ficha</strong> para editar una de ellas.</div>';
                     feedback.classList.remove('d-none');
                 }
             } else {
