@@ -279,8 +279,13 @@ if (!empty($filtroTipo)) {
 }
 
 if (!empty($filtroTxt)) {
-    $sql .= " AND (nombre_comercial LIKE :txt OR materia_activa LIKE :txt OR plagas_objetivo LIKE :txt OR cultivos_autorizados LIKE :txt OR num_registro_oficial LIKE :txt)";
-    $params[':txt'] = '%' . $filtroTxt . '%';
+    $sql .= " AND (nombre_comercial LIKE :t1 OR materia_activa LIKE :t2 OR plagas_objetivo LIKE :t3 OR cultivos_autorizados LIKE :t4 OR num_registro_oficial LIKE :t5)";
+    $txtLike = '%' . $filtroTxt . '%';
+    $params[':t1'] = $txtLike;
+    $params[':t2'] = $txtLike;
+    $params[':t3'] = $txtLike;
+    $params[':t4'] = $txtLike;
+    $params[':t5'] = $txtLike;
 }
 
 $sql .= " ORDER BY nombre_comercial ASC";
