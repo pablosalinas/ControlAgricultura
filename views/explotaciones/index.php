@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 2. Crear nueva explotación (Solo Superadmin)
-    elseif ($action === 'crear' && Auth::isSuperAdmin()) {
+    // 2. Crear nueva explotación (Administradores y Superadmin)
+    elseif ($action === 'crear' && Auth::isAdmin()) {
         $nombre = trim(isset($_POST['nombre_razon_social']) ? $_POST['nombre_razon_social'] : '');
         $cif = trim(isset($_POST['cif_nif']) ? $_POST['cif_nif'] : '');
         $tel = trim(isset($_POST['telefono']) ? $_POST['telefono'] : '');
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newId = (int)$db->lastInsertId();
                 $success = "Explotación agraria <strong>" . htmlspecialchars($nombre) . "</strong> creada con éxito.";
                 
-                // Si el superadmin lo desea, puede conmutar directamente a ella
+                // Si el administrador lo desea, puede conmutar directamente a ella
                 if (!empty($_POST['activar_ahora'])) {
                     Auth::switchTenant($newId);
                 }
@@ -63,12 +63,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 3. Editar explotación existente (Superadmin o Propietario de la misma)
+    // 3. Editar explotación existente (Administrador, Superadmin o Propietario de la misma)
     elseif ($action === 'editar') {
         $idProp = (int)(isset($_POST['id_propietario']) ? $_POST['id_propietario'] : 0);
         
         // Comprobar permisos
-        if (Auth::isSuperAdmin() || (Auth::tenantId() == $idProp && $_SESSION['user_rol'] === 'propietario')) {
+        if (Auth::isAdmin() || (Auth::tenantId() == $idProp && $_SESSION['user_rol'] === 'propietario')) {
             $nombre = trim(isset($_POST['nombre_razon_social']) ? $_POST['nombre_razon_social'] : '');
             $cif = trim(isset($_POST['cif_nif']) ? $_POST['cif_nif'] : '');
             $tel = trim(isset($_POST['telefono']) ? $_POST['telefono'] : '');
@@ -144,10 +144,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "No tienes permiso para modificar esta explotación.";
         }
     }
+
+    // 4. Desactivar / Reactivar / Borrar lógicamente explotación (Administradores y Superadmin)
+    elseif ($action === 'cambiar_estado_explotacion' && Auth::isAdmin()) {
+        $idProp = (int)(isset($_POST['id_propietario']) ? $_POST['id_propietario'] : 0);
+        $nuevoEstado = isset($_POST['nuevo_estado']) ? (int)$_POST['nuevo_estado'] : 0;
+
+        $stmtChk = $db->prepare("SELECT id_propietario, nombre_razon_social FROM propietarios WHERE id_propietario = :id LIMIT 1");
+        $stmtChk->execute(array(':id' => $idProp));
+        $expTarget = $stmtChk->fetch();
+
+        if (!$expTarget) {
+            $error = "La explotación seleccionada no existe.";
+        } else {
+            // Borrado lógico / activación mediante el campo activo (sin destruir ningún dato conforme a GEMINI.md)
+            $upd = $db->prepare("UPDATE propietarios SET activo = :act WHERE id_propietario = :id");
+            $upd->execute(array(':act' => $nuevoEstado ? 1 : 0, ':id' => $idProp));
+
+            if ($nuevoEstado === 0) {
+                // Si la explotación desactivada era la activa en sesión, pasar a vista global
+                if (Auth::tenantId() == $idProp) {
+                    Auth::switchTenant(null);
+                }
+                $success = "La explotación <strong>" . htmlspecialchars($expTarget['nombre_razon_social']) . "</strong> ha sido desactivada / dada de baja lógicamente. Sus datos e histórico se conservan intactos.";
+            } else {
+                $success = "La explotación <strong>" . htmlspecialchars($expTarget['nombre_razon_social']) . "</strong> ha sido reactivada correctamente.";
+            }
+        }
+    }
 }
 
+// Filtro de estado
+$filtroEstadoExp = isset($_GET['estado_exp']) ? trim($_GET['estado_exp']) : '';
+
 // Consultar explotaciones accesibles
-if (Auth::isSuperAdmin()) {
+if (Auth::isAdmin()) {
+    $whereClause = "WHERE 1=1";
+    if ($filtroEstadoExp === 'activas') {
+        $whereClause .= " AND p.activo = 1";
+    } elseif ($filtroEstadoExp === 'inactivas') {
+        $whereClause .= " AND p.activo = 0";
+    }
+
     $sql = "
         SELECT p.*,
                r.num_regante AS num_regante_principal,
@@ -158,7 +196,8 @@ if (Auth::isSuperAdmin()) {
         FROM propietarios p
         LEFT JOIN regantes r ON p.id_regante_principal = r.id_regante
         LEFT JOIN comunidades_regantes cr ON r.id_comunidad = cr.id_comunidad
-        ORDER BY p.id_propietario ASC
+        {$whereClause}
+        ORDER BY p.activo DESC, p.id_propietario ASC
     ";
     $stmtProps = $db->query($sql);
     $explotaciones = $stmtProps->fetchAll();
@@ -229,7 +268,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
             </div>
         </div>
         <div>
-            <?php if (Auth::isSuperAdmin()): ?>
+            <?php if (Auth::isAdmin()): ?>
                 <button type="button" class="btn btn-ag shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearExplotacion">
                     <i class="fa-solid fa-plus-circle me-1"></i> Nueva Explotación Agrícola
                 </button>
@@ -269,15 +308,17 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     </h5>
                 </div>
             </div>
-            <?php if (Auth::isSuperAdmin()): ?>
+            <?php if (Auth::isAdmin()): ?>
                 <form method="POST" action="" class="d-flex align-items-center gap-2">
                     <input type="hidden" name="action" value="switch_tenant">
                     <select name="id_propietario" class="form-select form-select-sm font-monospace" onchange="this.form.submit()">
                         <option value="" <?= empty($currentTenantId) ? 'selected' : '' ?>>🌐 Vista Global (Todas las explotaciones)</option>
                         <?php foreach ($explotaciones as $exp): ?>
-                            <option value="<?= $exp['id_propietario'] ?>" <?= ($currentTenantId == $exp['id_propietario']) ? 'selected' : '' ?>>
-                                🚜 <?= htmlspecialchars($exp['nombre_razon_social']) ?> (<?= $exp['total_fincas'] ?> fincas)
-                            </option>
+                            <?php if ((int)$exp['activo'] === 1): ?>
+                                <option value="<?= $exp['id_propietario'] ?>" <?= ($currentTenantId == $exp['id_propietario']) ? 'selected' : '' ?>>
+                                    🚜 <?= htmlspecialchars($exp['nombre_razon_social']) ?> (<?= $exp['total_fincas'] ?> fincas)
+                                </option>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </select>
                 </form>
@@ -287,10 +328,17 @@ require_once VIEWS_PATH . '/layouts/header.php';
 
     <!-- Lista / Tarjetas de Explotaciones -->
     <div class="card card-ag shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
             <h6 class="fw-bold mb-0 text-primary">
                 <i class="fa-solid fa-list-check me-2"></i> Explotaciones Agrícolas Registradas (<?= count($explotaciones) ?>)
             </h6>
+            <?php if (Auth::isAdmin()): ?>
+                <div class="btn-group btn-group-sm">
+                    <a href="<?= APP_URL ?>/explotaciones" class="btn <?= empty($filtroEstadoExp) ? 'btn-primary' : 'btn-outline-secondary' ?>">Todas</a>
+                    <a href="<?= APP_URL ?>/explotaciones?estado_exp=activas" class="btn <?= $filtroEstadoExp === 'activas' ? 'btn-success' : 'btn-outline-secondary' ?>">Activas</a>
+                    <a href="<?= APP_URL ?>/explotaciones?estado_exp=inactivas" class="btn <?= $filtroEstadoExp === 'inactivas' ? 'btn-danger' : 'btn-outline-secondary' ?>">Desactivadas / Bajas</a>
+                </div>
+            <?php endif; ?>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -302,6 +350,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         <th>Regante Principal (Socio C.R.)</th>
                         <th>Ubicación</th>
                         <th>Contacto</th>
+                        <th class="text-center">Estado</th>
                         <th class="text-center">Fincas</th>
                         <th class="text-center">Usuarios</th>
                         <th class="text-end pe-4">Acciones</th>
@@ -310,30 +359,33 @@ require_once VIEWS_PATH . '/layouts/header.php';
                 <tbody>
                     <?php if (empty($explotaciones)): ?>
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="fa-solid fa-building-wheat fa-2x mb-3 text-secondary"></i>
                                 <p class="mb-0">No se encontraron explotaciones agrícolas registradas.</p>
                             </td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($explotaciones as $exp): ?>
-                            <?php $isCurrent = ($currentTenantId == $exp['id_propietario']); ?>
-                            <tr class="<?= $isCurrent ? 'table-primary bg-opacity-25' : '' ?>">
+                            <?php 
+                            $isCurrent = ($currentTenantId == $exp['id_propietario']); 
+                            $isActiva = ((int)$exp['activo'] === 1);
+                            ?>
+                            <tr class="<?= !$isActiva ? 'table-light opacity-75' : ($isCurrent ? 'table-primary bg-opacity-25' : '') ?>">
                                 <td class="ps-4 fw-bold font-monospace text-muted">#<?= $exp['id_propietario'] ?></td>
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
                                         <?php if (!empty($exp['logo'])): ?>
                                              <img src="<?= APP_URL ?>/<?= htmlspecialchars($exp['logo']) ?>" class="rounded-3 border shadow-sm" style="width: 44px; height: 44px; object-fit: cover;">
                                         <?php else: ?>
-                                            <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 text-center" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+                                            <div class="rounded-3 <?= $isActiva ? 'bg-primary bg-opacity-10 text-primary' : 'bg-secondary bg-opacity-10 text-secondary' ?> p-2 text-center" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
                                                 <i class="fa-solid fa-building-wheat fs-5"></i>
                                             </div>
                                         <?php endif; ?>
                                         <div>
-                                            <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                            <div class="fw-bold <?= $isActiva ? 'text-dark' : 'text-muted text-decoration-line-through' ?> fs-6 d-flex align-items-center gap-2">
                                                 <?= htmlspecialchars($exp['nombre_razon_social']) ?>
                                                 <?php if ($isCurrent): ?>
-                                                    <span class="badge bg-success small"><i class="fa-solid fa-check me-1"></i>En uso</span>
+                                                    <span class="badge bg-success small text-decoration-none"><i class="fa-solid fa-check me-1"></i>En uso</span>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="small text-muted">Alta: <?= date('d/m/Y', strtotime($exp['fecha_alta'])) ?></div>
@@ -383,6 +435,13 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">
+                                    <?php if ($isActiva): ?>
+                                        <span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Activa</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger"><i class="fa-solid fa-ban me-1"></i>Desactivada</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
                                     <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-bold">
                                         <i class="fa-solid fa-layer-group me-1"></i><?= $exp['total_fincas'] ?>
                                     </span>
@@ -394,22 +453,51 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">
-                                        <?php if (Auth::isSuperAdmin()): ?>
-                                            <?php if (!$isCurrent): ?>
-                                                <form method="POST" action="" class="d-inline">
-                                                    <input type="hidden" name="action" value="switch_tenant">
-                                                    <input type="hidden" name="id_propietario" value="<?= $exp['id_propietario'] ?>">
-                                                    <button type="submit" class="btn btn-outline-primary" title="Trabajar en esta explotación">
-                                                        <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Seleccionar
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
+                                        <?php if (Auth::isAdmin() && $isActiva && !$isCurrent): ?>
+                                            <form method="POST" action="" class="d-inline">
+                                                <input type="hidden" name="action" value="switch_tenant">
+                                                <input type="hidden" name="id_propietario" value="<?= $exp['id_propietario'] ?>">
+                                                <button type="submit" class="btn btn-outline-primary" title="Trabajar en esta explotación">
+                                                    <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Seleccionar
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
 
                                         <!-- Botón Editar -->
                                         <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar_<?= $exp['id_propietario'] ?>" title="Editar datos">
                                             <i class="fa-solid fa-pen-to-square me-1"></i> Editar
                                         </button>
+
+                                        <!-- Botones Desactivar / Borrar Lógicamente o Reactivar (Solo Admin/Superadmin) -->
+                                        <?php if (Auth::isAdmin()): ?>
+                                            <?php if ($isActiva): ?>
+                                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Seguro que deseas desactivar / dar de baja la explotación «<?= htmlspecialchars(addslashes($exp['nombre_razon_social'])) ?>»? Sus datos y fincas se conservarán y podrás reactivarla cuando quieras.');">
+                                                    <input type="hidden" name="action" value="cambiar_estado_explotacion">
+                                                    <input type="hidden" name="id_propietario" value="<?= $exp['id_propietario'] ?>">
+                                                    <input type="hidden" name="nuevo_estado" value="0">
+                                                    <button type="submit" class="btn btn-outline-warning" title="Desactivar explotación">
+                                                        <i class="fa-solid fa-power-off"></i> Desactivar
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Confirmas dar de baja (borrado lógico) la explotación «<?= htmlspecialchars(addslashes($exp['nombre_razon_social'])) ?>»?');">
+                                                    <input type="hidden" name="action" value="cambiar_estado_explotacion">
+                                                    <input type="hidden" name="id_propietario" value="<?= $exp['id_propietario'] ?>">
+                                                    <input type="hidden" name="nuevo_estado" value="0">
+                                                    <button type="submit" class="btn btn-outline-danger" title="Borrar / Descatalogar explotación (Borrado lógico seguro)">
+                                                        <i class="fa-solid fa-trash-can"></i>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('¿Deseas reactivar la explotación «<?= htmlspecialchars(addslashes($exp['nombre_razon_social'])) ?>»?');">
+                                                    <input type="hidden" name="action" value="cambiar_estado_explotacion">
+                                                    <input type="hidden" name="id_propietario" value="<?= $exp['id_propietario'] ?>">
+                                                    <input type="hidden" name="nuevo_estado" value="1">
+                                                    <button type="submit" class="btn btn-outline-success fw-bold" title="Reactivar explotación">
+                                                        <i class="fa-solid fa-rotate-left me-1"></i> Reactivar
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </div>
 
                                     <!-- Modal Editar Explotación -->
@@ -572,8 +660,8 @@ require_once VIEWS_PATH . '/layouts/header.php';
 
 </div>
 
-<!-- Modal Crear Nueva Explotación (Superadmin) -->
-<?php if (Auth::isSuperAdmin()): ?>
+<!-- Modal Crear Nueva Explotación (Administradores y Superadmin) -->
+<?php if (Auth::isAdmin()): ?>
 <div class="modal fade" id="modalCrearExplotacion" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content border-0 shadow">

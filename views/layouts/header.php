@@ -442,11 +442,11 @@
 
                             <?php if (Auth::isAdmin()): ?>
                                 <li><hr class="dropdown-divider my-1"></li>
+                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/accesos"><i class="fa-solid fa-chart-line me-2 text-info"></i>Estadísticas y Logs de Accesos</a></li>
                                 <li><a class="dropdown-item py-2 fw-semibold text-primary" href="<?= APP_URL ?>/backup"><i class="fa-solid fa-shield-halved me-2 text-warning"></i>Copias de Seguridad (Backup)</a></li>
                             <?php endif; ?>
                             <?php if (Auth::isSuperAdmin()): ?>
-                                <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/usuarios"><i class="fa-solid fa-user-check me-2 text-success"></i>Aprobar Solicitudes</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/admin/configuracion"><i class="fa-solid fa-compass-drafting me-2 text-info"></i>Personalizar Portal</a></li>
                             <?php endif; ?>
                         </ul>

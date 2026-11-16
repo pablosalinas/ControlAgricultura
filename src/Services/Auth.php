@@ -80,7 +80,7 @@ class Auth {
     }
 
     /**
-     * Registra una nueva solicitud de usuario (quedando en estado pendiente)
+     * Registra una nueva solicitud de usuario (quedando en estado pendiente y sin explotación asignada hasta aprobación del administrador)
      */
     public static function register($data) {
         $db = Database::getConnection();
@@ -92,23 +92,15 @@ class Auth {
             return array('success' => false, 'message' => 'Ya existe una cuenta con este correo electrónico.');
         }
 
-        // Si se indica nombre de empresa/explotación nueva, crear la entidad de propietario
+        // La explotación ya no la crea el peticionario, sino que la asignará el administrador al darlo de alta
         $idPropietario = null;
-        if (!empty($data['empresa_o_propietario'])) {
-            $stmtProp = $db->prepare("
-                INSERT INTO propietarios (nombre_razon_social, cif_nif, telefono, email, activo)
-                VALUES (:nombre, :cif, :tel, :email, 1)
-            ");
-            $stmtProp->execute(array(
-                ':nombre' => trim($data['empresa_o_propietario']),
-                ':cif'    => isset($data['cif_nif']) ? $data['cif_nif'] : null,
-                ':tel'    => isset($data['telefono']) ? $data['telefono'] : null,
-                ':email'  => trim($data['email'])
-            ));
-            $idPropietario = (int)$db->lastInsertId();
-        }
 
         $hash = password_hash($data['password'], PASSWORD_BCRYPT);
+
+        $motivo = isset($data['motivo']) ? trim($data['motivo']) : 'Solicitud desde el portal web';
+        if (!empty($data['cif_nif'])) {
+            $motivo = '[NIF/CIF: ' . trim($data['cif_nif']) . '] ' . $motivo;
+        }
 
         $stmt = $db->prepare("
             INSERT INTO usuarios (
@@ -127,12 +119,12 @@ class Auth {
             ':email'     => trim($data['email']),
             ':hash'      => $hash,
             ':tel'       => isset($data['telefono']) ? trim($data['telefono']) : '',
-            ':motivo'    => isset($data['motivo']) ? trim($data['motivo']) : 'Solicitud desde el portal web'
+            ':motivo'    => $motivo
         ));
 
         return array(
             'success' => true,
-            'message' => 'Solicitud enviada correctamente. El administrador revisará tus datos para aprobar el acceso.'
+            'message' => 'Solicitud enviada correctamente. El administrador revisará tus datos, aprobará el acceso y te asignará la explotación correspondiente.'
         );
     }
 
@@ -247,10 +239,10 @@ class Auth {
         if (!$db || empty($userId)) return array();
 
         $stmt = $db->prepare("
-            SELECT p.id_propietario, p.nombre_razon_social, p.cif_nif, p.logo, p.municipio
+            SELECT p.id_propietario, p.nombre_razon_social, p.cif_nif, p.logo, p.municipio, p.activo
             FROM usuarios_explotaciones ue
             INNER JOIN propietarios p ON ue.id_propietario = p.id_propietario
-            WHERE ue.id_usuario = :uid
+            WHERE ue.id_usuario = :uid AND p.activo = 1
             ORDER BY p.nombre_razon_social ASC
         ");
         $stmt->execute(array(':uid' => (int)$userId));
@@ -262,7 +254,7 @@ class Auth {
      */
     public static function canAccessTenant($idPropietario) {
         if (!self::check()) return false;
-        if (self::isSuperAdmin()) return true;
+        if (self::isAdmin()) return true;
         if (empty($idPropietario)) return false;
 
         $idPropInt = (int)$idPropietario;
@@ -282,7 +274,7 @@ class Auth {
     }
 
     /**
-     * Permite conmutar de explotación activa (Superadmin a cualquiera, o usuario a cualquiera de sus asignadas)
+     * Permite conmutar de explotación activa (Superadmin/Admin a cualquiera, o usuario a cualquiera de sus asignadas)
      */
     public static function switchTenant($idPropietario) {
         if (!self::check()) {
@@ -291,7 +283,7 @@ class Auth {
 
         $db = Database::getConnection();
         if (empty($idPropietario)) {
-            if (self::isSuperAdmin()) {
+            if (self::isAdmin()) {
                 $_SESSION['id_propietario'] = null;
                 $_SESSION['nombre_propietario'] = 'Vista Global (Todas)';
                 return true;
@@ -300,7 +292,7 @@ class Auth {
         }
 
         $idPropInt = (int)$idPropietario;
-        if (!self::isSuperAdmin() && !self::canAccessTenant($idPropInt)) {
+        if (!self::isAdmin() && !self::canAccessTenant($idPropInt)) {
             return false;
         }
 

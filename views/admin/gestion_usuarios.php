@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Multi-explotación
         $expSeleccionadas = isset($_POST['explotaciones']) && is_array($_POST['explotaciones']) ? array_map('intval', $_POST['explotaciones']) : array();
-        if (!$isSuperAdmin) {
+        if (!Auth::isAdmin()) {
             $expSeleccionadas = array((int)$tenantId);
         }
         $idProp = !empty($expSeleccionadas) ? $expSeleccionadas[0] : null;
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Acceso denegado: No tienes permisos para consultar ni modificar la cuenta del Superusuario.";
         } elseif (in_array($targetUser['rol'], array('administrador', 'admin')) && !$isSuperAdmin && (int)$targetUser['id_usuario'] !== (int)$currentUser['id']) {
             $error = "Acceso denegado: No tienes permisos para modificar a otro administrador.";
-        } elseif (!$isSuperAdmin && ((int)$targetUser['id_propietario'] !== (int)$tenantId)) {
+        } elseif (!Auth::isAdmin() && ((int)$targetUser['id_propietario'] !== (int)$tenantId)) {
             $error = "No tienes permiso para modificar este usuario.";
         } else {
             // Verificar si el email ya pertenece a otro usuario
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $idProp = $targetUser['id_propietario'];
                 $expSeleccionadas = null;
-                if ($isSuperAdmin) {
+                if (Auth::isAdmin()) {
                     if (isset($_POST['explotaciones']) && is_array($_POST['explotaciones'])) {
                         $expSeleccionadas = array_map('intval', $_POST['explotaciones']);
                         $idProp = !empty($expSeleccionadas) ? $expSeleccionadas[0] : null;
@@ -167,8 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $mensaje = "Datos del usuario actualizados correctamente.";
                 }
 
-                // Sincronizar tabla intermedia si es superadmin
-                if ($isSuperAdmin && $expSeleccionadas !== null) {
+                // Sincronizar tabla intermedia si es admin
+                if (Auth::isAdmin() && $expSeleccionadas !== null) {
                     $db->prepare("DELETE FROM usuarios_explotaciones WHERE id_usuario = :id")->execute(array(':id' => $idTarget));
                     if (!empty($expSeleccionadas)) {
                         $insUE = $db->prepare("INSERT IGNORE INTO usuarios_explotaciones (id_usuario, id_propietario) VALUES (:uid, :pid)");
@@ -245,7 +245,7 @@ $pageTitle = "Gestión de Usuarios y Equipo - " . APP_NAME;
 require_once VIEWS_PATH . '/layouts/header.php';
 
 // Cargar todas las explotaciones para asignación
-$explotaciones = $db->query("SELECT id_propietario, nombre_razon_social FROM propietarios ORDER BY nombre_razon_social ASC")->fetchAll();
+$explotaciones = $db->query("SELECT id_propietario, nombre_razon_social, activo FROM propietarios ORDER BY activo DESC, nombre_razon_social ASC")->fetchAll();
 
 // Cargar mapa de asignaciones multi-explotación
 $stmtUE = $db->query("
@@ -281,11 +281,12 @@ $params = array();
 if (!$isSuperAdmin) {
     // Ningún usuario que no sea superadministrador puede ver cuentas de superadmin
     $sqlUsers .= " AND u.rol != 'superadmin'";
-    if (!empty($tenantId)) {
+    if (!Auth::isAdmin() && !empty($tenantId)) {
         $sqlUsers .= " AND u.id_propietario = :tenant";
         $params[':tenant'] = (int)$tenantId;
     }
-} elseif ($filtroExp > 0) {
+}
+if (Auth::isAdmin() && $filtroExp > 0) {
     $sqlUsers .= " AND u.id_propietario = :exp";
     $params[':exp'] = $filtroExp;
 }
@@ -392,7 +393,7 @@ $usuarios = $stmtUsers->fetchAll();
                         </select>
                     </div>
 
-                    <?php if ($isSuperAdmin): ?>
+                    <?php if (Auth::isAdmin()): ?>
                         <div class="col-12">
                             <div class="p-3 bg-light rounded-3 border">
                                 <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
@@ -414,7 +415,7 @@ $usuarios = $stmtUsers->fetchAll();
                                             <div class="form-check p-2 rounded bg-white border">
                                                 <input class="form-check-input ms-0 me-2" type="checkbox" name="explotaciones[]" value="<?= $exp['id_propietario'] ?>" id="exp_nuevo_<?= $exp['id_propietario'] ?>">
                                                 <label class="form-check-label small fw-semibold text-truncate d-block" for="exp_nuevo_<?= $exp['id_propietario'] ?>" title="<?= htmlspecialchars($exp['nombre_razon_social']) ?>">
-                                                    <?= htmlspecialchars($exp['nombre_razon_social']) ?>
+                                                    <?= htmlspecialchars($exp['nombre_razon_social']) ?> <?= (isset($exp['activo']) && (int)$exp['activo'] === 0) ? '(Desactivada)' : '' ?>
                                                 </label>
                                             </div>
                                         </div>
@@ -457,7 +458,7 @@ $usuarios = $stmtUsers->fetchAll();
                     <option value="rechazado" <?= $filtroEstado === 'rechazado' ? 'selected' : '' ?>>Rechazados</option>
                 </select>
             </div>
-            <?php if ($isSuperAdmin && !empty($explotaciones)): ?>
+            <?php if (Auth::isAdmin() && !empty($explotaciones)): ?>
                 <div class="col-md-3">
                     <select name="explotacion_id" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="0">-- Todas las explotaciones --</option>
@@ -688,7 +689,7 @@ $usuarios = $stmtUsers->fetchAll();
                                                             </div>
                                                         </div>
 
-                                                        <?php if ($isSuperAdmin): ?>
+                                                        <?php if (Auth::isAdmin()): ?>
                                                             <?php 
                                                             $assignedIds = isset($userExpIdsMap[$u['id_usuario']]) ? $userExpIdsMap[$u['id_usuario']] : (!empty($u['id_propietario']) ? array((int)$u['id_propietario']) : array()); 
                                                             ?>
@@ -714,7 +715,7 @@ $usuarios = $stmtUsers->fetchAll();
                                                                                 <div class="form-check p-2 rounded bg-white border">
                                                                                     <input class="form-check-input ms-0 me-2" type="checkbox" name="explotaciones[]" value="<?= $exp['id_propietario'] ?>" id="exp_edit_<?= $u['id_usuario'] ?>_<?= $exp['id_propietario'] ?>" <?= $isChecked ? 'checked' : '' ?>>
                                                                                     <label class="form-check-label small fw-semibold text-truncate d-block" for="exp_edit_<?= $u['id_usuario'] ?>_<?= $exp['id_propietario'] ?>" title="<?= htmlspecialchars($exp['nombre_razon_social']) ?>">
-                                                                                        <?= htmlspecialchars($exp['nombre_razon_social']) ?>
+                                                                                        <?= htmlspecialchars($exp['nombre_razon_social']) ?> <?= (isset($exp['activo']) && (int)$exp['activo'] === 0) ? '(Desactivada)' : '' ?>
                                                                                     </label>
                                                                                 </div>
                                                                             </div>

@@ -37,7 +37,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                 <?php else: ?>
 
                 <form action="<?= APP_URL ?>/register" method="POST">
-                    <h6 class="text-uppercase text-muted fw-bold small mb-3 border-bottom pb-2">1. Datos Personales y de Explotación</h6>
+                    <h6 class="text-uppercase text-muted fw-bold small mb-3 border-bottom pb-2">1. Datos Personales</h6>
                     
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
@@ -50,12 +50,6 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="empresa_o_propietario" class="form-label fw-semibold">Nombre de la Explotación o Propietario Agrícola <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="empresa_o_propietario" name="empresa_o_propietario" required placeholder="Ej: Finca Los Naranjos S.L. o Explotación Hnos. Martínez" value="<?= htmlspecialchars(isset($_POST['empresa_o_propietario']) ? $_POST['empresa_o_propietario'] : '') ?>">
-                        <div class="form-text">Si eres un nuevo propietario, se creará tu espacio de gestión exclusivo.</div>
-                    </div>
-
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="cif_nif" class="form-label fw-semibold">NIF / CIF</label>
@@ -65,6 +59,10 @@ require_once VIEWS_PATH . '/layouts/header.php';
                             <label for="telefono" class="form-label fw-semibold">Teléfono de Contacto</label>
                             <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(isset($_POST['telefono']) ? $_POST['telefono'] : '') ?>">
                         </div>
+                    </div>
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0 bg-info bg-opacity-10 text-dark">
+                        <i class="fa-solid fa-building-wheat text-primary me-1"></i>
+                        Una vez aprobada tu solicitud, el <strong>administrador</strong> te asignará la explotación o explotaciones correspondientes.
                     </div>
 
                     <h6 class="text-uppercase text-muted fw-bold small mt-4 mb-3 border-bottom pb-2">2. Credenciales de Acceso</h6>
