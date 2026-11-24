@@ -1001,6 +1001,78 @@ class DatabaseMigrator {
 
             self::seedMaquinariaHerramientas($pdo);
 
+            // 13. Tabla VADEMECUM_SEMILLAS_PLANTAS (Vademécum personal de semillas y plantas)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS vademecum_semillas_plantas (
+                    id_vademecum INT AUTO_INCREMENT PRIMARY KEY,
+                    id_propietario INT NULL,
+                    id_usuario_creador INT NULL,
+                    tipo_registro ENUM('semilla', 'planta', 'ambos') NOT NULL DEFAULT 'semilla',
+                    nombre_comun VARCHAR(150) NOT NULL,
+                    nombre_cientifico VARCHAR(180) NULL,
+                    variedad VARCHAR(150) NULL,
+                    tax_reino VARCHAR(100) NULL DEFAULT 'Plantae',
+                    tax_division VARCHAR(100) NULL,
+                    tax_clase VARCHAR(100) NULL,
+                    tax_orden VARCHAR(100) NULL,
+                    tax_familia VARCHAR(100) NULL,
+                    tax_genero VARCHAR(100) NULL,
+                    tax_especie VARCHAR(150) NULL,
+                    tax_subespecie VARCHAR(150) NULL,
+                    es_transgenico TINYINT(1) NOT NULL DEFAULT 0,
+                    detalle_transgenico VARCHAR(255) NULL,
+                    origen_semilla VARCHAR(120) NULL,
+                    caracteristicas_semilla TEXT NULL,
+                    caracteristicas_planta TEXT NULL,
+                    fecha_siembra VARCHAR(150) NULL,
+                    fecha_crecimiento VARCHAR(150) NULL,
+                    fecha_recoleccion VARCHAR(150) NULL,
+                    estado_tierra TEXT NULL,
+                    abono_es_ecologico TINYINT(1) NOT NULL DEFAULT 1,
+                    tipo_abono TEXT NULL,
+                    enfermedades_plagas TEXT NULL,
+                    tratamiento_es_ecologico TINYINT(1) NOT NULL DEFAULT 1,
+                    tratamiento_enfermedades TEXT NULL,
+                    foto_planta_completa VARCHAR(255) NULL,
+                    foto_tallo_hojas VARCHAR(255) NULL,
+                    foto_flor VARCHAR(255) NULL,
+                    notas TEXT NULL,
+                    fuente_ia VARCHAR(150) NULL,
+                    url_referencia VARCHAR(255) NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    actualizado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_vad_prop (id_propietario),
+                    INDEX idx_vad_usuario (id_usuario_creador),
+                    INDEX idx_vad_activo (activo),
+                    INDEX idx_vad_nombre (nombre_comun),
+                    INDEX idx_vad_cientifico (nombre_cientifico)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Clave opcional de Gemini API en configuracion_web para identificación multimodal
+            self::addColumnIfNotExists($pdo, 'configuracion_web', 'gemini_api_key', 'VARCHAR(255) NULL');
+
+            // 14. Tabla VADEMECUM_COMPARTIDO (Compartición entre usuarios de distintas explotaciones por Superadmin)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS vademecum_compartido (
+                    id_compartido INT AUTO_INCREMENT PRIMARY KEY,
+                    id_usuario_origen INT NOT NULL,
+                    id_propietario_origen INT NULL,
+                    id_usuario_destino INT NOT NULL,
+                    id_propietario_destino INT NULL,
+                    asignado_por_id INT NOT NULL,
+                    notas VARCHAR(255) NULL,
+                    activo TINYINT(1) NOT NULL DEFAULT 1,
+                    creado_el TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_vc_orig_user (id_usuario_origen),
+                    INDEX idx_vc_orig_prop (id_propietario_origen),
+                    INDEX idx_vc_dest_user (id_usuario_destino),
+                    INDEX idx_vc_dest_prop (id_propietario_destino),
+                    INDEX idx_vc_activo (activo)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
         } catch (Exception $e) {
             // Error silencioso si no hay conexión aún
         }

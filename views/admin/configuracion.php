@@ -84,6 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sqlUpd .= ", smtp_user_enc = :suser";
                 $params[':suser'] = Mailer::encrypt(trim($_POST['smtp_user']));
             }
+            if (!empty($_POST['gemini_api_key'])) {
+                $sqlUpd .= ", gemini_api_key = :gkey";
+                $params[':gkey'] = trim($_POST['gemini_api_key']);
+            }
 
             $sqlUpd .= " WHERE id_config = 1";
             $stmt = $db->prepare($sqlUpd);
@@ -260,6 +264,15 @@ $userDescifrado = !empty($cfg['smtp_user_enc']) ? Mailer::decrypt($cfg['smtp_use
                             <label class="form-label fw-semibold small">Email de Contacto</label>
                             <input type="email" name="email_contacto" class="form-control" value="<?= htmlspecialchars(isset($cfg['email_contacto']) ? $cfg['email_contacto'] : '') ?>">
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">
+                            <i class="fa-solid fa-wand-magic-sparkles text-primary me-1"></i>Clave API Gemini (IA Multimodal para Identificación por Fotos y Vademécum)
+                        </label>
+                        <input type="password" name="gemini_api_key" class="form-control font-monospace"
+                               placeholder="<?= !empty($cfg['gemini_api_key']) ? '•••••••• (Configurada — dejar vacío para mantenerla)' : 'Pegar aquí tu GEMINI_API_KEY (AIza...)' ?>"
+                               autocomplete="off">
+                        <div class="form-text small">Opcional si ya está definida en <code>.env</code>. Permite identificar plantas a partir de las 3 fotografías en el Vademécum.</div>
                     </div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">

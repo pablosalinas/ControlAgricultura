@@ -371,6 +371,9 @@
                             <i class="fa-solid fa-dna me-1 text-info"></i> Cultivos
                         </a>
                         <ul class="dropdown-menu shadow border-0 rounded-3">
+                            <li><a class="dropdown-item py-2 fw-semibold text-success" href="<?= APP_URL ?>/vademecum"><i class="fa-solid fa-book-medical me-2 text-warning"></i>Mi Vademécum (Semillas/Plantas)</a></li>
+                            <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/vademecum/nuevo"><i class="fa-solid fa-wand-magic-sparkles me-2 text-success"></i>Alta en Vademécum con IA</a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/cultivos"><i class="fa-solid fa-book-bookmark me-2 text-primary"></i>Catálogo Botánico</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones"><i class="fa-solid fa-cubes-stacked me-2 text-info"></i>Plantaciones Activas</a></li>
                             <li><a class="dropdown-item py-2" href="<?= APP_URL ?>/plantaciones/nueva"><i class="fa-solid fa-plus me-2 text-info"></i>Nueva Plantación</a></li>

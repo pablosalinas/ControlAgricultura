@@ -213,6 +213,20 @@ switch ($route) {
         require_once $viewFile;
         break;
 
+    // Rutas para Vademécum Personal de Semillas y Plantas
+    case 'vademecum':
+    case 'vademecum/nuevo':
+    case 'vademecum/editar':
+        if (!Auth::check()) {
+            header("Location: " . APP_URL . "/login");
+            exit;
+        }
+        $parts = explode('/', $route);
+        $sub = isset($parts[1]) ? $parts[1] : 'index';
+        $viewFile = VIEWS_PATH . '/vademecum/' . (($sub === 'nuevo' || $sub === 'editar') ? 'form.php' : 'index.php');
+        require_once $viewFile;
+        break;
+
     // Rutas para Plantaciones
     case 'plantaciones':
     case 'plantaciones/nueva':
@@ -389,6 +403,11 @@ switch ($route) {
     case 'api/cultivos/ia':
     case 'api/cultivos/consultar-ia':
         require_once ROOT_PATH . '/controllers/api_cultivos_ia.php';
+        break;
+
+    // API Asistente IA Multimodal para Vademécum de Semillas y Plantas
+    case 'api/vademecum/ia':
+        require_once ROOT_PATH . '/controllers/api_vademecum_ia.php';
         break;
 
     // API Asistente IA para Localización de Productos Fitosanitarios y Registro MAPA
