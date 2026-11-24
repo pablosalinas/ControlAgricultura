@@ -1,7 +1,7 @@
 <?php
 /**
- * Alta y Edición en el Vademécum Personal de Semillas y Plantas
- * Incluye Asistente IA Multimodal (búsqueda por datos + identificación por 1 a 3 fotos)
+ * Alta y Edición en el Vademécum de Semillas y Plantas
+ * Incluye Asistente IA Multimodal (búsqueda por datos + fotos libres + identificación por hasta 5 fotos)
  * y re-análisis incremental conforme se añaden nuevas fotos o datos.
  */
 
@@ -27,12 +27,14 @@ $pageTitle = ($isEdit ? "Editar Ficha del Vademécum" : "Nueva Semilla o Planta 
 $error = '';
 
 /**
- * Procesa la subida de una foto del Vademécum y devuelve la ruta relativa o null
+ * Procesa la subida de una foto local o la descarga de una foto libre sugerida por la IA
  */
-function vademecumHandlePhotoUpload($fieldName, $existingPath, $clearFlag, &$errorOut) {
+function vademecumHandlePhotoUpload($fieldName, $existingPath, $clearFlag, $iaRemoteUrl, &$errorOut) {
     if ($clearFlag) {
         $existingPath = null;
     }
+
+    // 1. Archivo subido desde galería, carpeta o cámara
     if (isset($_FILES[$fieldName]) && isset($_FILES[$fieldName]['error']) && $_FILES[$fieldName]['error'] === UPLOAD_ERR_OK && !empty($_FILES[$fieldName]['tmp_name'])) {
         $origName = $_FILES[$fieldName]['name'];
         $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
@@ -53,7 +55,40 @@ function vademecumHandlePhotoUpload($fieldName, $existingPath, $clearFlag, &$err
         } else {
             $errorOut = "No se pudo guardar la imagen '{$origName}' en el servidor.";
         }
+        return $existingPath;
     }
+
+    // 2. Foto libre seleccionada desde sugerencias de Wikimedia Commons
+    if (!empty($iaRemoteUrl) && preg_match('#^https://upload\.wikimedia\.org/#i', $iaRemoteUrl)) {
+        $ch = curl_init($iaRemoteUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'AgroDietarioBot/2.0 (vademecum)');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $imgData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $contentType = strtolower((string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE));
+        curl_close($ch);
+
+        if ($httpCode === 200 && $imgData && strlen($imgData) > 500 && strlen($imgData) < 8 * 1024 * 1024) {
+            $ext = 'jpg';
+            if (strpos($contentType, 'png') !== false) $ext = 'png';
+            elseif (strpos($contentType, 'webp') !== false) $ext = 'webp';
+
+            $destDir = PUBLIC_PATH . '/uploads/vademecum';
+            if (!is_dir($destDir)) {
+                mkdir($destDir, 0777, true);
+            }
+            $rand = mt_rand(1000, 9999);
+            $uniqueName = 'vad_ia_' . $fieldName . '_' . time() . '_' . $rand . '.' . $ext;
+            $destFile = $destDir . '/' . $uniqueName;
+            if (@file_put_contents($destFile, $imgData) !== false) {
+                return 'uploads/vademecum/' . $uniqueName;
+            }
+        }
+    }
+
     return $existingPath;
 }
 
@@ -64,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $nombreComun = trim(isset($_POST['nombre_comun']) ? $_POST['nombre_comun'] : '');
+    $nombresVulgares = trim(isset($_POST['nombres_vulgares']) ? $_POST['nombres_vulgares'] : '');
     $nombreCientifico = trim(isset($_POST['nombre_cientifico']) ? $_POST['nombre_cientifico'] : '');
     $variedad = trim(isset($_POST['variedad']) ? $_POST['variedad'] : '');
 
@@ -102,18 +138,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'foto_planta_completa',
         $isEdit ? $registro['foto_planta_completa'] : null,
         !empty($_POST['limpiar_foto_planta_completa']),
+        isset($_POST['ia_foto_url_foto_planta_completa']) ? trim($_POST['ia_foto_url_foto_planta_completa']) : '',
         $error
     );
     $fotoTallo = vademecumHandlePhotoUpload(
         'foto_tallo_hojas',
         $isEdit ? $registro['foto_tallo_hojas'] : null,
         !empty($_POST['limpiar_foto_tallo_hojas']),
+        isset($_POST['ia_foto_url_foto_tallo_hojas']) ? trim($_POST['ia_foto_url_foto_tallo_hojas']) : '',
         $error
     );
     $fotoFlor = vademecumHandlePhotoUpload(
         'foto_flor',
         $isEdit ? $registro['foto_flor'] : null,
         !empty($_POST['limpiar_foto_flor']),
+        isset($_POST['ia_foto_url_foto_flor']) ? trim($_POST['ia_foto_url_foto_flor']) : '',
+        $error
+    );
+    $fotoSemilla = vademecumHandlePhotoUpload(
+        'foto_semilla',
+        ($isEdit && isset($registro['foto_semilla'])) ? $registro['foto_semilla'] : null,
+        !empty($_POST['limpiar_foto_semilla']),
+        isset($_POST['ia_foto_url_foto_semilla']) ? trim($_POST['ia_foto_url_foto_semilla']) : '',
+        $error
+    );
+    $fotoLibre = vademecumHandlePhotoUpload(
+        'foto_libre',
+        ($isEdit && isset($registro['foto_libre'])) ? $registro['foto_libre'] : null,
+        !empty($_POST['limpiar_foto_libre']),
+        isset($_POST['ia_foto_url_foto_libre']) ? trim($_POST['ia_foto_url_foto_libre']) : '',
         $error
     );
 
@@ -128,6 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UPDATE vademecum_semillas_plantas SET
                         tipo_registro = :tipo_reg,
                         nombre_comun = :comun,
+                        nombres_vulgares = :vulgares,
                         nombre_cientifico = :cien,
                         variedad = :var,
                         tax_reino = :t_rei,
@@ -155,6 +209,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         foto_planta_completa = :f_planta,
                         foto_tallo_hojas = :f_tallo,
                         foto_flor = :f_flor,
+                        foto_semilla = :f_semilla,
+                        foto_libre = :f_libre,
                         notas = :notas,
                         fuente_ia = :fuente,
                         url_referencia = :url
@@ -163,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtUpd->execute(array(
                     ':tipo_reg'   => $tipoRegistro,
                     ':comun'      => $nombreComun,
+                    ':vulgares'   => $nombresVulgares ?: null,
                     ':cien'       => $nombreCientifico ?: null,
                     ':var'        => $variedad ?: null,
                     ':t_rei'      => $taxReino ?: 'Plantae',
@@ -190,6 +247,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':f_planta'   => $fotoPlanta,
                     ':f_tallo'    => $fotoTallo,
                     ':f_flor'     => $fotoFlor,
+                    ':f_semilla'  => $fotoSemilla,
+                    ':f_libre'    => $fotoLibre,
                     ':notas'      => $notas ?: null,
                     ':fuente'     => $fuenteIa ?: null,
                     ':url'        => $urlRef ?: null,
@@ -199,25 +258,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtIns = $db->prepare("
                     INSERT INTO vademecum_semillas_plantas (
                         id_propietario, id_usuario_creador, tipo_registro,
-                        nombre_comun, nombre_cientifico, variedad,
+                        nombre_comun, nombres_vulgares, nombre_cientifico, variedad,
                         tax_reino, tax_division, tax_clase, tax_orden, tax_familia, tax_genero, tax_especie, tax_subespecie,
                         es_transgenico, detalle_transgenico, origen_semilla,
                         caracteristicas_semilla, caracteristicas_planta,
                         fecha_siembra, fecha_crecimiento, fecha_recoleccion,
                         estado_tierra, abono_es_ecologico, tipo_abono,
                         enfermedades_plagas, tratamiento_es_ecologico, tratamiento_enfermedades,
-                        foto_planta_completa, foto_tallo_hojas, foto_flor,
+                        foto_planta_completa, foto_tallo_hojas, foto_flor, foto_semilla, foto_libre,
                         notas, fuente_ia, url_referencia, activo
                     ) VALUES (
                         :prop, :uid, :tipo_reg,
-                        :comun, :cien, :var,
+                        :comun, :vulgares, :cien, :var,
                         :t_rei, :t_div, :t_cla, :t_ord, :t_fam, :t_gen, :t_esp, :t_sub,
                         :transg, :det_transg, :origen,
                         :c_sem, :c_pla,
                         :f_siem, :f_crec, :f_reco,
                         :tierra, :ab_eco, :t_abono,
                         :enf, :tr_eco, :trat,
-                        :f_planta, :f_tallo, :f_flor,
+                        :f_planta, :f_tallo, :f_flor, :f_semilla, :f_libre,
                         :notas, :fuente, :url, 1
                     )
                 ");
@@ -226,6 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':uid'        => $userId ?: null,
                     ':tipo_reg'   => $tipoRegistro,
                     ':comun'      => $nombreComun,
+                    ':vulgares'   => $nombresVulgares ?: null,
                     ':cien'       => $nombreCientifico ?: null,
                     ':var'        => $variedad ?: null,
                     ':t_rei'      => $taxReino ?: 'Plantae',
@@ -253,6 +313,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':f_planta'   => $fotoPlanta,
                     ':f_tallo'    => $fotoTallo,
                     ':f_flor'     => $fotoFlor,
+                    ':f_semilla'  => $fotoSemilla,
+                    ':f_libre'    => $fotoLibre,
                     ':notas'      => $notas ?: null,
                     ':fuente'     => $fuenteIa ?: null,
                     ':url'        => $urlRef ?: null
@@ -271,7 +333,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Helper para rellenar valores del formulario (POST > DB > defecto)
 function vVal($key, $default = '') {
     global $registro;
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST[$key])) {
@@ -292,17 +353,17 @@ require_once VIEWS_PATH . '/layouts/header.php';
         border-radius: 12px;
         background: #f8fafc;
         transition: all 0.2s ease;
-        min-height: 210px;
+        min-height: 220px;
         position: relative;
         overflow: hidden;
     }
-    .vad-photo-slot:hover {
+    .vad-photo-slot:hover, .vad-photo-slot.vad-dragover {
         border-color: #0284c7;
         background: #f0f9ff;
     }
     .vad-photo-preview {
         width: 100%;
-        height: 150px;
+        height: 145px;
         object-fit: cover;
         border-radius: 8px;
     }
@@ -329,15 +390,15 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     </div>
                     <div>
                         <h2 class="fw-bold mb-0 text-primary">
-                            <?= $isEdit ? 'Editar Ficha del Vademécum' : 'Nueva Semilla / Planta en mi Vademécum' ?>
+                            <?= $isEdit ? 'Editar Ficha del Vademécum' : 'Nueva Semilla / Planta en el Vademécum' ?>
                         </h2>
                         <p class="text-muted mb-0 small">
-                            Taxonomía completa, identificación por hasta 3 fotografías con IA, ciclo fenológico, suelo, abonado y sanidad vegetal
+                            Taxonomía completa, nombres vulgares, hasta 5 fotos (galería, carpetas o cámara) e identificación IA con fotos libres
                         </p>
                     </div>
                 </div>
                 <a href="<?= APP_URL ?>/vademecum" class="btn btn-outline-secondary">
-                    <i class="fa-solid fa-arrow-left me-1"></i> Volver a mi Vademécum
+                    <i class="fa-solid fa-arrow-left me-1"></i> Volver al Vademécum
                 </a>
             </div>
 
@@ -362,7 +423,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                 <span class="badge bg-warning text-dark fw-bold px-3 py-1">
                                     <i class="fa-solid fa-wand-magic-sparkles me-1"></i>ASISTENTE IA BOTÁNICO Y VISUAL
                                 </span>
-                                <span class="small text-light opacity-75">Búsqueda por datos y/o hasta 3 fotografías</span>
+                                <span class="small text-light opacity-75">Búsqueda por datos, fotos libres y hasta 5 fotografías</span>
                             </div>
                             <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="aiOverwrite" checked>
@@ -373,7 +434,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         </div>
 
                         <p class="small text-light opacity-90 mb-3">
-                            Puedes buscar escribiendo el nombre/especie, o subir <strong>1, 2 o las 3 fotos</strong> (planta completa, tallo/hojas y flor) abajo y pulsar el botón. Si hoy solo tienes una foto, guarda la ficha y cuando tengas las demás vuelve aquí para <strong>re-analizar con los nuevos datos</strong>.
+                            Busca por nombre/especie o sube fotos desde tu <strong>galería, carpetas o cámara</strong> y pulsa el botón. La IA también localizará <strong>fotografías de licencia libre (CC0 / Dominio Público)</strong> de la planta y semilla para que puedas incorporarlas con un clic.
                         </p>
 
                         <div class="row g-2 align-items-center">
@@ -383,7 +444,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                         <i class="fa-solid fa-magnifying-glass"></i>
                                     </span>
                                     <input type="text" id="aiQuery" class="form-control border-0 fw-semibold"
-                                           placeholder="Nombre común, científico, variedad o pista (opcional si subes fotos)..."
+                                           placeholder="Nombre común, vulgar, científico, variedad o pista..."
                                            value="<?= htmlspecialchars(vVal('nombre_cientifico') ?: vVal('nombre_comun')) ?>">
                                 </div>
                             </div>
@@ -396,16 +457,15 @@ require_once VIEWS_PATH . '/layouts/header.php';
                         </div>
 
                         <div id="aiStatusBox" class="mt-3 d-none"></div>
+                        <div id="aiPhotosBox" class="mt-3 d-none"></div>
                     </div>
                 </div>
 
-                <!-- SECCIÓN 1: LAS 3 FOTOGRAFÍAS DE IDENTIFICACIÓN -->
+                <!-- SECCIÓN 1: LAS 5 FOTOGRAFÍAS DE IDENTIFICACIÓN Y SEGUIMIENTO -->
                 <div class="card card-custom mb-4">
-                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-camera-retro me-2 text-info"></i>1. Fotografías para Identificación y Seguimiento (Opcionales e Incrementales)</h5>
-                            <small class="text-muted">No es obligatorio subir las 3 a la vez. Añade las que tengas ahora y completa el resto más adelante.</small>
-                        </div>
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h5 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-camera-retro me-2 text-info"></i>1. Fotografías (Galería, Carpetas o Cámara · Opcionales e Incrementales)</h5>
+                        <small class="text-muted">No es obligatorio subir todas a la vez. Puedes arrastrar imágenes, elegir de galería/carpetas o hacer la foto directamente con la cámara.</small>
                     </div>
                     <div class="card-body p-4">
                         <div class="row g-3">
@@ -415,22 +475,36 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                     'field' => 'foto_planta_completa',
                                     'clear' => 'limpiar_foto_planta_completa',
                                     'title' => '1. Planta Completa',
-                                    'hint'  => 'Porte general, tamaño y estructura',
+                                    'hint'  => 'Porte general y estructura',
                                     'icon'  => 'fa-tree'
                                 ),
                                 array(
                                     'field' => 'foto_tallo_hojas',
                                     'clear' => 'limpiar_foto_tallo_hojas',
-                                    'title' => '2. Zona de Tallo y Hojas',
-                                    'hint'  => 'Detalle de hojas, nervios, pecíolo y tallo',
+                                    'title' => '2. Tallo y Hojas',
+                                    'hint'  => 'Nervios, pecíolo y tallo',
                                     'icon'  => 'fa-leaf'
                                 ),
                                 array(
                                     'field' => 'foto_flor',
                                     'clear' => 'limpiar_foto_flor',
                                     'title' => '3. Flor / Inflorescencia',
-                                    'hint'  => 'Pétalos, sépalos, estambres o fruto inicial',
+                                    'hint'  => 'Pétalos, sépalos y estambres',
                                     'icon'  => 'fa-fan'
+                                ),
+                                array(
+                                    'field' => 'foto_semilla',
+                                    'clear' => 'limpiar_foto_semilla',
+                                    'title' => '4. Simiente / Semilla',
+                                    'hint'  => 'Detalle de la semilla o grano',
+                                    'icon'  => 'fa-seedling'
+                                ),
+                                array(
+                                    'field' => 'foto_libre',
+                                    'clear' => 'limpiar_foto_libre',
+                                    'title' => '5. Foto Libre (Usuario)',
+                                    'hint'  => 'Fruto, raíz, plaga o detalle',
+                                    'icon'  => 'fa-image'
                                 )
                             );
                             foreach ($photoSlots as $slot):
@@ -439,12 +513,12 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                 $savedRel = ($isEdit && !empty($registro[$fName])) ? $registro[$fName] : '';
                                 $savedUrl = !empty($savedRel) ? (APP_URL . '/' . ltrim($savedRel, '/')) : '';
                             ?>
-                            <div class="col-md-4">
-                                <div class="vad-photo-slot p-3 d-flex flex-column justify-content-between">
+                            <div class="col-md-4 col-lg">
+                                <div class="vad-photo-slot p-3 d-flex flex-column justify-content-between" data-drop-field="<?= $fName ?>">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
                                             <div class="fw-bold text-dark small"><i class="fa-solid <?= $slot['icon'] ?> me-1 text-success"></i><?= $slot['title'] ?></div>
-                                            <div class="text-muted" style="font-size: 0.76rem;"><?= $slot['hint'] ?></div>
+                                            <div class="text-muted" style="font-size: 0.72rem;"><?= $slot['hint'] ?></div>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-clear-photo <?= empty($savedUrl) ? 'd-none' : '' ?>"
                                                 data-field="<?= $fName ?>" title="Quitar foto">
@@ -457,19 +531,34 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                              id="preview_<?= $fName ?>"
                                              class="vad-photo-preview <?= empty($savedUrl) ? 'd-none' : '' ?>"
                                              alt="<?= htmlspecialchars($slot['title']) ?>">
-                                        <div id="placeholder_<?= $fName ?>" class="py-4 text-muted <?= !empty($savedUrl) ? 'd-none' : '' ?>">
-                                            <i class="fa-solid fa-cloud-arrow-up fs-2 text-secondary opacity-50"></i>
-                                            <div class="small mt-1">Sin fotografía aún</div>
+                                        <div id="placeholder_<?= $fName ?>" class="py-3 text-muted <?= !empty($savedUrl) ? 'd-none' : '' ?>">
+                                            <i class="fa-solid fa-cloud-arrow-up fs-3 text-secondary opacity-50"></i>
+                                            <div style="font-size: 0.75rem;" class="mt-1">Arrastra o elige imagen</div>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <input type="file" name="<?= $fName ?>" id="<?= $fName ?>"
-                                               class="form-control form-control-sm vad-photo-input"
-                                               accept="image/jpeg,image/png,image/webp"
-                                               data-field="<?= $fName ?>">
-                                        <input type="hidden" name="<?= $cName ?>" id="<?= $cName ?>" value="0">
+                                    <div class="d-flex gap-1">
+                                        <label for="<?= $fName ?>" class="btn btn-sm btn-outline-primary flex-grow-1 mb-0" style="font-size: 0.75rem;" title="Elegir de galería o carpeta">
+                                            <i class="fa-solid fa-folder-open me-1"></i>Galería / Archivo
+                                        </label>
+                                        <label for="cam_<?= $fName ?>" class="btn btn-sm btn-outline-success mb-0" style="font-size: 0.75rem;" title="Hacer foto con la cámara">
+                                            <i class="fa-solid fa-camera"></i>
+                                        </label>
                                     </div>
+
+                                    <!-- Input principal (galería/carpetas/archivos) -->
+                                    <input type="file" name="<?= $fName ?>" id="<?= $fName ?>"
+                                           class="d-none vad-photo-input"
+                                           accept="image/*"
+                                           data-field="<?= $fName ?>">
+                                    <!-- Input auxiliar cámara directa -->
+                                    <input type="file" id="cam_<?= $fName ?>"
+                                           class="d-none vad-camera-input"
+                                           accept="image/*" capture="environment"
+                                           data-field="<?= $fName ?>">
+
+                                    <input type="hidden" name="<?= $cName ?>" id="<?= $cName ?>" value="0">
+                                    <input type="hidden" name="ia_foto_url_<?= $fName ?>" id="ia_foto_url_<?= $fName ?>" value="">
                                 </div>
                             </div>
                             <?php endforeach; ?>
@@ -480,7 +569,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                 <!-- SECCIÓN 2: IDENTIFICACIÓN GENERAL Y TAXONOMÍA -->
                 <div class="card card-custom mb-4">
                     <div class="card-header bg-white border-bottom py-3">
-                        <h5 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-dna me-2 text-primary"></i>2. Identificación y Taxonomía Botánica Completa</h5>
+                        <h5 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-dna me-2 text-primary"></i>2. Identificación, Nombres Vulgares y Taxonomía Botánica</h5>
                     </div>
                     <div class="card-body p-4">
                         <div class="row g-3 mb-3">
@@ -493,20 +582,25 @@ require_once VIEWS_PATH . '/layouts/header.php';
                                     <option value="ambos" <?= $tipoVal === 'ambos' ? 'selected' : '' ?>>Semilla y Planta</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-semibold small">Nombre Común <span class="text-danger">*</span></label>
                                 <input type="text" name="nombre_comun" id="nombre_comun" class="form-control fw-bold" required
-                                       placeholder="Ej: Tomate Rosa de Barbastro" value="<?= htmlspecialchars(vVal('nombre_comun')) ?>">
+                                       placeholder="Ej: Tomate" value="<?= htmlspecialchars(vVal('nombre_comun')) ?>">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold small">Nombre Científico</label>
                                 <input type="text" name="nombre_cientifico" id="nombre_cientifico" class="form-control fst-italic"
                                        placeholder="Ej: Solanum lycopersicum L." value="<?= htmlspecialchars(vVal('nombre_cientifico')) ?>">
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label fw-semibold small">Variedad / Cultivar</label>
                                 <input type="text" name="variedad" id="variedad" class="form-control"
                                        placeholder="Ej: Muchamiel" value="<?= htmlspecialchars(vVal('variedad')) ?>">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold small">Nombres Vulgares más usados (separados por comas)</label>
+                                <input type="text" name="nombres_vulgares" id="nombres_vulgares" class="form-control"
+                                       placeholder="Ej: Jitomate, Tomatera, Tomatillo, Pera de huerta..." value="<?= htmlspecialchars(vVal('nombres_vulgares')) ?>">
                             </div>
                         </div>
 
@@ -704,7 +798,7 @@ require_once VIEWS_PATH . '/layouts/header.php';
                     <a href="<?= APP_URL ?>/vademecum" class="btn btn-light border px-4">Cancelar</a>
                     <button type="submit" class="btn btn-ag px-5 py-2 fw-bold">
                         <i class="fa-solid fa-floppy-disk me-2"></i>
-                        <?= $isEdit ? 'Guardar Cambios en Vademécum' : 'Guardar en mi Vademécum' ?>
+                        <?= $isEdit ? 'Guardar Cambios en Vademécum' : 'Guardar en Vademécum' ?>
                     </button>
                 </div>
             </form>
@@ -715,38 +809,100 @@ require_once VIEWS_PATH . '/layouts/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Previsualización de las 3 fotos y botón de limpiar
+    function showSlotPreview(field, srcUrl) {
+        var preview = document.getElementById('preview_' + field);
+        var placeholder = document.getElementById('placeholder_' + field);
+        var clearInput = document.getElementById('limpiar_' + field);
+        var clearBtn = document.querySelector('.btn-clear-photo[data-field="' + field + '"]');
+
+        if (preview) {
+            preview.src = srcUrl;
+            preview.classList.remove('d-none');
+        }
+        if (placeholder) placeholder.classList.add('d-none');
+        if (clearBtn) clearBtn.classList.remove('d-none');
+        if (clearInput) clearInput.value = '0';
+    }
+
+    function assignFileToMainInput(field, file) {
+        var mainInput = document.getElementById(field);
+        var iaUrlInput = document.getElementById('ia_foto_url_' + field);
+        if (iaUrlInput) iaUrlInput.value = '';
+
+        if (mainInput && window.DataTransfer) {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            mainInput.files = dt.files;
+        }
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            showSlotPreview(field, e.target.result);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 1. Selección desde galería / carpeta / archivos
     document.querySelectorAll('.vad-photo-input').forEach(function(input) {
         input.addEventListener('change', function() {
             var field = this.getAttribute('data-field');
-            var preview = document.getElementById('preview_' + field);
-            var placeholder = document.getElementById('placeholder_' + field);
-            var clearInput = document.getElementById('limpiar_' + field);
-            var clearBtn = document.querySelector('.btn-clear-photo[data-field="' + field + '"]');
-
+            var iaUrlInput = document.getElementById('ia_foto_url_' + field);
+            if (iaUrlInput) iaUrlInput.value = '';
             if (this.files && this.files[0]) {
                 var reader = new FileReader();
                 reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.classList.remove('d-none');
-                    placeholder.classList.add('d-none');
-                    if (clearBtn) clearBtn.classList.remove('d-none');
-                    if (clearInput) clearInput.value = '0';
+                    showSlotPreview(field, e.target.result);
                 };
                 reader.readAsDataURL(this.files[0]);
             }
         });
     });
 
+    // 2. Captura desde cámara directa
+    document.querySelectorAll('.vad-camera-input').forEach(function(camInput) {
+        camInput.addEventListener('change', function() {
+            var field = this.getAttribute('data-field');
+            if (this.files && this.files[0]) {
+                assignFileToMainInput(field, this.files[0]);
+            }
+        });
+    });
+
+    // 3. Drag & Drop sobre los 5 recuadros
+    document.querySelectorAll('.vad-photo-slot').forEach(function(slot) {
+        var field = slot.getAttribute('data-drop-field');
+        slot.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            slot.classList.add('vad-dragover');
+        });
+        slot.addEventListener('dragleave', function() {
+            slot.classList.remove('vad-dragover');
+        });
+        slot.addEventListener('drop', function(e) {
+            e.preventDefault();
+            slot.classList.remove('vad-dragover');
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                var f = e.dataTransfer.files[0];
+                if (f.type && f.type.indexOf('image/') === 0) {
+                    assignFileToMainInput(field, f);
+                }
+            }
+        });
+    });
+
+    // 4. Botón limpiar foto
     document.querySelectorAll('.btn-clear-photo').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var field = this.getAttribute('data-field');
             var input = document.getElementById(field);
+            var camInput = document.getElementById('cam_' + field);
             var preview = document.getElementById('preview_' + field);
             var placeholder = document.getElementById('placeholder_' + field);
             var clearInput = document.getElementById('limpiar_' + field);
+            var iaUrlInput = document.getElementById('ia_foto_url_' + field);
 
             if (input) input.value = '';
+            if (camInput) camInput.value = '';
+            if (iaUrlInput) iaUrlInput.value = '';
             if (preview) {
                 preview.src = '';
                 preview.classList.add('d-none');
@@ -757,9 +913,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 2. Consulta Multimodal IA (Texto + hasta 3 fotografías)
+    // 5. Consulta Multimodal IA + Fotos Libres (Wikimedia Commons)
     var btnIa = document.getElementById('btnAnalizarIa');
     var statusBox = document.getElementById('aiStatusBox');
+    var photosBox = document.getElementById('aiPhotosBox');
 
     function setFieldSmart(id, value, overwrite) {
         var el = document.getElementById(id);
@@ -773,6 +930,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function escHtml(str) {
+        var d = document.createElement('div');
+        d.textContent = str || '';
+        return d.innerHTML;
+    }
+
+    window.asignarFotoLibreIa = function(field, url) {
+        var input = document.getElementById(field);
+        var iaUrlInput = document.getElementById('ia_foto_url_' + field);
+        if (input) input.value = '';
+        if (iaUrlInput) iaUrlInput.value = url;
+        showSlotPreview(field, url);
+    };
+
     if (btnIa) {
         btnIa.addEventListener('click', function() {
             var form = document.getElementById('vademecumForm');
@@ -784,8 +955,10 @@ document.addEventListener('DOMContentLoaded', function() {
             btnIa.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analizando con IA...';
 
             statusBox.className = 'mt-3 alert alert-info border-0 mb-0 py-2 small';
-            statusBox.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-2"></i>Consultando taxonomía botánica y analizando fotografías disponibles...';
+            statusBox.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-2"></i>Consultando taxonomía, analizando fotografías y buscando imágenes de licencia libre...';
             statusBox.classList.remove('d-none');
+            photosBox.classList.add('d-none');
+            photosBox.innerHTML = '';
 
             fetch(window.APP_URL + '/api/vademecum/ia', {
                 method: 'POST',
@@ -803,6 +976,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var overwrite = document.getElementById('aiOverwrite').checked;
 
                 setFieldSmart('nombre_comun', d.nombre_comun, overwrite);
+                setFieldSmart('nombres_vulgares', d.nombres_vulgares, overwrite);
                 setFieldSmart('nombre_cientifico', d.nombre_cientifico, overwrite);
                 setFieldSmart('variedad', d.variedad, overwrite);
 
@@ -837,18 +1011,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('fuente_ia').value = d.fuente_ia;
                 }
 
-                var msgOk = '<strong><i class="fa-solid fa-circle-check me-1"></i>Ficha actualizada</strong> (' + (d.fuente_ia || 'IA') + ').';
+                var msgOk = '<strong><i class="fa-solid fa-circle-check me-1"></i>Ficha actualizada</strong> (' + escHtml(d.fuente_ia || 'IA') + ').';
                 if (d.identificacion_confianza) {
-                    msgOk += ' Confianza: <span class="badge bg-dark text-uppercase">' + d.identificacion_confianza + '</span>.';
+                    msgOk += ' Confianza: <span class="badge bg-dark text-uppercase">' + escHtml(d.identificacion_confianza) + '</span>.';
                 }
                 if (d.identificacion_notas) {
-                    msgOk += '<div class="mt-1">' + d.identificacion_notas + '</div>';
+                    msgOk += '<div class="mt-1">' + escHtml(d.identificacion_notas) + '</div>';
                 }
 
                 statusBox.className = 'mt-3 alert alert-success border-0 mb-0 py-2 small text-dark';
                 statusBox.innerHTML = msgOk;
+
+                // Mostrar fotos libres encontradas (Wikimedia Commons / Dominio Público)
+                if (d.fotos_sugeridas && d.fotos_sugeridas.length > 0) {
+                    var pHtml = '<div class="bg-white text-dark rounded-3 p-3">';
+                    pHtml += '<div class="fw-bold small text-primary mb-2"><i class="fa-solid fa-images me-1"></i>Fotografías de Licencia Libre localizadas (Planta / Semilla) — Pulsa para asignar:</div>';
+                    pHtml += '<div class="row g-2">';
+                    d.fotos_sugeridas.forEach(function(foto) {
+                        var safeUrl = escHtml(foto.url);
+                        pHtml += '<div class="col-md-3 col-6"><div class="border rounded p-2 h-100 d-flex flex-column justify-content-between">';
+                        pHtml += '<img src="' + safeUrl + '" class="img-fluid rounded mb-1" style="height:95px; width:100%; object-fit:cover;">';
+                        pHtml += '<div class="mb-1"><span class="badge bg-success" style="font-size:0.65rem;">' + escHtml(foto.licencia) + '</span> <span class="badge bg-secondary" style="font-size:0.65rem;">' + escHtml(foto.tipo) + '</span></div>';
+                        pHtml += '<div class="d-flex flex-column gap-1">';
+                        pHtml += '<button type="button" class="btn btn-outline-primary btn-sm py-0" style="font-size:0.72rem;" onclick="asignarFotoLibreIa(\'foto_planta_completa\', \'' + safeUrl + '\')">Usar en 1. Planta</button>';
+                        pHtml += '<button type="button" class="btn btn-outline-success btn-sm py-0" style="font-size:0.72rem;" onclick="asignarFotoLibreIa(\'foto_semilla\', \'' + safeUrl + '\')">Usar en 4. Semilla</button>';
+                        pHtml += '<button type="button" class="btn btn-outline-secondary btn-sm py-0" style="font-size:0.72rem;" onclick="asignarFotoLibreIa(\'foto_libre\', \'' + safeUrl + '\')">Usar en 5. Libre</button>';
+                        pHtml += '</div></div></div>';
+                    });
+                    pHtml += '</div></div>';
+                    photosBox.innerHTML = pHtml;
+                    photosBox.classList.remove('d-none');
+                }
             })
-            .catch(function(err) {
+            .catch(function() {
                 statusBox.className = 'mt-3 alert alert-danger border-0 mb-0 py-2 small';
                 statusBox.innerHTML = '<i class="fa-solid fa-circle-exclamation me-2"></i>Error de conexión al consultar la IA.';
             })

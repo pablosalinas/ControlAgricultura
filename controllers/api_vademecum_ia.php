@@ -37,7 +37,9 @@ if ($idVademecum > 0) {
 $photoMap = array(
     'planta_completa' => array('field' => 'foto_planta_completa', 'clear' => 'limpiar_foto_planta_completa'),
     'tallo_hojas'     => array('field' => 'foto_tallo_hojas', 'clear' => 'limpiar_foto_tallo_hojas'),
-    'flor'            => array('field' => 'foto_flor', 'clear' => 'limpiar_foto_flor')
+    'flor'            => array('field' => 'foto_flor', 'clear' => 'limpiar_foto_flor'),
+    'semilla'         => array('field' => 'foto_semilla', 'clear' => 'limpiar_foto_semilla'),
+    'libre'           => array('field' => 'foto_libre', 'clear' => 'limpiar_foto_libre')
 );
 
 $allowedExts = array('jpg', 'jpeg', 'png', 'webp');

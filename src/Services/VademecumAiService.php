@@ -55,7 +55,9 @@ class VademecumAiService {
         $photoLabels = array(
             'planta_completa' => 'Foto 1: Planta completa (porte general)',
             'tallo_hojas'     => 'Foto 2: Zona de tallo y hojas',
-            'flor'            => 'Foto 3: Flor / inflorescencia'
+            'flor'            => 'Foto 3: Flor / inflorescencia',
+            'semilla'         => 'Foto 4: Simiente / semilla',
+            'libre'           => 'Foto 5: Fotografía adicional del usuario'
         );
 
         foreach ($photoLabels as $key => $label) {
@@ -94,6 +96,10 @@ class VademecumAiService {
                         }
                     }
                 }
+                $geminiResult['fotos_sugeridas'] = self::searchOpenLicensePhotos(
+                    !empty($geminiResult['nombre_cientifico']) ? $geminiResult['nombre_cientifico'] : '',
+                    !empty($geminiResult['nombre_comun']) ? $geminiResult['nombre_comun'] : $searchTerm
+                );
                 return $geminiResult;
             } elseif ($geminiResult && !empty($geminiResult['error_detail'])) {
                 $geminiError = $geminiResult['error_detail'];
@@ -124,6 +130,10 @@ class VademecumAiService {
             if (!empty($avisoFotos)) {
                 $fallbackResult['identificacion_notas'] = $avisoFotos . (!empty($fallbackResult['identificacion_notas']) ? ' ' . $fallbackResult['identificacion_notas'] : '');
             }
+            $fallbackResult['fotos_sugeridas'] = self::searchOpenLicensePhotos(
+                !empty($fallbackResult['nombre_cientifico']) ? $fallbackResult['nombre_cientifico'] : '',
+                !empty($fallbackResult['nombre_comun']) ? $fallbackResult['nombre_comun'] : $searchTerm
+            );
             return $fallbackResult;
         }
 
@@ -219,6 +229,7 @@ class VademecumAiService {
             '  "identificacion_confianza": "alta | media | baja",' . "\n" .
             '  "identificacion_notas": "Explicación breve de los rasgos observados en las fotos o fuentes usadas",' . "\n" .
             '  "nombre_comun": "Nombre común en español",' . "\n" .
+            '  "nombres_vulgares": "Lista separada por comas de los nombres vulgares o populares más usados en español (ej: Jitomate, Tomatera, Tomatillo)",' . "\n" .
             '  "nombre_cientifico": "Nombre científico completo en latín (ej: Solanum lycopersicum L.)",' . "\n" .
             '  "variedad": "Variedad o cultivar si aplica, o vacío",' . "\n" .
             '  "tax_reino": "Plantae",' . "\n" .
@@ -392,6 +403,7 @@ class VademecumAiService {
                 'identificacion_confianza' => 'media',
                 'identificacion_notas'     => 'Datos obtenidos mediante consulta botánica contrastada (' . (isset($cropData['fuente']) ? $cropData['fuente'] : 'Catálogo + GBIF') . ').',
                 'nombre_comun'             => isset($cropData['nombre_comun']) ? $cropData['nombre_comun'] : ucfirst($query),
+                'nombres_vulgares'         => '',
                 'nombre_cientifico'        => !empty($cientifico) ? $cientifico : (!empty($gbif['nombre_cientifico']) ? $gbif['nombre_cientifico'] : ''),
                 'variedad'                 => isset($cropData['variedad']) ? $cropData['variedad'] : '',
                 'tax_reino'                => !empty($gbif['tax_reino']) ? $gbif['tax_reino'] : 'Plantae',
@@ -428,6 +440,7 @@ class VademecumAiService {
                 'identificacion_confianza' => 'media',
                 'identificacion_notas'     => 'Taxonomía botánica oficial obtenida desde GBIF.',
                 'nombre_comun'             => ucfirst($query),
+                'nombres_vulgares'         => '',
                 'nombre_cientifico'        => $gbifDirect['nombre_cientifico'],
                 'variedad'                 => '',
                 'tax_reino'                => $gbifDirect['tax_reino'],
@@ -458,5 +471,88 @@ class VademecumAiService {
         }
 
         return null;
+    }
+
+    /**
+     * Busca fotografías de dominio público / licencia libre (CC0, PD, CC-BY) de la planta y semilla
+     * en Wikimedia Commons y Wikipedia.
+     */
+    public static function searchOpenLicensePhotos($scientificName, $commonName) {
+        $results = array();
+        $baseName = trim(!empty($scientificName) ? $scientificName : $commonName);
+        if (empty($baseName)) {
+            return $results;
+        }
+
+        // Limpiar autoría botánica (ej: "Solanum lycopersicum L." -> "Solanum lycopersicum")
+        $cleanSci = preg_replace('/\s+[A-Z][a-z]*\.(\s+.*)?$/', '', $baseName);
+        $cleanSci = trim($cleanSci);
+
+        $queries = array(
+            array('q' => $cleanSci, 'tipo' => 'planta'),
+            array('q' => $cleanSci . ' seed', 'tipo' => 'semilla')
+        );
+
+        $seenUrls = array();
+
+        foreach ($queries as $qItem) {
+            $url = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="
+                 . urlencode($qItem['q'])
+                 . "&gsrnamespace=6&gsrlimit=6&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=800&format=json";
+
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'AgroDietarioBot/2.0 (vademecum)');
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $resp = curl_exec($ch);
+            curl_close($ch);
+
+            if (!$resp) continue;
+            $json = json_decode($resp, true);
+            if (empty($json['query']['pages']) || !is_array($json['query']['pages'])) continue;
+
+            foreach ($json['query']['pages'] as $page) {
+                if (empty($page['imageinfo'][0])) continue;
+                $info = $page['imageinfo'][0];
+                $mime = isset($info['mime']) ? strtolower($info['mime']) : '';
+                if (!in_array($mime, array('image/jpeg', 'image/png', 'image/webp'))) {
+                    continue;
+                }
+
+                $imgUrl = !empty($info['thumburl']) ? $info['thumburl'] : (!empty($info['url']) ? $info['url'] : '');
+                if (empty($imgUrl) || isset($seenUrls[$imgUrl])) continue;
+
+                $meta = isset($info['extmetadata']) ? $info['extmetadata'] : array();
+                $licShort = !empty($meta['LicenseShortName']['value']) ? strip_tags($meta['LicenseShortName']['value']) : '';
+
+                // Priorizar licencias libres / sin copyright restrictivo (CC0, Public domain, PDM, CC BY, CC BY-SA)
+                if (!empty($licShort) && !preg_match('/(CC0|Public domain|PDM|CC[\s\-]BY)/i', $licShort)) {
+                    continue;
+                }
+
+                $seenUrls[$imgUrl] = true;
+                $titleClean = !empty($page['title']) ? preg_replace('/^File:/i', '', $page['title']) : 'Imagen botánica';
+
+                $results[] = array(
+                    'tipo'      => $qItem['tipo'],
+                    'titulo'    => $titleClean,
+                    'url'       => $imgUrl,
+                    'licencia'  => !empty($licShort) ? $licShort : 'Wikimedia Commons',
+                    'es_cc0_pd' => (preg_match('/(CC0|Public domain|PDM)/i', $licShort) ? 1 : 0)
+                );
+
+                if (count($results) >= 6) {
+                    break 2;
+                }
+            }
+        }
+
+        // Ordenar poniendo primero CC0 / Dominio Público
+        usort($results, function($a, $b) {
+            return $b['es_cc0_pd'] - $a['es_cc0_pd'];
+        });
+
+        return array_slice($results, 0, 4);
     }
 }

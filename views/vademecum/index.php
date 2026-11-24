@@ -61,25 +61,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtCopy = $db->prepare("
                     INSERT INTO vademecum_semillas_plantas (
                         id_propietario, id_usuario_creador, tipo_registro,
-                        nombre_comun, nombre_cientifico, variedad,
+                        nombre_comun, nombres_vulgares, nombre_cientifico, variedad,
                         tax_reino, tax_division, tax_clase, tax_orden, tax_familia, tax_genero, tax_especie, tax_subespecie,
                         es_transgenico, detalle_transgenico, origen_semilla,
                         caracteristicas_semilla, caracteristicas_planta,
                         fecha_siembra, fecha_crecimiento, fecha_recoleccion,
                         estado_tierra, abono_es_ecologico, tipo_abono,
                         enfermedades_plagas, tratamiento_es_ecologico, tratamiento_enfermedades,
-                        foto_planta_completa, foto_tallo_hojas, foto_flor,
+                        foto_planta_completa, foto_tallo_hojas, foto_flor, foto_semilla, foto_libre,
                         notas, fuente_ia, url_referencia, activo
                     ) VALUES (
                         :prop, :uid, :tipo_reg,
-                        :comun, :cien, :var,
+                        :comun, :vulgares, :cien, :var,
                         :t_rei, :t_div, :t_cla, :t_ord, :t_fam, :t_gen, :t_esp, :t_sub,
                         :transg, :det_transg, :origen,
                         :c_sem, :c_pla,
                         :f_siem, :f_crec, :f_reco,
                         :tierra, :ab_eco, :t_abono,
                         :enf, :tr_eco, :trat,
-                        :f_planta, :f_tallo, :f_flor,
+                        :f_planta, :f_tallo, :f_flor, :f_semilla, :f_libre,
                         :notas, :fuente, :url, 1
                     )
                 ");
@@ -88,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':uid'        => $userId ?: null,
                     ':tipo_reg'   => $src['tipo_registro'],
                     ':comun'      => $src['nombre_comun'],
+                    ':vulgares'   => isset($src['nombres_vulgares']) ? $src['nombres_vulgares'] : null,
                     ':cien'       => $src['nombre_cientifico'],
                     ':var'        => $src['variedad'],
                     ':t_rei'      => $src['tax_reino'],
@@ -115,6 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':f_planta'   => $src['foto_planta_completa'],
                     ':f_tallo'    => $src['foto_tallo_hojas'],
                     ':f_flor'     => $src['foto_flor'],
+                    ':f_semilla'  => isset($src['foto_semilla']) ? $src['foto_semilla'] : null,
+                    ':f_libre'    => isset($src['foto_libre']) ? $src['foto_libre'] : null,
                     ':notas'      => $src['notas'],
                     ':fuente'     => $src['fuente_ia'],
                     ':url'        => $src['url_referencia']
@@ -217,7 +220,7 @@ $sql = "
 ";
 
 if (!empty($filtroQ)) {
-    $sql .= " AND (v.nombre_comun LIKE :q OR v.nombre_cientifico LIKE :q OR v.variedad LIKE :q OR v.tax_familia LIKE :q OR v.tax_especie LIKE :q OR v.enfermedades_plagas LIKE :q)";
+    $sql .= " AND (v.nombre_comun LIKE :q OR v.nombres_vulgares LIKE :q OR v.nombre_cientifico LIKE :q OR v.variedad LIKE :q OR v.tax_familia LIKE :q OR v.tax_especie LIKE :q OR v.enfermedades_plagas LIKE :q)";
     $params[':q'] = '%' . $filtroQ . '%';
 }
 
@@ -366,10 +369,14 @@ if ($isSuperAdmin) {
                 if (!empty($item['foto_planta_completa'])) $thumb = $item['foto_planta_completa'];
                 elseif (!empty($item['foto_flor'])) $thumb = $item['foto_flor'];
                 elseif (!empty($item['foto_tallo_hojas'])) $thumb = $item['foto_tallo_hojas'];
+                elseif (!empty($item['foto_semilla'])) $thumb = $item['foto_semilla'];
+                elseif (!empty($item['foto_libre'])) $thumb = $item['foto_libre'];
 
                 $numFotos = (!empty($item['foto_planta_completa']) ? 1 : 0)
                           + (!empty($item['foto_tallo_hojas']) ? 1 : 0)
-                          + (!empty($item['foto_flor']) ? 1 : 0);
+                          + (!empty($item['foto_flor']) ? 1 : 0)
+                          + (!empty($item['foto_semilla']) ? 1 : 0)
+                          + (!empty($item['foto_libre']) ? 1 : 0);
 
                 $esPropioExplotacion = VademecumAccess::isOwnOrSameTenant($item, $tenantId, $userId);
                 $autorFull = trim((isset($item['autor_nombre']) ? $item['autor_nombre'] : '') . ' ' . (isset($item['autor_apellidos']) ? $item['autor_apellidos'] : ''));
@@ -401,13 +408,16 @@ if ($isSuperAdmin) {
 
                         <div class="position-absolute bottom-0 end-0 p-2">
                             <span class="badge bg-light text-dark shadow-sm">
-                                <i class="fa-solid fa-camera me-1 text-primary"></i><?= $numFotos ?>/3 fotos
+                                <i class="fa-solid fa-camera me-1 text-primary"></i><?= $numFotos ?>/5 fotos
                             </span>
                         </div>
                     </div>
 
                     <div class="card-body d-flex flex-column flex-grow-1 p-3">
                         <h5 class="fw-bold mb-0 text-primary"><?= htmlspecialchars($item['nombre_comun']) ?></h5>
+                        <?php if (!empty($item['nombres_vulgares'])): ?>
+                            <div class="small text-secondary mb-1"><i class="fa-solid fa-tags me-1"></i><?= htmlspecialchars($item['nombres_vulgares']) ?></div>
+                        <?php endif; ?>
                         <?php if (!empty($item['nombre_cientifico'])): ?>
                             <div class="small fst-italic text-muted mb-1"><?= htmlspecialchars($item['nombre_cientifico']) ?></div>
                         <?php endif; ?>
@@ -630,14 +640,16 @@ document.addEventListener('DOMContentLoaded', function() {
             var photoDefs = [
                 { key: 'foto_planta_completa', label: '1. Planta Completa' },
                 { key: 'foto_tallo_hojas', label: '2. Tallo y Hojas' },
-                { key: 'foto_flor', label: '3. Flor' }
+                { key: 'foto_flor', label: '3. Flor' },
+                { key: 'foto_semilla', label: '4. Simiente / Semilla' },
+                { key: 'foto_libre', label: '5. Foto Libre' }
             ];
             photoDefs.forEach(function(pd) {
                 var url = item[pd.key] ? (window.APP_URL + '/' + item[pd.key].replace(/^\/+/, '')) : '';
-                photosHtml += '<div class="col-md-4 text-center"><div class="border rounded p-2 bg-light h-100">';
+                photosHtml += '<div class="col-md-4 col-lg text-center"><div class="border rounded p-2 bg-light h-100">';
                 photosHtml += '<div class="small fw-bold mb-1">' + pd.label + '</div>';
                 if (url) {
-                    photosHtml += '<img src="' + esc(url) + '" class="img-fluid rounded" style="max-height:170px; object-fit:cover;">';
+                    photosHtml += '<img src="' + esc(url) + '" class="img-fluid rounded" style="max-height:150px; object-fit:cover;">';
                 } else {
                     photosHtml += '<div class="text-muted small py-4">Sin foto</div>';
                 }
@@ -658,6 +670,9 @@ document.addEventListener('DOMContentLoaded', function() {
             taxHtml += '</div>';
 
             var html = photosHtml;
+            if (item.nombres_vulgares) {
+                html += '<div class="alert alert-light border py-2 px-3 small mb-3"><strong>Nombres vulgares más usados:</strong> ' + esc(item.nombres_vulgares) + '</div>';
+            }
             html += '<h6 class="fw-bold text-primary border-bottom pb-1">Taxonomía Botánica</h6>' + taxHtml;
 
             html += '<div class="row g-3 small">';
