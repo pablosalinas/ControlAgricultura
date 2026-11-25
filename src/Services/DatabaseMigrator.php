@@ -1050,10 +1050,14 @@ class DatabaseMigrator {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
-            // Columnas adicionales para Vademécum (nombres vulgares y fotos 4 y 5)
+            // Columnas adicionales para Vademécum (nombres vulgares, fotos 4 y 5, y 2 fotos de internet con licencia libre)
             self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'nombres_vulgares', 'TEXT NULL');
             self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'foto_semilla', 'VARCHAR(255) NULL');
             self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'foto_libre', 'VARCHAR(255) NULL');
+            self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'foto_internet_1', 'VARCHAR(500) NULL');
+            self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'foto_internet_1_licencia', 'VARCHAR(120) NULL');
+            self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'foto_internet_2', 'VARCHAR(500) NULL');
+            self::addColumnIfNotExists($pdo, 'vademecum_semillas_plantas', 'foto_internet_2_licencia', 'VARCHAR(120) NULL');
 
             // Clave opcional de Gemini API en configuracion_web para identificación multimodal
             self::addColumnIfNotExists($pdo, 'configuracion_web', 'gemini_api_key', 'VARCHAR(255) NULL');

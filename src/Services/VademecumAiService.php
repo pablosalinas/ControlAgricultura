@@ -53,10 +53,10 @@ class VademecumAiService {
         // Contar fotos válidas disponibles
         $validPhotos = array();
         $photoLabels = array(
-            'planta_completa' => 'Foto 1: Planta completa (porte general)',
-            'tallo_hojas'     => 'Foto 2: Zona de tallo y hojas',
-            'flor'            => 'Foto 3: Flor / inflorescencia',
-            'semilla'         => 'Foto 4: Simiente / semilla',
+            'semilla'         => 'Foto 1: Simiente / semilla',
+            'planta_completa' => 'Foto 2: Planta completa (porte general)',
+            'tallo_hojas'     => 'Foto 3: Zona de tallo y hojas',
+            'flor'            => 'Foto 4: Flor / inflorescencia',
             'libre'           => 'Foto 5: Fotografía adicional del usuario'
         );
 
@@ -553,6 +553,31 @@ class VademecumAiService {
             return $b['es_cc0_pd'] - $a['es_cc0_pd'];
         });
 
-        return array_slice($results, 0, 4);
+        // Si tenemos menos de 2 fotos, intentar obtener la imagen principal de Wikipedia ES
+        if (count($results) < 2 && !empty($commonName)) {
+            $wikiUrl = "https://es.wikipedia.org/api/rest_v1/page/summary/" . urlencode(str_replace(' ', '_', trim($commonName)));
+            $chW = curl_init($wikiUrl);
+            curl_setopt($chW, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($chW, CURLOPT_TIMEOUT, 3);
+            curl_setopt($chW, CURLOPT_USERAGENT, 'AgroDietarioBot/2.0 (vademecum)');
+            curl_setopt($chW, CURLOPT_SSL_VERIFYPEER, false);
+            $wResp = curl_exec($chW);
+            curl_close($chW);
+            if ($wResp) {
+                $wJson = json_decode($wResp, true);
+                $wImg = !empty($wJson['thumbnail']['source']) ? $wJson['thumbnail']['source'] : (!empty($wJson['originalimage']['source']) ? $wJson['originalimage']['source'] : '');
+                if (!empty($wImg) && !isset($seenUrls[$wImg])) {
+                    $results[] = array(
+                        'tipo'      => 'planta',
+                        'titulo'    => $commonName . ' (Wikipedia)',
+                        'url'       => $wImg,
+                        'licencia'  => 'Wikimedia / Wikipedia Commons',
+                        'es_cc0_pd' => 0
+                    );
+                }
+            }
+        }
+
+        return array_slice($results, 0, 6);
     }
 }

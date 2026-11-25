@@ -69,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         estado_tierra, abono_es_ecologico, tipo_abono,
                         enfermedades_plagas, tratamiento_es_ecologico, tratamiento_enfermedades,
                         foto_planta_completa, foto_tallo_hojas, foto_flor, foto_semilla, foto_libre,
+                        foto_internet_1, foto_internet_1_licencia, foto_internet_2, foto_internet_2_licencia,
                         notas, fuente_ia, url_referencia, activo
                     ) VALUES (
                         :prop, :uid, :tipo_reg,
@@ -80,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         :tierra, :ab_eco, :t_abono,
                         :enf, :tr_eco, :trat,
                         :f_planta, :f_tallo, :f_flor, :f_semilla, :f_libre,
+                        :f_int1, :f_int1_lic, :f_int2, :f_int2_lic,
                         :notas, :fuente, :url, 1
                     )
                 ");
@@ -118,6 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':f_flor'     => $src['foto_flor'],
                     ':f_semilla'  => isset($src['foto_semilla']) ? $src['foto_semilla'] : null,
                     ':f_libre'    => isset($src['foto_libre']) ? $src['foto_libre'] : null,
+                    ':f_int1'     => isset($src['foto_internet_1']) ? $src['foto_internet_1'] : null,
+                    ':f_int1_lic' => isset($src['foto_internet_1_licencia']) ? $src['foto_internet_1_licencia'] : null,
+                    ':f_int2'     => isset($src['foto_internet_2']) ? $src['foto_internet_2'] : null,
+                    ':f_int2_lic' => isset($src['foto_internet_2_licencia']) ? $src['foto_internet_2_licencia'] : null,
                     ':notas'      => $src['notas'],
                     ':fuente'     => $src['fuente_ia'],
                     ':url'        => $src['url_referencia']
@@ -366,16 +372,23 @@ if ($isSuperAdmin) {
         <div class="row g-4">
             <?php foreach ($items as $item):
                 $thumb = '';
-                if (!empty($item['foto_planta_completa'])) $thumb = $item['foto_planta_completa'];
+                if (!empty($item['foto_semilla'])) $thumb = $item['foto_semilla'];
+                elseif (!empty($item['foto_planta_completa'])) $thumb = $item['foto_planta_completa'];
                 elseif (!empty($item['foto_flor'])) $thumb = $item['foto_flor'];
                 elseif (!empty($item['foto_tallo_hojas'])) $thumb = $item['foto_tallo_hojas'];
-                elseif (!empty($item['foto_semilla'])) $thumb = $item['foto_semilla'];
                 elseif (!empty($item['foto_libre'])) $thumb = $item['foto_libre'];
+                elseif (!empty($item['foto_internet_1'])) $thumb = $item['foto_internet_1'];
+                elseif (!empty($item['foto_internet_2'])) $thumb = $item['foto_internet_2'];
 
-                $numFotos = (!empty($item['foto_planta_completa']) ? 1 : 0)
+                $thumbUrl = '';
+                if (!empty($thumb)) {
+                    $thumbUrl = preg_match('#^https?://#i', $thumb) ? $thumb : (APP_URL . '/' . ltrim($thumb, '/'));
+                }
+
+                $numFotos = (!empty($item['foto_semilla']) ? 1 : 0)
+                          + (!empty($item['foto_planta_completa']) ? 1 : 0)
                           + (!empty($item['foto_tallo_hojas']) ? 1 : 0)
                           + (!empty($item['foto_flor']) ? 1 : 0)
-                          + (!empty($item['foto_semilla']) ? 1 : 0)
                           + (!empty($item['foto_libre']) ? 1 : 0);
 
                 $esPropioExplotacion = VademecumAccess::isOwnOrSameTenant($item, $tenantId, $userId);
@@ -384,8 +397,8 @@ if ($isSuperAdmin) {
             <div class="col-md-6 col-lg-4">
                 <div class="card card-custom h-100 overflow-hidden d-flex flex-column">
                     <div class="position-relative" style="height: 170px; background: #e2e8f0;">
-                        <?php if ($thumb): ?>
-                            <img src="<?= APP_URL . '/' . htmlspecialchars(ltrim($thumb, '/')) ?>"
+                        <?php if ($thumbUrl): ?>
+                            <img src="<?= htmlspecialchars($thumbUrl) ?>"
                                  class="w-100 h-100" style="object-fit: cover;" alt="<?= htmlspecialchars($item['nombre_comun']) ?>">
                         <?php else: ?>
                             <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted">
@@ -636,12 +649,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnEd.classList.add('d-none');
             }
 
-            var photosHtml = '<div class="row g-2 mb-4">';
+            var photosHtml = '<div class="row g-2 mb-3">';
             var photoDefs = [
-                { key: 'foto_planta_completa', label: '1. Planta Completa' },
-                { key: 'foto_tallo_hojas', label: '2. Tallo y Hojas' },
-                { key: 'foto_flor', label: '3. Flor' },
-                { key: 'foto_semilla', label: '4. Simiente / Semilla' },
+                { key: 'foto_semilla', label: '1. Simiente / Semilla' },
+                { key: 'foto_planta_completa', label: '2. Planta Completa' },
+                { key: 'foto_tallo_hojas', label: '3. Tallo y Hojas' },
+                { key: 'foto_flor', label: '4. Flor' },
                 { key: 'foto_libre', label: '5. Foto Libre' }
             ];
             photoDefs.forEach(function(pd) {
@@ -656,6 +669,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 photosHtml += '</div></div>';
             });
             photosHtml += '</div>';
+
+            if (item.foto_internet_1 || item.foto_internet_2) {
+                photosHtml += '<div class="row g-2 mb-4">';
+                var intDefs = [
+                    { key: 'foto_internet_1', lic: 'foto_internet_1_licencia', label: 'Foto Internet 1 (Licencia Libre)' },
+                    { key: 'foto_internet_2', lic: 'foto_internet_2_licencia', label: 'Foto Internet 2 (Licencia Libre)' }
+                ];
+                intDefs.forEach(function(id) {
+                    if (item[id.key]) {
+                        photosHtml += '<div class="col-md-6 text-center"><div class="border rounded p-2 bg-white h-100">';
+                        photosHtml += '<div class="small fw-bold text-primary mb-1"><i class="fa-solid fa-globe me-1"></i>' + id.label;
+                        if (item[id.lic]) photosHtml += ' <span class="badge bg-success ms-1">' + esc(item[id.lic]) + '</span>';
+                        photosHtml += '</div>';
+                        photosHtml += '<img src="' + esc(item[id.key]) + '" class="img-fluid rounded" style="max-height:150px; object-fit:cover;">';
+                        photosHtml += '</div></div>';
+                    }
+                });
+                photosHtml += '</div>';
+            }
 
             var taxHtml = '<div class="row g-2 mb-3 small">';
             var taxes = [

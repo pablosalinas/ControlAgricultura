@@ -170,6 +170,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error
     );
 
+    $fotoInternet1 = trim(isset($_POST['foto_internet_1']) ? $_POST['foto_internet_1'] : '');
+    $fotoInternet1Lic = trim(isset($_POST['foto_internet_1_licencia']) ? $_POST['foto_internet_1_licencia'] : '');
+    $fotoInternet2 = trim(isset($_POST['foto_internet_2']) ? $_POST['foto_internet_2'] : '');
+    $fotoInternet2Lic = trim(isset($_POST['foto_internet_2_licencia']) ? $_POST['foto_internet_2_licencia'] : '');
+
     if (empty($nombreComun)) {
         $error = 'El nombre común de la semilla o planta es obligatorio.';
     }
@@ -211,6 +216,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         foto_flor = :f_flor,
                         foto_semilla = :f_semilla,
                         foto_libre = :f_libre,
+                        foto_internet_1 = :f_int1,
+                        foto_internet_1_licencia = :f_int1_lic,
+                        foto_internet_2 = :f_int2,
+                        foto_internet_2_licencia = :f_int2_lic,
                         notas = :notas,
                         fuente_ia = :fuente,
                         url_referencia = :url
@@ -249,6 +258,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':f_flor'     => $fotoFlor,
                     ':f_semilla'  => $fotoSemilla,
                     ':f_libre'    => $fotoLibre,
+                    ':f_int1'     => $fotoInternet1 ?: null,
+                    ':f_int1_lic' => $fotoInternet1Lic ?: null,
+                    ':f_int2'     => $fotoInternet2 ?: null,
+                    ':f_int2_lic' => $fotoInternet2Lic ?: null,
                     ':notas'      => $notas ?: null,
                     ':fuente'     => $fuenteIa ?: null,
                     ':url'        => $urlRef ?: null,
@@ -266,6 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         estado_tierra, abono_es_ecologico, tipo_abono,
                         enfermedades_plagas, tratamiento_es_ecologico, tratamiento_enfermedades,
                         foto_planta_completa, foto_tallo_hojas, foto_flor, foto_semilla, foto_libre,
+                        foto_internet_1, foto_internet_1_licencia, foto_internet_2, foto_internet_2_licencia,
                         notas, fuente_ia, url_referencia, activo
                     ) VALUES (
                         :prop, :uid, :tipo_reg,
@@ -277,6 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         :tierra, :ab_eco, :t_abono,
                         :enf, :tr_eco, :trat,
                         :f_planta, :f_tallo, :f_flor, :f_semilla, :f_libre,
+                        :f_int1, :f_int1_lic, :f_int2, :f_int2_lic,
                         :notas, :fuente, :url, 1
                     )
                 ");
@@ -315,6 +330,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':f_flor'     => $fotoFlor,
                     ':f_semilla'  => $fotoSemilla,
                     ':f_libre'    => $fotoLibre,
+                    ':f_int1'     => $fotoInternet1 ?: null,
+                    ':f_int1_lic' => $fotoInternet1Lic ?: null,
+                    ':f_int2'     => $fotoInternet2 ?: null,
+                    ':f_int2_lic' => $fotoInternet2Lic ?: null,
                     ':notas'      => $notas ?: null,
                     ':fuente'     => $fuenteIa ?: null,
                     ':url'        => $urlRef ?: null
@@ -472,32 +491,32 @@ require_once VIEWS_PATH . '/layouts/header.php';
                             <?php
                             $photoSlots = array(
                                 array(
+                                    'field' => 'foto_semilla',
+                                    'clear' => 'limpiar_foto_semilla',
+                                    'title' => '1. Simiente / Semilla',
+                                    'hint'  => 'Detalle de la semilla o grano',
+                                    'icon'  => 'fa-seedling'
+                                ),
+                                array(
                                     'field' => 'foto_planta_completa',
                                     'clear' => 'limpiar_foto_planta_completa',
-                                    'title' => '1. Planta Completa',
+                                    'title' => '2. Planta Completa',
                                     'hint'  => 'Porte general y estructura',
                                     'icon'  => 'fa-tree'
                                 ),
                                 array(
                                     'field' => 'foto_tallo_hojas',
                                     'clear' => 'limpiar_foto_tallo_hojas',
-                                    'title' => '2. Tallo y Hojas',
+                                    'title' => '3. Tallo y Hojas',
                                     'hint'  => 'Nervios, pecíolo y tallo',
                                     'icon'  => 'fa-leaf'
                                 ),
                                 array(
                                     'field' => 'foto_flor',
                                     'clear' => 'limpiar_foto_flor',
-                                    'title' => '3. Flor / Inflorescencia',
+                                    'title' => '4. Flor / Inflorescencia',
                                     'hint'  => 'Pétalos, sépalos y estambres',
                                     'icon'  => 'fa-fan'
-                                ),
-                                array(
-                                    'field' => 'foto_semilla',
-                                    'clear' => 'limpiar_foto_semilla',
-                                    'title' => '4. Simiente / Semilla',
-                                    'hint'  => 'Detalle de la semilla o grano',
-                                    'icon'  => 'fa-seedling'
                                 ),
                                 array(
                                     'field' => 'foto_libre',
@@ -559,6 +578,54 @@ require_once VIEWS_PATH . '/layouts/header.php';
 
                                     <input type="hidden" name="<?= $cName ?>" id="<?= $cName ?>" value="0">
                                     <input type="hidden" name="ia_foto_url_<?= $fName ?>" id="ia_foto_url_<?= $fName ?>" value="">
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <hr class="my-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-globe me-2 text-success"></i>Fotos de Internet de Referencia (Licencia Libre · Propuestas por la IA para confirmar)</h6>
+                                <small class="text-muted">Al buscar con la IA se localizan hasta 2 fotografías libres (Wikimedia Commons / Dominio Público) para guardarlas junto a tu ficha.</small>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <?php
+                            $internetSlots = array(
+                                array('num' => 1, 'urlField' => 'foto_internet_1', 'licField' => 'foto_internet_1_licencia', 'title' => 'Foto Internet 1 (Planta / Referencia)'),
+                                array('num' => 2, 'urlField' => 'foto_internet_2', 'licField' => 'foto_internet_2_licencia', 'title' => 'Foto Internet 2 (Semilla / Detalle)')
+                            );
+                            foreach ($internetSlots as $iSlot):
+                                $uField = $iSlot['urlField'];
+                                $lField = $iSlot['licField'];
+                                $uVal = vVal($uField);
+                                $lVal = vVal($lField);
+                            ?>
+                            <div class="col-md-6">
+                                <div class="border rounded-3 p-3 bg-light h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold small text-dark"><?= $iSlot['title'] ?></span>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span id="badge_<?= $uField ?>" class="badge bg-success <?= empty($lVal) ? 'd-none' : '' ?>"><?= htmlspecialchars($lVal) ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-clear-internet <?= empty($uVal) ? 'd-none' : '' ?>"
+                                                    data-field="<?= $uField ?>" data-lic="<?= $lField ?>" title="Quitar foto de internet">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="text-center mb-2">
+                                        <img src="<?= htmlspecialchars($uVal) ?>" id="preview_<?= $uField ?>"
+                                             class="img-fluid rounded <?= empty($uVal) ? 'd-none' : '' ?>"
+                                             style="max-height: 150px; object-fit: cover;" alt="<?= htmlspecialchars($iSlot['title']) ?>">
+                                        <div id="placeholder_<?= $uField ?>" class="py-3 text-muted small <?= !empty($uVal) ? 'd-none' : '' ?>">
+                                            <i class="fa-solid fa-image opacity-50 me-1"></i>Se rellenará al buscar con la IA o pegando una URL libre
+                                        </div>
+                                    </div>
+                                    <input type="url" name="<?= $uField ?>" id="<?= $uField ?>" class="form-control form-control-sm internet-url-input"
+                                           data-field="<?= $uField ?>" data-lic="<?= $lField ?>"
+                                           placeholder="https://upload.wikimedia.org/..." value="<?= htmlspecialchars($uVal) ?>">
+                                    <input type="hidden" name="<?= $lField ?>" id="<?= $lField ?>" value="<?= htmlspecialchars($lVal) ?>">
                                 </div>
                             </div>
                             <?php endforeach; ?>
@@ -1022,20 +1089,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusBox.className = 'mt-3 alert alert-success border-0 mb-0 py-2 small text-dark';
                 statusBox.innerHTML = msgOk;
 
-                // Mostrar fotos libres encontradas (Wikimedia Commons / Dominio Público)
+                // Asignar y mostrar fotos libres encontradas (Wikimedia Commons / Dominio Público)
+                window.setInternetPhoto = function(uField, lField, url, lic) {
+                    var uEl = document.getElementById(uField);
+                    var lEl = document.getElementById(lField);
+                    var prev = document.getElementById('preview_' + uField);
+                    var ph = document.getElementById('placeholder_' + uField);
+                    var badge = document.getElementById('badge_' + uField);
+                    var clrBtn = document.querySelector('.btn-clear-internet[data-field="' + uField + '"]');
+
+                    if (uEl) uEl.value = url || '';
+                    if (lEl) lEl.value = lic || '';
+
+                    if (url) {
+                        if (prev) { prev.src = url; prev.classList.remove('d-none'); }
+                        if (ph) ph.classList.add('d-none');
+                        if (clrBtn) clrBtn.classList.remove('d-none');
+                        if (badge) {
+                            badge.textContent = lic || 'Licencia libre';
+                            badge.classList.remove('d-none');
+                        }
+                    } else {
+                        if (prev) { prev.src = ''; prev.classList.add('d-none'); }
+                        if (ph) ph.classList.remove('d-none');
+                        if (clrBtn) clrBtn.classList.add('d-none');
+                        if (badge) { badge.textContent = ''; badge.classList.add('d-none'); }
+                    }
+                };
+
                 if (d.fotos_sugeridas && d.fotos_sugeridas.length > 0) {
+                    // Auto-rellenar Foto Internet 1 y Foto Internet 2 para confirmar junto al resto de datos
+                    var f1 = d.fotos_sugeridas[0];
+                    if (f1 && (overwrite || !document.getElementById('foto_internet_1').value.trim())) {
+                        setInternetPhoto('foto_internet_1', 'foto_internet_1_licencia', f1.url, f1.licencia);
+                    }
+                    if (d.fotos_sugeridas.length > 1) {
+                        var f2 = d.fotos_sugeridas[1];
+                        if (f2 && (overwrite || !document.getElementById('foto_internet_2').value.trim())) {
+                            setInternetPhoto('foto_internet_2', 'foto_internet_2_licencia', f2.url, f2.licencia);
+                        }
+                    }
+
                     var pHtml = '<div class="bg-white text-dark rounded-3 p-3">';
-                    pHtml += '<div class="fw-bold small text-primary mb-2"><i class="fa-solid fa-images me-1"></i>Fotografías de Licencia Libre localizadas (Planta / Semilla) — Pulsa para asignar:</div>';
+                    pHtml += '<div class="fw-bold small text-primary mb-2"><i class="fa-solid fa-images me-1"></i>Fotos de Licencia Libre localizadas (ya pre-asignadas en Fotos de Internet 1 y 2 — puedes cambiarlas aquí):</div>';
                     pHtml += '<div class="row g-2">';
                     d.fotos_sugeridas.forEach(function(foto) {
                         var safeUrl = escHtml(foto.url);
-                        pHtml += '<div class="col-md-3 col-6"><div class="border rounded p-2 h-100 d-flex flex-column justify-content-between">';
-                        pHtml += '<img src="' + safeUrl + '" class="img-fluid rounded mb-1" style="height:95px; width:100%; object-fit:cover;">';
-                        pHtml += '<div class="mb-1"><span class="badge bg-success" style="font-size:0.65rem;">' + escHtml(foto.licencia) + '</span> <span class="badge bg-secondary" style="font-size:0.65rem;">' + escHtml(foto.tipo) + '</span></div>';
+                        var safeLic = escHtml(foto.licencia || 'Licencia libre');
+                        pHtml += '<div class="col-md-2 col-6"><div class="border rounded p-2 h-100 d-flex flex-column justify-content-between">';
+                        pHtml += '<img src="' + safeUrl + '" class="img-fluid rounded mb-1" style="height:85px; width:100%; object-fit:cover;">';
+                        pHtml += '<div class="mb-1"><span class="badge bg-success" style="font-size:0.62rem;">' + safeLic + '</span> <span class="badge bg-secondary" style="font-size:0.62rem;">' + escHtml(foto.tipo) + '</span></div>';
                         pHtml += '<div class="d-flex flex-column gap-1">';
-                        pHtml += '<button type="button" class="btn btn-outline-primary btn-sm py-0" style="font-size:0.72rem;" onclick="asignarFotoLibreIa(\'foto_planta_completa\', \'' + safeUrl + '\')">Usar en 1. Planta</button>';
-                        pHtml += '<button type="button" class="btn btn-outline-success btn-sm py-0" style="font-size:0.72rem;" onclick="asignarFotoLibreIa(\'foto_semilla\', \'' + safeUrl + '\')">Usar en 4. Semilla</button>';
-                        pHtml += '<button type="button" class="btn btn-outline-secondary btn-sm py-0" style="font-size:0.72rem;" onclick="asignarFotoLibreIa(\'foto_libre\', \'' + safeUrl + '\')">Usar en 5. Libre</button>';
+                        pHtml += '<button type="button" class="btn btn-outline-primary btn-sm py-0" style="font-size:0.68rem;" onclick="setInternetPhoto(\'foto_internet_1\', \'foto_internet_1_licencia\', \'' + safeUrl + '\', \'' + safeLic + '\')">Internet 1</button>';
+                        pHtml += '<button type="button" class="btn btn-outline-info btn-sm py-0" style="font-size:0.68rem;" onclick="setInternetPhoto(\'foto_internet_2\', \'foto_internet_2_licencia\', \'' + safeUrl + '\', \'' + safeLic + '\')">Internet 2</button>';
+                        pHtml += '<button type="button" class="btn btn-outline-success btn-sm py-0" style="font-size:0.68rem;" onclick="asignarFotoLibreIa(\'foto_semilla\', \'' + safeUrl + '\')">1. Semilla</button>';
+                        pHtml += '<button type="button" class="btn btn-outline-secondary btn-sm py-0" style="font-size:0.68rem;" onclick="asignarFotoLibreIa(\'foto_planta_completa\', \'' + safeUrl + '\')">2. Planta</button>';
                         pHtml += '</div></div></div>';
                     });
                     pHtml += '</div></div>';
@@ -1053,6 +1161,44 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // 6. Limpiar o editar manualmente las 2 fotos de Internet
+    document.querySelectorAll('.btn-clear-internet').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var uField = this.getAttribute('data-field');
+            var lField = this.getAttribute('data-lic');
+            if (window.setInternetPhoto) {
+                window.setInternetPhoto(uField, lField, '', '');
+            } else {
+                document.getElementById(uField).value = '';
+                document.getElementById(lField).value = '';
+                document.getElementById('preview_' + uField).classList.add('d-none');
+                document.getElementById('placeholder_' + uField).classList.remove('d-none');
+                this.classList.add('d-none');
+            }
+        });
+    });
+
+    document.querySelectorAll('.internet-url-input').forEach(function(inp) {
+        inp.addEventListener('change', function() {
+            var uField = this.getAttribute('data-field');
+            var lField = this.getAttribute('data-lic');
+            var url = this.value.trim();
+            var prev = document.getElementById('preview_' + uField);
+            var ph = document.getElementById('placeholder_' + uField);
+            var clrBtn = document.querySelector('.btn-clear-internet[data-field="' + uField + '"]');
+            if (url) {
+                if (prev) { prev.src = url; prev.classList.remove('d-none'); }
+                if (ph) ph.classList.add('d-none');
+                if (clrBtn) clrBtn.classList.remove('d-none');
+            } else {
+                if (prev) { prev.src = ''; prev.classList.add('d-none'); }
+                if (ph) ph.classList.remove('d-none');
+                if (clrBtn) clrBtn.classList.add('d-none');
+                document.getElementById(lField).value = '';
+            }
+        });
+    });
 });
 </script>
 
